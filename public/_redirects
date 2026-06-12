@@ -1,0 +1,4 @@
+# SPA fallback: any path that is NOT /api/* should serve index.html so the React
+# router can take over. /api/* is handled by functions/api/*.
+/api/*    /api/:splat   200
+/*        /index.html   200
