@@ -2,6 +2,10 @@ name = "esprey-expenses-app"
 compatibility_date = "2026-06-01"
 pages_build_output_dir = "./dist"
 
+# Plain (non-secret) environment variables
+[vars]
+CARL_EMAIL = "cesprey@gmail.com"
+
 # D1 database binding (SQLite)
 [[d1_databases]]
 binding = "DB"
