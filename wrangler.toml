@@ -1,0 +1,18 @@
+name = "esprey-expenses"
+compatibility_date = "2026-06-01"
+pages_build_output_dir = "./dist"
+
+# Bind the D1 database (we'll fill in the ID after creating it)
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "esprey-expenses"
+# database_id = "PASTE_DATABASE_ID_HERE"
+
+# Bind the R2 bucket for receipt images
+# [[r2_buckets]]
+# binding = "RECEIPTS"
+# bucket_name = "esprey-expenses-receipts"
+
+# Environment variables — actual secrets are set via the Cloudflare dashboard,
+# not committed here. ANTHROPIC_API_KEY, RESEND_API_KEY, SESSION_SECRET,
+# CARL_EMAIL.
