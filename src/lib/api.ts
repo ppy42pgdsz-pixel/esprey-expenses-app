@@ -1,4 +1,4 @@
-import type { Person, Receipt } from "./types";
+import type { Company, Person, Receipt } from "./types";
 
 async function jsonFetch<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const res = await fetch(input, init);
@@ -51,12 +51,20 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }),
-  listCompanies: () => jsonFetch<{ companies: string[] }>("/api/companies"),
+  listCompanies: () => jsonFetch<{ companies: Company[] }>("/api/companies"),
+  getCompany: (name: string) =>
+    jsonFetch<{ company: Company }>(`/api/companies/${encodeURIComponent(name)}`),
   addCompany: (name: string) =>
     jsonFetch<{ company: string }>("/api/companies", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
+    }),
+  patchCompany: (name: string, patch: Partial<Company>) =>
+    jsonFetch<{ company: Company }>(`/api/companies/${encodeURIComponent(name)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
     }),
   deleteCompany: (name: string) =>
     jsonFetch<{ deleted: string }>(`/api/companies/${encodeURIComponent(name)}`, { method: "DELETE" }),
@@ -108,6 +116,8 @@ export const api = {
         downloadUrl: string;
       }>;
     }>("/api/reports"),
+  deleteReport: (file: string) =>
+    jsonFetch<{ deleted: string }>(`/api/reports/delete?file=${encodeURIComponent(file)}`, { method: "DELETE" }),
   generateReport: (month: string, company: string | null, currency: string | null) =>
     jsonFetch<{
       month: string;

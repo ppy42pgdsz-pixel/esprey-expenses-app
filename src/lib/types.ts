@@ -23,6 +23,16 @@ export interface Person {
   is_favorite: number; // 0 or 1
 }
 
+export interface Company {
+  name: string;                        // short name (PK, used in receipts)
+  full_name: string | null;            // full legal/billing name (used in invoices)
+  address_line1: string | null;
+  address_line2: string | null;
+  address_country: string | null;
+  vat_number: string | null;
+  created_at: number;
+}
+
 export function parseAttendees(raw: string | null): string[] {
   if (!raw) return [];
   try {

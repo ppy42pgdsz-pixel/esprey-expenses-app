@@ -24,8 +24,13 @@ CREATE INDEX IF NOT EXISTS idx_receipts_company  ON receipts (company);
 CREATE INDEX IF NOT EXISTS idx_receipts_date     ON receipts (receipt_date);
 
 CREATE TABLE IF NOT EXISTS companies (
-  name        TEXT PRIMARY KEY,
-  created_at  INTEGER NOT NULL
+  name             TEXT PRIMARY KEY,   -- short name (used in receipts + dropdowns)
+  full_name        TEXT,                -- full legal/billing name (for invoices)
+  address_line1    TEXT,
+  address_line2    TEXT,
+  address_country  TEXT,
+  vat_number       TEXT,
+  created_at       INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS people (

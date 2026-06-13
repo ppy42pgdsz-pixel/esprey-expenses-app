@@ -48,7 +48,7 @@ export default function ReceiptDetail() {
       setCategory(rec.category ?? "");
       setNotes(rec.notes ?? "");
       setAttendees(parseAttendees(rec.attendees));
-      setCompanies(c.companies);
+      setCompanies(c.companies.map((co) => co.name));
       setPeople(p.people);
       setCategories(cat.categories);
       setCurrencies(cur.currencies);

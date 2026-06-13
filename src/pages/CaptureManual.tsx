@@ -41,7 +41,7 @@ export default function CaptureManual() {
           api.listPeople(),
           api.listCurrencies(),
         ]);
-        setCompanies(c.companies);
+        setCompanies(c.companies.map((co) => co.name));
         setCategories(cat.categories);
         setPeople(p.people);
         setCurrencies(cur.currencies);

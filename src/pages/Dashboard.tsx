@@ -6,7 +6,7 @@ import { parseAttendees } from "../lib/types";
 
 export default function Dashboard() {
   const [receipts, setReceipts] = useState<Receipt[] | null>(null);
-  const [companies, setCompanies] = useState<string[]>([]);
+  const [companies, setCompanies] = useState<string[]>([]); // short names only on dashboard
   const [filter, setFilter] = useState<string>("all");
   const [err, setErr] = useState<string | null>(null);
 
@@ -16,7 +16,7 @@ export default function Dashboard() {
       const f = filter === "all" ? undefined : filter;
       const [r, c] = await Promise.all([api.listReceipts(f), api.listCompanies()]);
       setReceipts(r.receipts);
-      setCompanies(c.companies);
+      setCompanies(c.companies.map((co) => co.name));
     } catch (e) {
       setErr((e as Error).message);
     }

@@ -21,32 +21,50 @@ export default function Settings() {
 
 /* ------------ Companies ------------ */
 function CompaniesSection() {
-  const [items, setItems] = useState<string[]>([]);
+  const [items, setItems] = useState<Array<{ name: string; full_name: string | null }>>([]);
   const [err, setErr] = useState<string | null>(null);
 
   async function reload() {
     setErr(null);
-    try { const r = await api.listCompanies(); setItems(r.companies); }
-    catch (e) { setErr((e as Error).message); }
+    try {
+      const r = await api.listCompanies();
+      setItems(r.companies.map((c) => ({ name: c.name, full_name: c.full_name })));
+    } catch (e) { setErr((e as Error).message); }
   }
   useEffect(() => { reload(); }, []);
 
   return (
     <Section title="Companies" err={err}>
-      <ManagedList
-        items={items}
-        renderItem={(name) => name}
-        onDelete={async (name) => {
-          if (!confirm(`Delete "${name}" from the company list?`)) return;
-          await api.deleteCompany(name);
-          reload();
-        }}
+      <div className="manage-list">
+        {items.length === 0 && <div className="empty small">No entries yet.</div>}
+        {items.map((c) => (
+          <div key={c.name} className="manage-row">
+            <Link to={`/companies/${encodeURIComponent(c.name)}`} className="manage-name manage-link">
+              <strong>{c.name}</strong>
+              {c.full_name && c.full_name !== c.name && (
+                <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>· {c.full_name}</span>
+              )}
+            </Link>
+            <button
+              type="button"
+              className="danger-btn small"
+              onClick={async () => {
+                if (!confirm(`Delete "${c.name}" from the company list?`)) return;
+                await api.deleteCompany(c.name);
+                reload();
+              }}
+            >Delete</button>
+          </div>
+        ))}
+      </div>
+      <AddInput
+        placeholder="+ Add company"
         onAdd={async (name) => {
           await api.addCompany(name);
           reload();
         }}
-        addLabel="+ Add company"
       />
+      <div className="hint small">Tap a company name to edit address &amp; full legal name (used in invoices).</div>
     </Section>
   );
 }

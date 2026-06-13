@@ -17,6 +17,15 @@ import {
 import type { BankDetails, BillFrom, ReceiptRow } from "./types";
 import { convert, type FxRates } from "./fx";
 
+export interface BilledToCompany {
+  name: string;
+  full_name: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  address_country: string | null;
+  vat_number: string | null;
+}
+
 const PAGE_W = PageSizes.A4[0]; // 595
 const PAGE_H = PageSizes.A4[1]; // 842
 const MARGIN = 40;
@@ -35,6 +44,7 @@ export async function buildMonthlyReport(opts: {
   monthLabel: string;          // e.g. "June 2026"
   reportLabel: string;         // e.g. "June 2026 — Waraba Gold — EUR"
   companyName: string | null;  // null = "All companies"
+  billedToCompany?: BilledToCompany | null;
   currencyFilter: string | null;
   fxRates?: FxRates | null;    // set when currencyFilter is non-null
   fxError?: string | null;
@@ -190,6 +200,7 @@ function drawInvoice(
   opts: {
     monthLabel: string;
     companyName: string | null;
+    billedToCompany?: BilledToCompany | null;
     currencyFilter: string | null;
     fxRates?: FxRates | null;
     fxError?: string | null;
@@ -240,11 +251,30 @@ function drawInvoice(
   page.drawText("B I L L E D   T O", {
     x: MARGIN, y: midTopY, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45),
   });
-  const billTo = opts.companyName ?? "Multiple companies";
-  page.drawText(billTo, {
+
+  // Use the full legal name if we have it, otherwise the short name.
+  const co = opts.billedToCompany;
+  const billToTitle = (co?.full_name && co.full_name.trim()) || opts.companyName || "Multiple companies";
+  page.drawText(billToTitle, {
     x: MARGIN, y: midTopY - 18, size: 12, font: fonts.bold, color: rgb(0.1, 0.1, 0.1),
   });
 
+  // Address lines under the name (if set).
+  let addrY = midTopY - 33;
+  const addrLines: string[] = [];
+  if (co?.address_line1) addrLines.push(co.address_line1);
+  if (co?.address_line2) addrLines.push(co.address_line2);
+  if (co?.address_country) addrLines.push(co.address_country);
+  for (const line of addrLines) {
+    page.drawText(line, { x: MARGIN, y: addrY, size: 9, font: fonts.reg, color: rgb(0.35, 0.35, 0.35) });
+    addrY -= 12;
+  }
+  if (co?.vat_number) {
+    page.drawText(`VAT: ${co.vat_number}`, { x: MARGIN, y: addrY, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45) });
+    addrY -= 12;
+  }
+
+  // FOR block on the right, vertically aligned to billing block top.
   page.drawText("F O R", {
     x: PAGE_W / 2 + 20, y: midTopY, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45),
   });
@@ -253,7 +283,8 @@ function drawInvoice(
     x: PAGE_W / 2 + 20, y: midTopY - 18, size: 11, font: fonts.reg, color: rgb(0.2, 0.2, 0.2),
   });
 
-  y -= 60;
+  // Advance y past the taller of the two columns (addresses can push down).
+  y = Math.min(midTopY - 60, addrY - 8);
 
   // ----- Line items table -----
   const useFx = !!(opts.currencyFilter && opts.fxRates);

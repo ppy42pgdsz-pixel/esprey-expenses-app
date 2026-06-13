@@ -5,6 +5,7 @@
 
 import type { Env, ReceiptRow } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
+import type { CompanyRow } from "../companies";
 import { buildMonthlyReport } from "../../_lib/pdf";
 import { sendReportEmail } from "../../_lib/resend";
 import { fetchLatestRates, type FxRates } from "../../_lib/fx";
@@ -61,11 +62,22 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     catch (e) { fxError = (e as Error).message; }
   }
 
+  // If a specific company was selected, pull its full record (full name + address)
+  // so the invoice's BILLED TO block is properly formatted.
+  let billedToCompany: CompanyRow | null = null;
+  if (company) {
+    billedToCompany = await env.DB.prepare(
+      `SELECT name, full_name, address_line1, address_line2, address_country, vat_number, created_at
+         FROM companies WHERE name = ?`
+    ).bind(company).first<CompanyRow>();
+  }
+
   // Build PDF.
   const pdfBytes = await buildMonthlyReport({
     monthLabel,
     reportLabel,
     companyName: company,
+    billedToCompany,
     currencyFilter: currency,
     fxRates,
     fxError,

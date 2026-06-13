@@ -12,10 +12,8 @@ interface ReportSummary {
 }
 
 function defaultMonth() {
-  // Default to previous month — the most common case.
+  // Default to the current month (you usually generate mid-month for review).
   const now = new Date();
-  now.setUTCDate(1);
-  now.setUTCMonth(now.getUTCMonth() - 1);
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
@@ -42,7 +40,7 @@ export default function Reports() {
         api.listCurrencies(),
       ]);
       setReports(r.reports);
-      setCompanies(c.companies);
+      setCompanies(c.companies.map((co) => co.name));
       setCurrencies(cur.currencies);
     } catch (e) {
       setErr((e as Error).message);
@@ -129,7 +127,18 @@ export default function Reports() {
                   {" · saved "}
                   {new Date(r.uploadedAt).toLocaleDateString()}
                 </span>
-                <a href={r.downloadUrl} className="primary-btn small">Download</a>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <a href={r.downloadUrl} className="primary-btn small">Download</a>
+                  <button
+                    type="button"
+                    className="danger-btn small"
+                    onClick={async () => {
+                      if (!confirm(`Delete ${r.file}?`)) return;
+                      await api.deleteReport(r.file);
+                      reload();
+                    }}
+                  >Delete</button>
+                </div>
               </div>
             ))}
           </div>

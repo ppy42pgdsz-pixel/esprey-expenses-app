@@ -162,6 +162,8 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
 .manage-row { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--line-soft); }
 .manage-row:last-child { border-bottom: none; }
 .manage-name { flex: 1; }
+.manage-link { text-decoration: none; color: var(--ink); }
+.manage-link:hover { color: var(--accent); }
 .danger-btn.small { font-size: 12px; padding: 4px 8px; }
 .star-btn {
   background: transparent; border: none; font-size: 18px; color: #d4d4d4; cursor: pointer; padding: 0 4px;
