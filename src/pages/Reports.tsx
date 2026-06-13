@@ -2,15 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 
-interface ReportSummary {
-  file: string;
-  month: string;
-  companySlug: string;
-  sizeBytes: number;
-  uploadedAt: number;
-  downloadUrl: string;
-}
-
 function defaultMonth() {
   // Default to the current month (you usually generate mid-month for review).
   const now = new Date();
@@ -18,7 +9,6 @@ function defaultMonth() {
 }
 
 export default function Reports() {
-  const [reports, setReports] = useState<ReportSummary[]>([]);
   const [companies, setCompanies] = useState<string[]>([]);
   const [currencies, setCurrencies] = useState<Array<{ code: string; name: string }>>([]);
   const [month, setMonth] = useState(defaultMonth());
@@ -31,29 +21,24 @@ export default function Reports() {
     downloadUrl: string; emailedTo: string | null; emailError: string | null;
   }>(null);
 
-  async function reload() {
-    setErr(null);
-    try {
-      const [r, c, cur] = await Promise.all([
-        api.listReports(),
-        api.listCompanies(),
-        api.listCurrencies(),
-      ]);
-      setReports(r.reports);
-      setCompanies(c.companies.map((co) => co.name));
-      setCurrencies(cur.currencies);
-    } catch (e) {
-      setErr((e as Error).message);
-    }
-  }
-  useEffect(() => { reload(); }, []);
+  useEffect(() => {
+    (async () => {
+      setErr(null);
+      try {
+        const [c, cur] = await Promise.all([api.listCompanies(), api.listCurrencies()]);
+        setCompanies(c.companies.map((co) => co.name));
+        setCurrencies(cur.currencies);
+      } catch (e) {
+        setErr((e as Error).message);
+      }
+    })();
+  }, []);
 
   async function generate() {
     setBusy(true); setErr(null); setLastResult(null);
     try {
       const res = await api.generateReport(month, company || null, currency || null);
       setLastResult(res);
-      reload();
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -110,40 +95,6 @@ export default function Reports() {
         )}
       </section>
 
-      <section className="settings-section">
-        <h2>Previously generated</h2>
-        {reports.length === 0 ? (
-          <div className="empty small">No reports yet.</div>
-        ) : (
-          <div className="manage-list">
-            {reports.map((r) => (
-              <div key={r.file} className="manage-row">
-                <span className="manage-name">
-                  <strong>{r.month}</strong>
-                  {" · "}
-                  {r.companySlug === "all" ? <em>all companies</em> : r.companySlug.replace(/-/g, " ")}
-                  {" · "}
-                  {fmtSize(r.sizeBytes)}
-                  {" · saved "}
-                  {new Date(r.uploadedAt).toLocaleDateString()}
-                </span>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <a href={r.downloadUrl} className="primary-btn small">Download</a>
-                  <button
-                    type="button"
-                    className="danger-btn small"
-                    onClick={async () => {
-                      if (!confirm(`Delete ${r.file}?`)) return;
-                      await api.deleteReport(r.file);
-                      reload();
-                    }}
-                  >Delete</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   );
 }
