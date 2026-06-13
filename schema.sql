@@ -39,6 +39,12 @@ CREATE TABLE IF NOT EXISTS categories (
   created_at  INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS currencies (
+  code        TEXT PRIMARY KEY,     -- ISO 4217 e.g. USD, EUR, XOF
+  name        TEXT NOT NULL,        -- human-readable, e.g. 'US Dollar'
+  created_at  INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS magic_tokens (
   token       TEXT PRIMARY KEY,
   expires_at  INTEGER NOT NULL,

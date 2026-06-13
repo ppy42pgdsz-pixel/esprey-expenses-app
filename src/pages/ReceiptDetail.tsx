@@ -5,6 +5,7 @@ import type { Person, Receipt } from "../lib/types";
 import { parseAttendees } from "../lib/types";
 import CompanyPicker from "../components/CompanyPicker";
 import PeoplePicker from "../components/PeoplePicker";
+import CurrencyPicker, { type Currency } from "../components/CurrencyPicker";
 
 export default function ReceiptDetail() {
   const { id = "" } = useParams();
@@ -13,6 +14,7 @@ export default function ReceiptDetail() {
   const [companies, setCompanies] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -29,11 +31,12 @@ export default function ReceiptDetail() {
   async function load() {
     setErr(null);
     try {
-      const [r, c, p, cat] = await Promise.all([
+      const [r, c, p, cat, cur] = await Promise.all([
         api.getReceipt(id),
         api.listCompanies(),
         api.listPeople(),
         api.listCategories(),
+        api.listCurrencies(),
       ]);
       const rec = r.receipt;
       setReceipt(rec);
@@ -48,6 +51,7 @@ export default function ReceiptDetail() {
       setCompanies(c.companies);
       setPeople(p.people);
       setCategories(cat.categories);
+      setCurrencies(cur.currencies);
     } catch (e) {
       setErr((e as Error).message);
     }
@@ -132,7 +136,15 @@ export default function ReceiptDetail() {
           <Field label="Vendor"   value={vendor}      onChange={setVendor} />
           <div className="row">
             <Field label="Amount" value={amount} onChange={setAmount} inputMode="decimal" />
-            <Field label="Currency" value={currency} onChange={setCurrency} placeholder="EUR / USD / …" />
+            <div className="field">
+              <span className="label">Currency</span>
+              <CurrencyPicker
+                currencies={currencies}
+                value={currency}
+                onChange={setCurrency}
+                onCurrencyAdded={(c) => setCurrencies((cur) => [...cur, c].sort((a, b) => a.code.localeCompare(b.code)))}
+              />
+            </div>
           </div>
           <Field label="Date" value={receiptDate} onChange={setReceiptDate} type="date" />
 

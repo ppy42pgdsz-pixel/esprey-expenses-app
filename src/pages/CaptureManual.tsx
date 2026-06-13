@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import type { Person } from "../lib/types";
 import CompanyPicker from "../components/CompanyPicker";
 import PeoplePicker from "../components/PeoplePicker";
+import CurrencyPicker, { type Currency } from "../components/CurrencyPicker";
 
 function todayISO() {
   const d = new Date();
@@ -18,6 +19,7 @@ export default function CaptureManual() {
   const [companies, setCompanies] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -33,14 +35,16 @@ export default function CaptureManual() {
   useEffect(() => {
     (async () => {
       try {
-        const [c, cat, p] = await Promise.all([
+        const [c, cat, p, cur] = await Promise.all([
           api.listCompanies(),
           api.listCategories(),
           api.listPeople(),
+          api.listCurrencies(),
         ]);
         setCompanies(c.companies);
         setCategories(cat.categories);
         setPeople(p.people);
+        setCurrencies(cur.currencies);
       } catch (e) {
         setErr((e as Error).message);
       }
@@ -93,10 +97,15 @@ export default function CaptureManual() {
             <span className="label">Amount *</span>
             <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0.00" />
           </label>
-          <label className="field">
+          <div className="field">
             <span className="label">Currency</span>
-            <input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="EUR" />
-          </label>
+            <CurrencyPicker
+              currencies={currencies}
+              value={currency}
+              onChange={setCurrency}
+              onCurrencyAdded={(c) => setCurrencies((cur) => [...cur, c].sort((a, b) => a.code.localeCompare(b.code)))}
+            />
+          </div>
         </div>
         <label className="field">
           <span className="label">Date</span>

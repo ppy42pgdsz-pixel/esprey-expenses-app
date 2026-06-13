@@ -14,6 +14,7 @@ export default function Settings() {
       <CompaniesSection />
       <PeopleSection />
       <CategoriesSection />
+      <CurrenciesSection />
     </div>
   );
 }
@@ -128,6 +129,77 @@ function CategoriesSection() {
         }}
         addLabel="+ Add category"
       />
+    </Section>
+  );
+}
+
+/* ------------ Currencies ------------ */
+function CurrenciesSection() {
+  const [items, setItems] = useState<Array<{ code: string; name: string }>>([]);
+  const [err, setErr] = useState<string | null>(null);
+  const [addCode, setAddCode] = useState("");
+  const [addName, setAddName] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function reload() {
+    setErr(null);
+    try { const r = await api.listCurrencies(); setItems(r.currencies); }
+    catch (e) { setErr((e as Error).message); }
+  }
+  useEffect(() => { reload(); }, []);
+
+  async function add() {
+    const c = addCode.trim().toUpperCase();
+    const n = addName.trim();
+    if (!c || !n) return;
+    setBusy(true);
+    try {
+      await api.addCurrency(c, n);
+      setAddCode(""); setAddName("");
+      reload();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <Section title="Currencies" err={err}>
+      <div className="manage-list">
+        {items.length === 0 && <div className="empty small">No entries yet.</div>}
+        {items.map((it) => (
+          <div key={it.code} className="manage-row">
+            <span className="manage-name"><strong>{it.code}</strong> — {it.name}</span>
+            <button
+              type="button"
+              className="danger-btn small"
+              onClick={async () => {
+                if (!confirm(`Delete "${it.code} — ${it.name}" from the currency list?`)) return;
+                await api.deleteCurrency(it.code);
+                reload();
+              }}
+            >Delete</button>
+          </div>
+        ))}
+      </div>
+      <div className="picker-add picker-add-currency">
+        <input
+          value={addCode}
+          onChange={(e) => setAddCode(e.target.value.toUpperCase())}
+          onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+          placeholder="CODE"
+          maxLength={4}
+          style={{ width: 70 }}
+        />
+        <input
+          value={addName}
+          onChange={(e) => setAddName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+          placeholder="Currency name"
+        />
+        <button type="button" className="primary-btn" disabled={busy || !addCode.trim() || !addName.trim()} onClick={add}>
+          Add
+        </button>
+      </div>
     </Section>
   );
 }

@@ -86,6 +86,16 @@ export const api = {
     }),
   deleteCategory: (name: string) =>
     jsonFetch<{ deleted: string }>(`/api/categories/${encodeURIComponent(name)}`, { method: "DELETE" }),
+
+  listCurrencies: () => jsonFetch<{ currencies: Array<{ code: string; name: string }> }>("/api/currencies"),
+  addCurrency: (code: string, name: string) =>
+    jsonFetch<{ currency: { code: string; name: string } }>("/api/currencies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, name }),
+    }),
+  deleteCurrency: (code: string) =>
+    jsonFetch<{ deleted: string }>(`/api/currencies/${encodeURIComponent(code)}`, { method: "DELETE" }),
 };
 
 export function imageUrl(id: string): string {
