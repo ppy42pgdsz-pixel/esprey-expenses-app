@@ -96,7 +96,11 @@ export default function ReceiptDetail() {
 
       <div className="detail-grid">
         <div className="detail-image">
-          <img src={imageUrl(id)} alt="receipt" />
+          {isImageReceipt(receipt) ? (
+            <img src={imageUrl(id)} alt="receipt" />
+          ) : (
+            <EmailBodyView id={id} />
+          )}
           <small>Uploaded {formatDate(receipt.uploaded_at)} · OCR: {receipt.ocr_status}</small>
         </div>
 
@@ -131,6 +135,27 @@ export default function ReceiptDetail() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function isImageReceipt(r: Receipt): boolean {
+  const key = (r.r2_key || "").toLowerCase();
+  return !key.endsWith(".txt") && !key.endsWith(".pdf");
+}
+
+function EmailBodyView({ id }: { id: string }) {
+  const [text, setText] = useState<string | null>(null);
+  useEffect(() => {
+    fetch(imageUrl(id))
+      .then(r => r.text())
+      .then(setText)
+      .catch(() => setText("(failed to load email body)"));
+  }, [id]);
+  return (
+    <div className="email-body-view">
+      <div className="email-body-header">✉️ Email receipt</div>
+      <pre className="email-body-text">{text ?? "Loading…"}</pre>
     </div>
   );
 }

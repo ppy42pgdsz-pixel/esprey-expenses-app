@@ -1,0 +1,18 @@
+name = "esprey-expenses-email"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 (same database the Pages app uses)
+[[d1_databases]]
+binding = "DB"
+database_name = "esprey-expenses-app"
+database_id = "a36389a8-49d4-4101-b7c0-fb0a17299e62"
+
+# R2 (same bucket the Pages app uses)
+[[r2_buckets]]
+binding = "RECEIPTS"
+bucket_name = "esprey-expenses-app-receipts"
+
+# ANTHROPIC_API_KEY is set as a secret via the Cloudflare dashboard
+# (Workers & Pages -> esprey-expenses-email -> Settings -> Variables and Secrets).

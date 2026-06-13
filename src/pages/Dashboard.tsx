@@ -63,7 +63,11 @@ export default function Dashboard() {
           {receipts.map(r => (
             <li key={r.id} className={r.company ? "cat" : "uncat"}>
               <Link to={`/receipt/${r.id}`} className="receipt-link">
-                <img src={imageUrl(r.id)} alt="" className="thumb" loading="lazy" />
+                {isImageReceipt(r) ? (
+                  <img src={imageUrl(r.id)} alt="" className="thumb" loading="lazy" />
+                ) : (
+                  <div className="thumb thumb-icon" aria-hidden>✉️</div>
+                )}
                 <div className="meta">
                   <div className="row1">
                     <strong>{r.vendor ?? "(unknown vendor)"}</strong>
@@ -97,4 +101,9 @@ function Stat({ n, label, warn }: { n: number; label: string; warn?: boolean }) 
       <div className="l">{label}</div>
     </div>
   );
+}
+
+function isImageReceipt(r: Receipt): boolean {
+  const key = (r.r2_key || "").toLowerCase();
+  return !key.endsWith(".txt") && !key.endsWith(".pdf");
 }
