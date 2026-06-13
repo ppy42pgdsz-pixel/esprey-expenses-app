@@ -75,6 +75,7 @@ export default function ReceiptDetail() {
       if (category && !categories.includes(category)) {
         setCategories([...categories, category].sort());
       }
+      navigate("/");
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -174,7 +175,7 @@ export default function ReceiptDetail() {
           </label>
 
           <button className="primary-btn full" onClick={save} disabled={saving}>
-            {saving ? "Saving…" : "Save changes"}
+            {saving ? "Saving…" : "Save & close"}
           </button>
         </div>
       </div>
