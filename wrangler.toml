@@ -5,7 +5,7 @@ pages_build_output_dir = "./dist"
 # Plain (non-secret) environment variables
 [vars]
 CARL_EMAIL = "cesprey@gmail.com"
-REPORT_FROM_ADDRESS = "reports@esprey.net"  # must match a Resend-verified domain
+REPORT_FROM_ADDRESS = "reports@send.esprey.net"  # must match a Resend-verified domain
 
 # D1 database binding (SQLite)
 [[d1_databases]]
