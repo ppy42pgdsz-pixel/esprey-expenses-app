@@ -3,7 +3,9 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 
 interface ReportSummary {
+  file: string;
   month: string;
+  companySlug: string;
   sizeBytes: number;
   uploadedAt: number;
   downloadUrl: string;
@@ -19,25 +21,32 @@ function defaultMonth() {
 
 export default function Reports() {
   const [reports, setReports] = useState<ReportSummary[]>([]);
+  const [companies, setCompanies] = useState<string[]>([]);
   const [month, setMonth] = useState(defaultMonth());
+  const [company, setCompany] = useState<string>(""); // "" = all companies
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<null | {
-    month: string; receipts: number; sizeBytes: number; downloadUrl: string;
-    emailedTo: string | null; emailError: string | null;
+    file: string; monthLabel: string; receipts: number; sizeBytes: number;
+    downloadUrl: string; emailedTo: string | null; emailError: string | null;
   }>(null);
 
   async function reload() {
     setErr(null);
-    try { setReports((await api.listReports()).reports); }
-    catch (e) { setErr((e as Error).message); }
+    try {
+      const [r, c] = await Promise.all([api.listReports(), api.listCompanies()]);
+      setReports(r.reports);
+      setCompanies(c.companies);
+    } catch (e) {
+      setErr((e as Error).message);
+    }
   }
   useEffect(() => { reload(); }, []);
 
   async function generate() {
     setBusy(true); setErr(null); setLastResult(null);
     try {
-      const res = await api.generateReport(month);
+      const res = await api.generateReport(month, company || null);
       setLastResult(res);
       reload();
     } catch (e) {
@@ -59,25 +68,31 @@ export default function Reports() {
 
       <section className="settings-section">
         <h2>Generate a report</h2>
-        <div className="picker-add">
-          <input
-            type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-          />
+        <div className="report-form">
+          <label className="field">
+            <span className="label">Month</span>
+            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+          </label>
+          <label className="field">
+            <span className="label">Company</span>
+            <select className="picker-select" value={company} onChange={(e) => setCompany(e.target.value)}>
+              <option value="">All companies (combined PDF)</option>
+              {companies.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
           <button type="button" className="primary-btn" onClick={generate} disabled={busy}>
             {busy ? "Generating…" : "Generate"}
           </button>
         </div>
         {lastResult && (
           <div className="report-result">
-            <div>✅ Generated <strong>{lastResult.month}</strong> · {lastResult.receipts} receipts · {fmtSize(lastResult.sizeBytes)}</div>
+            <div>✅ Generated <strong>{lastResult.monthLabel}</strong> · {lastResult.receipts} receipts · {fmtSize(lastResult.sizeBytes)}</div>
             <div><a href={lastResult.downloadUrl}>Download PDF</a></div>
             {lastResult.emailedTo
               ? <div>📧 Emailed to {lastResult.emailedTo}</div>
               : lastResult.emailError
                 ? <div className="warn-text">Email failed: {lastResult.emailError}</div>
-                : <div className="hint">Email not configured — set RESEND_API_KEY + REPORT_FROM_ADDRESS to enable automatic delivery.</div>
+                : <div className="hint">Email not configured (RESEND_API_KEY missing).</div>
             }
           </div>
         )}
@@ -90,8 +105,16 @@ export default function Reports() {
         ) : (
           <div className="manage-list">
             {reports.map((r) => (
-              <div key={r.month} className="manage-row">
-                <span className="manage-name"><strong>{r.month}</strong> · {fmtSize(r.sizeBytes)} · saved {new Date(r.uploadedAt).toLocaleDateString()}</span>
+              <div key={r.file} className="manage-row">
+                <span className="manage-name">
+                  <strong>{r.month}</strong>
+                  {" · "}
+                  {r.companySlug === "all" ? <em>all companies</em> : r.companySlug.replace(/-/g, " ")}
+                  {" · "}
+                  {fmtSize(r.sizeBytes)}
+                  {" · saved "}
+                  {new Date(r.uploadedAt).toLocaleDateString()}
+                </span>
                 <a href={r.downloadUrl} className="primary-btn small">Download</a>
               </div>
             ))}

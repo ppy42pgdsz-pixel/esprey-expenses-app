@@ -98,10 +98,22 @@ export const api = {
     jsonFetch<{ deleted: string }>(`/api/currencies/${encodeURIComponent(code)}`, { method: "DELETE" }),
 
   listReports: () =>
-    jsonFetch<{ reports: Array<{ month: string; sizeBytes: number; uploadedAt: number; downloadUrl: string }> }>("/api/reports"),
-  generateReport: (month: string) =>
+    jsonFetch<{
+      reports: Array<{
+        file: string;
+        month: string;
+        companySlug: string;
+        sizeBytes: number;
+        uploadedAt: number;
+        downloadUrl: string;
+      }>;
+    }>("/api/reports"),
+  generateReport: (month: string, company: string | null) =>
     jsonFetch<{
       month: string;
+      company: string | null;
+      file: string;
+      monthLabel: string;
       receipts: number;
       sizeBytes: number;
       downloadUrl: string;
@@ -110,7 +122,7 @@ export const api = {
     }>("/api/reports/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ month }),
+      body: JSON.stringify({ month, company }),
     }),
 };
 

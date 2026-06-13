@@ -1,6 +1,7 @@
 // POST /api/reports/generate
-// Body: { "month": "YYYY-MM" }
-// Builds the monthly PDF, stores it at reports/<month>.pdf in R2, and (if Resend is set up) emails it.
+// Body: { "month": "YYYY-MM", "company": "Waraba Gold" | null }
+// If company is null/omitted, generates a combined report for ALL companies.
+// PDF stored at reports/<month>__<slug>.pdf in R2 and (if Resend is set up) emailed.
 
 import type { Env, ReceiptRow } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
@@ -8,34 +9,60 @@ import { buildMonthlyReport } from "../../_lib/pdf";
 import { sendReportEmail } from "../../_lib/resend";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  let body: { month?: string };
-  try { body = (await request.json()) as { month?: string }; }
+  let body: { month?: string; company?: string | null };
+  try { body = (await request.json()) as typeof body; }
   catch { return jsonError(400, "invalid JSON body"); }
 
   const month = (body.month ?? "").trim();
   if (!/^\d{4}-\d{2}$/.test(month)) {
     return jsonError(400, "'month' must be in YYYY-MM format");
   }
+  const company = (body.company ?? "").trim() || null;
 
-  const { startMs, endMs, label } = monthBoundsUTC(month);
+  const { startMs, endMs, label: monthLabel } = monthBoundsUTC(month);
 
-  // 1. Pull receipts for the month (use receipt_date if present, otherwise uploaded_at).
-  const { results } = await env.DB.prepare(
-    `SELECT * FROM receipts
+  // Pull receipts for the month, optionally filtered by company.
+  const startISO = monthFirstDay(month);
+  const endISO = monthFirstDay(addMonth(month, 1));
+
+  let stmt;
+  if (company) {
+    stmt = env.DB.prepare(
+      `SELECT * FROM receipts
+       WHERE company = ?
+         AND (
+           (receipt_date IS NOT NULL AND receipt_date >= ? AND receipt_date < ?)
+           OR
+           (receipt_date IS NULL AND uploaded_at >= ? AND uploaded_at < ?)
+         )
+       ORDER BY receipt_date, uploaded_at`
+    ).bind(company, startISO, endISO, startMs, endMs);
+  } else {
+    stmt = env.DB.prepare(
+      `SELECT * FROM receipts
        WHERE (
          (receipt_date IS NOT NULL AND receipt_date >= ? AND receipt_date < ?)
          OR
          (receipt_date IS NULL AND uploaded_at >= ? AND uploaded_at < ?)
        )
        ORDER BY receipt_date, uploaded_at`
-  )
-    .bind(monthFirstDay(month), monthFirstDay(addMonth(month, 1)), startMs, endMs)
-    .all<ReceiptRow>();
+    ).bind(startISO, endISO, startMs, endMs);
+  }
+  const { results } = await stmt.all<ReceiptRow>();
   const receipts = results ?? [];
 
-  // 2. Build the PDF (in-memory).
+  // Compose labels & filenames.
+  const slug = company ? slugify(company) : "all";
+  const reportLabel = company ? `${monthLabel} — ${company}` : monthLabel;
+  const filename = company
+    ? `Expense Report - ${monthLabel} - ${company}.pdf`
+    : `Expense Report - ${monthLabel}.pdf`;
+  const r2Key = `reports/${month}__${slug}.pdf`;
+  const file = `${month}__${slug}.pdf`;
+
+  // Build PDF.
   const pdfBytes = await buildMonthlyReport({
-    monthLabel: label,
+    monthLabel: reportLabel,
     receipts,
     fetchOriginal: async (r2_key) => {
       if (!r2_key || r2_key.startsWith("manual:")) return null;
@@ -48,14 +75,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     generatedAt: new Date(),
   });
 
-  // 3. Save to R2.
-  const r2Key = `reports/${month}.pdf`;
+  // Save to R2.
   await env.RECEIPTS.put(r2Key, pdfBytes, {
     httpMetadata: { contentType: "application/pdf" },
-    customMetadata: { kind: "monthly-report", month },
+    customMetadata: { kind: "monthly-report", month, company: company ?? "" },
   });
 
-  // 4. Optionally email it.
+  // Email it.
   let emailedTo: string | null = null;
   let emailError: string | null = null;
   if (env.RESEND_API_KEY && env.REPORT_FROM_ADDRESS) {
@@ -64,9 +90,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         apiKey: env.RESEND_API_KEY,
         fromAddress: env.REPORT_FROM_ADDRESS,
         toAddress: env.CARL_EMAIL,
-        monthLabel: label,
+        monthLabel: reportLabel,
         pdfBytes,
-        filename: `Expense Report - ${label}.pdf`,
+        filename,
       });
       emailedTo = env.CARL_EMAIL;
     } catch (e) {
@@ -76,9 +102,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   return Response.json({
     month,
+    company,
+    file,
+    monthLabel: reportLabel,
     receipts: receipts.length,
     sizeBytes: pdfBytes.length,
-    downloadUrl: `/api/reports/${month}/download`,
+    downloadUrl: `/api/reports/download?file=${encodeURIComponent(file)}`,
     emailedTo,
     emailError,
   });
@@ -97,4 +126,11 @@ function addMonth(month: string, delta: number): string {
   const [y, m] = month.split("-").map(Number);
   const d = new Date(Date.UTC(y, m - 1 + delta, 1));
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+function slugify(s: string): string {
+  return s.toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "untitled";
 }
