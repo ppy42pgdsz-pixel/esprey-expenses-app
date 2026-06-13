@@ -11,6 +11,7 @@ export default function ReceiptDetail() {
   const navigate = useNavigate();
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [companies, setCompanies] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -21,16 +22,18 @@ export default function ReceiptDetail() {
   const [currency, setCurrency] = useState("");
   const [receiptDate, setReceiptDate] = useState("");
   const [company, setCompany] = useState("");
+  const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
   const [attendees, setAttendees] = useState<string[]>([]);
 
   async function load() {
     setErr(null);
     try {
-      const [r, c, p] = await Promise.all([
+      const [r, c, p, cat] = await Promise.all([
         api.getReceipt(id),
         api.listCompanies(),
         api.listPeople(),
+        api.listCategories(),
       ]);
       const rec = r.receipt;
       setReceipt(rec);
@@ -39,10 +42,12 @@ export default function ReceiptDetail() {
       setCurrency(rec.currency ?? "");
       setReceiptDate(rec.receipt_date ?? "");
       setCompany(rec.company ?? "");
+      setCategory(rec.category ?? "");
       setNotes(rec.notes ?? "");
       setAttendees(parseAttendees(rec.attendees));
       setCompanies(c.companies);
       setPeople(p.people);
+      setCategories(cat.categories);
     } catch (e) {
       setErr((e as Error).message);
     }
@@ -59,12 +64,16 @@ export default function ReceiptDetail() {
         currency: currency || null,
         receipt_date: receiptDate || null,
         company: company || null,
+        category: category || null,
         notes: notes || null,
         attendees: attendees as unknown as string, // server accepts array via PATCH
       });
       setReceipt(res.receipt);
       if (company && !companies.includes(company)) {
         setCompanies([...companies, company].sort());
+      }
+      if (category && !categories.includes(category)) {
+        setCategories([...categories, category].sort());
       }
     } catch (e) {
       setErr((e as Error).message);
@@ -133,6 +142,19 @@ export default function ReceiptDetail() {
                 setCompany(v);
                 if (v && !companies.includes(v)) setCompanies([...companies, v].sort());
               }}
+            />
+          </div>
+
+          <div className="field">
+            <span className="label">Category</span>
+            <CompanyPicker
+              companies={categories}
+              value={category}
+              onChange={(v) => {
+                setCategory(v);
+                if (v && !categories.includes(v)) setCategories([...categories, v].sort());
+              }}
+              noun="category"
             />
           </div>
 

@@ -12,7 +12,7 @@ export const onRequestGet: PagesFunction<Env, "id"> = async ({ env, params }) =>
   return Response.json({ receipt: row });
 };
 
-const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees"] as const;
+const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category"] as const;
 type EditableField = (typeof EDITABLE)[number];
 
 export const onRequestPatch: PagesFunction<Env, "id"> = async ({ request, env, params }) => {
@@ -68,6 +68,16 @@ export const onRequestPatch: PagesFunction<Env, "id"> = async ({ request, env, p
     const name = body.company.trim();
     await env.DB.prepare(
       `INSERT OR IGNORE INTO companies (name, created_at) VALUES (?, ?)`
+    )
+      .bind(name, Date.now())
+      .run();
+  }
+
+  // Same for category.
+  if (typeof body.category === "string" && body.category.trim()) {
+    const name = body.category.trim();
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO categories (name, created_at) VALUES (?, ?)`
     )
       .bind(name, Date.now())
       .run();

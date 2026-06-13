@@ -12,6 +12,7 @@ export interface Receipt {
   company: string | null;
   notes: string | null;
   attendees: string | null; // JSON-encoded array of names
+  category: string | null;
   ocr_raw: string | null;
   ocr_status: "pending" | "success" | "failed" | "manual";
   uploaded_at: number;

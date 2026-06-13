@@ -4,9 +4,11 @@ interface Props {
   companies: string[];
   value: string;
   onChange: (next: string) => void;
+  /** Singular noun shown in the placeholder and "add new" option. Defaults to "company". */
+  noun?: string;
 }
 
-export default function CompanyPicker({ companies, value, onChange }: Props) {
+export default function CompanyPicker({ companies, value, onChange, noun = "company" }: Props) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
 
@@ -21,7 +23,7 @@ export default function CompanyPicker({ companies, value, onChange }: Props) {
             if (e.key === "Enter") commit();
             if (e.key === "Escape") cancel();
           }}
-          placeholder="New company name"
+          placeholder={`New ${noun} name`}
         />
         <button type="button" className="primary-btn" onClick={commit}>Add</button>
         <button type="button" className="ghost-btn" onClick={cancel}>Cancel</button>
@@ -39,11 +41,11 @@ export default function CompanyPicker({ companies, value, onChange }: Props) {
         onChange(v);
       }}
     >
-      <option value="">— pick a company —</option>
+      <option value="">— pick a {noun} —</option>
       {companies.map((c) => (
         <option key={c} value={c}>{c}</option>
       ))}
-      <option value="__new__">+ Add new company…</option>
+      <option value="__new__">+ Add new {noun}…</option>
     </select>
   );
 

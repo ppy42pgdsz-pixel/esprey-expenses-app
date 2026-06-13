@@ -31,6 +31,7 @@ export default function Dashboard() {
   return (
     <div className="page dashboard">
       <header className="topbar">
+        <Link to="/settings" className="back" aria-label="Settings">⚙</Link>
         <h1>Expenses</h1>
         <Link to="/capture" className="primary-btn">+ Capture</Link>
       </header>
@@ -76,8 +77,11 @@ export default function Dashboard() {
                   </div>
                   <div className="row2">
                     <span>{formatDate(r.receipt_date ?? r.uploaded_at)}</span>
-                    <span className={"pill " + (r.company ? "set" : "")}>
-                      {r.company ?? "Uncategorized"}
+                    <span className="pills">
+                      {r.category && <span className="pill cat-pill">{r.category}</span>}
+                      <span className={"pill " + (r.company ? "set" : "")}>
+                        {r.company ?? "Uncategorized"}
+                      </span>
                     </span>
                   </div>
                   {(() => {

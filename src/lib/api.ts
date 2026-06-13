@@ -37,6 +37,15 @@ export const api = {
     );
   },
   listCompanies: () => jsonFetch<{ companies: string[] }>("/api/companies"),
+  addCompany: (name: string) =>
+    jsonFetch<{ company: string }>("/api/companies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
+  deleteCompany: (name: string) =>
+    jsonFetch<{ deleted: string }>(`/api/companies/${encodeURIComponent(name)}`, { method: "DELETE" }),
+
   listPeople: () => jsonFetch<{ people: Person[] }>("/api/people"),
   addPerson: (name: string, is_favorite = false) =>
     jsonFetch<{ person: Person }>("/api/people", {
@@ -44,6 +53,24 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, is_favorite }),
     }),
+  setPersonFavorite: (name: string, is_favorite: boolean) =>
+    jsonFetch<{ person: Person }>(`/api/people/${encodeURIComponent(name)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_favorite }),
+    }),
+  deletePerson: (name: string) =>
+    jsonFetch<{ deleted: string }>(`/api/people/${encodeURIComponent(name)}`, { method: "DELETE" }),
+
+  listCategories: () => jsonFetch<{ categories: string[] }>("/api/categories"),
+  addCategory: (name: string) =>
+    jsonFetch<{ category: string }>("/api/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
+  deleteCategory: (name: string) =>
+    jsonFetch<{ deleted: string }>(`/api/categories/${encodeURIComponent(name)}`, { method: "DELETE" }),
 };
 
 export function imageUrl(id: string): string {

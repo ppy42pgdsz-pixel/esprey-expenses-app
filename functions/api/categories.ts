@@ -1,14 +1,14 @@
-// GET  /api/companies — list known company names (for the dashboard dropdown).
-// POST /api/companies — explicitly add a company (also auto-added when set on a receipt).
+// GET  /api/categories — list categories alphabetically
+// POST /api/categories — add a category
 
 import type { Env } from "../_lib/types";
 import { jsonError } from "../_lib/types";
 
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   const { results } = await env.DB.prepare(
-    `SELECT name FROM companies ORDER BY name`
+    `SELECT name FROM categories ORDER BY name`
   ).all<{ name: string }>();
-  return Response.json({ companies: (results ?? []).map((r) => r.name) });
+  return Response.json({ categories: (results ?? []).map((r) => r.name) });
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -21,9 +21,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const name = (body.name ?? "").trim();
   if (!name) return jsonError(400, "'name' is required");
   await env.DB.prepare(
-    `INSERT OR IGNORE INTO companies (name, created_at) VALUES (?, ?)`
+    `INSERT OR IGNORE INTO categories (name, created_at) VALUES (?, ?)`
   )
     .bind(name, Date.now())
     .run();
-  return Response.json({ company: name });
+  return Response.json({ category: name });
 };

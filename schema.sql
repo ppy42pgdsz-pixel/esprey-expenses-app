@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS receipts (
   company         TEXT,
   notes           TEXT,
   attendees       TEXT,                    -- JSON array of names present at expense
+  category        TEXT,                    -- e.g. Meals, Hotels, Stationary
   ocr_raw         TEXT,                    -- raw JSON returned by Claude
   ocr_status      TEXT NOT NULL DEFAULT 'pending', -- pending|success|failed|manual
   uploaded_at     INTEGER NOT NULL
@@ -31,6 +32,11 @@ CREATE TABLE IF NOT EXISTS people (
   name         TEXT PRIMARY KEY,
   is_favorite  INTEGER NOT NULL DEFAULT 0,
   created_at   INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS categories (
+  name        TEXT PRIMARY KEY,
+  created_at  INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS magic_tokens (

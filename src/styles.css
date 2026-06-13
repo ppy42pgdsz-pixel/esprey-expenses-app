@@ -133,5 +133,26 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
 }
 .person-btn.selected { background: var(--ink); color: #fff; border-color: var(--ink); }
 .add-new { align-self: flex-start; font-size: 13px; padding: 6px 12px; }
+
+/* Pills (now can be multiple) */
+.pills { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.pill.cat-pill { background: #e0f2fe; color: #075985; }
+
+/* Settings page */
+.settings-section {
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 14px; margin-bottom: 14px;
+}
+.settings-section h2 { font-size: 14px; margin: 0 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.manage-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.manage-row { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--line-soft); }
+.manage-row:last-child { border-bottom: none; }
+.manage-name { flex: 1; }
+.danger-btn.small { font-size: 12px; padding: 4px 8px; }
+.star-btn {
+  background: transparent; border: none; font-size: 18px; color: #d4d4d4; cursor: pointer; padding: 0 4px;
+}
+.star-btn.on { color: #eab308; }
+.empty.small, .hint.small { padding: 10px; font-size: 12px; }
 .field .row, .detail-form .row { display: flex; gap: 8px; }
 .detail-form .row .field { flex: 1; }
