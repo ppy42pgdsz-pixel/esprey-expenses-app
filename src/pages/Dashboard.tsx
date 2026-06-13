@@ -33,7 +33,10 @@ export default function Dashboard() {
       <header className="topbar">
         <Link to="/settings" className="back" aria-label="Settings">⚙</Link>
         <h1>Expenses</h1>
-        <Link to="/capture" className="primary-btn">+ Capture</Link>
+        <div className="header-actions">
+          <Link to="/capture-manual" className="ghost-btn">+ Manual</Link>
+          <Link to="/capture" className="primary-btn">+ Capture</Link>
+        </div>
       </header>
 
       {err && <div className="err">{err}</div>}
@@ -65,7 +68,9 @@ export default function Dashboard() {
           {receipts.map(r => (
             <li key={r.id} className={r.company ? "cat" : "uncat"}>
               <Link to={`/receipt/${r.id}`} className="receipt-link">
-                {isImageReceipt(r) ? (
+                {r.source === "manual" ? (
+                  <div className="thumb thumb-icon" aria-hidden>✏️</div>
+                ) : isImageReceipt(r) ? (
                   <img src={imageUrl(r.id)} alt="" className="thumb" loading="lazy" />
                 ) : (
                   <div className="thumb thumb-icon" aria-hidden>✉️</div>

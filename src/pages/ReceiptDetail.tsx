@@ -118,7 +118,9 @@ export default function ReceiptDetail() {
 
       <div className="detail-grid">
         <div className="detail-image">
-          {isImageReceipt(receipt) ? (
+          {receipt.source === "manual" ? (
+            <ManualPlaceholder />
+          ) : isImageReceipt(receipt) ? (
             <img src={imageUrl(id)} alt="receipt" />
           ) : (
             <EmailBodyView id={id} />
@@ -186,6 +188,17 @@ export default function ReceiptDetail() {
 function isImageReceipt(r: Receipt): boolean {
   const key = (r.r2_key || "").toLowerCase();
   return !key.endsWith(".txt") && !key.endsWith(".pdf");
+}
+
+function ManualPlaceholder() {
+  return (
+    <div className="email-body-view">
+      <div className="email-body-header">✏️ Manual entry</div>
+      <p style={{ margin: 0, color: "#6b6b6b", fontSize: 13 }}>
+        No receipt image — entered manually. Fill in details on the right.
+      </p>
+    </div>
+  );
 }
 
 function EmailBodyView({ id }: { id: string }) {

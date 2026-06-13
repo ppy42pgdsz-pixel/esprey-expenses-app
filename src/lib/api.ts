@@ -36,6 +36,21 @@ export const api = {
       { method: "POST", body: fd }
     );
   },
+  createManualReceipt: (data: {
+    vendor?: string | null;
+    amount?: string | null;
+    currency?: string | null;
+    receipt_date?: string | null;
+    company?: string | null;
+    category?: string | null;
+    notes?: string | null;
+    attendees?: string[];
+  }) =>
+    jsonFetch<{ id: string }>("/api/receipts/manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
   listCompanies: () => jsonFetch<{ companies: string[] }>("/api/companies"),
   addCompany: (name: string) =>
     jsonFetch<{ company: string }>("/api/companies", {

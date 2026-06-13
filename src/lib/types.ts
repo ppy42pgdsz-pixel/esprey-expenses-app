@@ -3,7 +3,7 @@ export interface Receipt {
   id: string;
   r2_key: string;
   thumb_r2_key: string | null;
-  source: "camera" | "email";
+  source: "camera" | "email" | "manual";
   source_meta: string | null;
   vendor: string | null;
   amount: string | null;

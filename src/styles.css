@@ -27,6 +27,8 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
 .topbar h1 { font-size: 18px; margin: 0; }
 .topbar .back { color: var(--muted); text-decoration: none; font-size: 14px; }
 .topbar > span { width: 60px; } /* spacer for symmetry */
+.header-actions { display: flex; gap: 6px; align-items: center; }
+.header-actions .ghost-btn, .header-actions .primary-btn { font-size: 13px; padding: 6px 10px; }
 
 /* Buttons */
 .primary-btn, .ghost-btn, .danger-btn {
