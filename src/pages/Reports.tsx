@@ -22,8 +22,10 @@ function defaultMonth() {
 export default function Reports() {
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [companies, setCompanies] = useState<string[]>([]);
+  const [currencies, setCurrencies] = useState<Array<{ code: string; name: string }>>([]);
   const [month, setMonth] = useState(defaultMonth());
   const [company, setCompany] = useState<string>(""); // "" = all companies
+  const [currency, setCurrency] = useState<string>(""); // "" = all currencies
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<null | {
@@ -34,9 +36,14 @@ export default function Reports() {
   async function reload() {
     setErr(null);
     try {
-      const [r, c] = await Promise.all([api.listReports(), api.listCompanies()]);
+      const [r, c, cur] = await Promise.all([
+        api.listReports(),
+        api.listCompanies(),
+        api.listCurrencies(),
+      ]);
       setReports(r.reports);
       setCompanies(c.companies);
+      setCurrencies(cur.currencies);
     } catch (e) {
       setErr((e as Error).message);
     }
@@ -46,7 +53,7 @@ export default function Reports() {
   async function generate() {
     setBusy(true); setErr(null); setLastResult(null);
     try {
-      const res = await api.generateReport(month, company || null);
+      const res = await api.generateReport(month, company || null, currency || null);
       setLastResult(res);
       reload();
     } catch (e) {
@@ -78,6 +85,13 @@ export default function Reports() {
             <select className="picker-select" value={company} onChange={(e) => setCompany(e.target.value)}>
               <option value="">All companies (combined PDF)</option>
               {companies.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            <span className="label">Currency</span>
+            <select className="picker-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              <option value="">All currencies</option>
+              {currencies.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
             </select>
           </label>
           <button type="button" className="primary-btn" onClick={generate} disabled={busy}>

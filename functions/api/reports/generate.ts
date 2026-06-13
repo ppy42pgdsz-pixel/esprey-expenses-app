@@ -9,7 +9,7 @@ import { buildMonthlyReport } from "../../_lib/pdf";
 import { sendReportEmail } from "../../_lib/resend";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  let body: { month?: string; company?: string | null };
+  let body: { month?: string; company?: string | null; currency?: string | null };
   try { body = (await request.json()) as typeof body; }
   catch { return jsonError(400, "invalid JSON body"); }
 
@@ -18,51 +18,43 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return jsonError(400, "'month' must be in YYYY-MM format");
   }
   const company = (body.company ?? "").trim() || null;
+  const currency = (body.currency ?? "").trim().toUpperCase() || null;
 
   const { startMs, endMs, label: monthLabel } = monthBoundsUTC(month);
-
-  // Pull receipts for the month, optionally filtered by company.
   const startISO = monthFirstDay(month);
   const endISO = monthFirstDay(addMonth(month, 1));
 
-  let stmt;
-  if (company) {
-    stmt = env.DB.prepare(
-      `SELECT * FROM receipts
-       WHERE company = ?
-         AND (
-           (receipt_date IS NOT NULL AND receipt_date >= ? AND receipt_date < ?)
-           OR
-           (receipt_date IS NULL AND uploaded_at >= ? AND uploaded_at < ?)
-         )
-       ORDER BY receipt_date, uploaded_at`
-    ).bind(company, startISO, endISO, startMs, endMs);
-  } else {
-    stmt = env.DB.prepare(
-      `SELECT * FROM receipts
-       WHERE (
-         (receipt_date IS NOT NULL AND receipt_date >= ? AND receipt_date < ?)
-         OR
-         (receipt_date IS NULL AND uploaded_at >= ? AND uploaded_at < ?)
-       )
-       ORDER BY receipt_date, uploaded_at`
-    ).bind(startISO, endISO, startMs, endMs);
-  }
-  const { results } = await stmt.all<ReceiptRow>();
+  // Build WHERE clause dynamically.
+  const where: string[] = [
+    `((receipt_date IS NOT NULL AND receipt_date >= ? AND receipt_date < ?)
+      OR (receipt_date IS NULL AND uploaded_at >= ? AND uploaded_at < ?))`,
+  ];
+  const args: unknown[] = [startISO, endISO, startMs, endMs];
+  if (company) { where.push(`company = ?`); args.push(company); }
+  if (currency) { where.push(`UPPER(COALESCE(currency,'')) = ?`); args.push(currency); }
+  const sql = `SELECT * FROM receipts WHERE ${where.join(" AND ")} ORDER BY receipt_date, uploaded_at`;
+  const { results } = await env.DB.prepare(sql).bind(...args).all<ReceiptRow>();
   const receipts = results ?? [];
 
-  // Compose labels & filenames.
-  const slug = company ? slugify(company) : "all";
-  const reportLabel = company ? `${monthLabel} — ${company}` : monthLabel;
-  const filename = company
-    ? `Expense Report - ${monthLabel} - ${company}.pdf`
-    : `Expense Report - ${monthLabel}.pdf`;
-  const r2Key = `reports/${month}__${slug}.pdf`;
+  // Filename + R2 key.
+  const segs = [company ? slugify(company) : "all"];
+  if (currency) segs.push(currency.toLowerCase());
+  const slug = segs.join("__");
   const file = `${month}__${slug}.pdf`;
+  const r2Key = `reports/${file}`;
+
+  const parts = [monthLabel];
+  if (company) parts.push(company);
+  if (currency) parts.push(currency);
+  const filename = `Expense Report - ${parts.join(" - ")}.pdf`;
+  const reportLabel = parts.join(" — ");
 
   // Build PDF.
   const pdfBytes = await buildMonthlyReport({
-    monthLabel: reportLabel,
+    monthLabel,
+    reportLabel,
+    companyName: company,
+    currencyFilter: currency,
     receipts,
     fetchOriginal: async (r2_key) => {
       if (!r2_key || r2_key.startsWith("manual:")) return null;
@@ -78,7 +70,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // Save to R2.
   await env.RECEIPTS.put(r2Key, pdfBytes, {
     httpMetadata: { contentType: "application/pdf" },
-    customMetadata: { kind: "monthly-report", month, company: company ?? "" },
+    customMetadata: {
+      kind: "monthly-report",
+      month,
+      company: company ?? "",
+      currency: currency ?? "",
+    },
   });
 
   // Email it.
@@ -103,6 +100,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   return Response.json({
     month,
     company,
+    currency,
     file,
     monthLabel: reportLabel,
     receipts: receipts.length,

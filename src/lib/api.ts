@@ -108,10 +108,11 @@ export const api = {
         downloadUrl: string;
       }>;
     }>("/api/reports"),
-  generateReport: (month: string, company: string | null) =>
+  generateReport: (month: string, company: string | null, currency: string | null) =>
     jsonFetch<{
       month: string;
       company: string | null;
+      currency: string | null;
       file: string;
       monthLabel: string;
       receipts: number;
@@ -122,7 +123,7 @@ export const api = {
     }>("/api/reports/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ month, company }),
+      body: JSON.stringify({ month, company, currency }),
     }),
 };
 
