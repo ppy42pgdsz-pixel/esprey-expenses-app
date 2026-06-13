@@ -72,6 +72,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
 .row1 strong { font-weight: 600; }
 .amt { font-variant-numeric: tabular-nums; font-weight: 500; }
 .row2 { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-top: 4px; font-size: 13px; color: var(--muted); }
+.row3 { margin-top: 4px; font-size: 12px; color: var(--muted); font-style: italic; }
 .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); font-size: 12px; }
 .pill.set { background: var(--good-bg); color: #166534; }
 .badge { font-size: 11px; color: var(--muted); margin-top: 4px; display: inline-block; }
@@ -103,8 +104,34 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
 .detail-form { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field .label { font-size: 12px; color: var(--muted); }
-.field input, .field textarea {
+.field input, .field textarea, .field select, .field .picker-select {
   font: inherit; border: 1px solid #d4d4d4; border-radius: 6px; padding: 8px 10px; background: #fff;
 }
+
+/* Pickers (company + people) */
+.picker-select { width: 100%; }
+.picker-add { display: flex; gap: 6px; align-items: center; }
+.picker-add input { flex: 1; border: 1px solid #d4d4d4; border-radius: 6px; padding: 8px 10px; }
+.picker-search { width: 100%; border: 1px solid #d4d4d4; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
+
+.people-picker { display: flex; flex-direction: column; gap: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #e7e5e4; color: var(--ink);
+  border-radius: 999px; padding: 4px 10px; font-size: 13px;
+}
+.chip button {
+  background: transparent; border: none; cursor: pointer; font-size: 16px; line-height: 1; padding: 0; color: var(--muted);
+}
+.people-section { display: flex; flex-direction: column; gap: 4px; }
+.people-section-label { font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; }
+.people-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.person-btn {
+  background: #fff; border: 1px solid #d4d4d4; border-radius: 999px;
+  padding: 5px 12px; font-size: 13px; cursor: pointer; color: var(--ink);
+}
+.person-btn.selected { background: var(--ink); color: #fff; border-color: var(--ink); }
+.add-new { align-self: flex-start; font-size: 13px; padding: 6px 12px; }
 .field .row, .detail-form .row { display: flex; gap: 8px; }
 .detail-form .row .field { flex: 1; }

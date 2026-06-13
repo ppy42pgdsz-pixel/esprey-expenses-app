@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, formatDate, imageUrl } from "../lib/api";
-import type { Receipt } from "../lib/types";
+import type { Person, Receipt } from "../lib/types";
+import { parseAttendees } from "../lib/types";
+import CompanyPicker from "../components/CompanyPicker";
+import PeoplePicker from "../components/PeoplePicker";
 
 export default function ReceiptDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [companies, setCompanies] = useState<string[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -18,11 +22,16 @@ export default function ReceiptDetail() {
   const [receiptDate, setReceiptDate] = useState("");
   const [company, setCompany] = useState("");
   const [notes, setNotes] = useState("");
+  const [attendees, setAttendees] = useState<string[]>([]);
 
   async function load() {
     setErr(null);
     try {
-      const [r, c] = await Promise.all([api.getReceipt(id), api.listCompanies()]);
+      const [r, c, p] = await Promise.all([
+        api.getReceipt(id),
+        api.listCompanies(),
+        api.listPeople(),
+      ]);
       const rec = r.receipt;
       setReceipt(rec);
       setVendor(rec.vendor ?? "");
@@ -31,7 +40,9 @@ export default function ReceiptDetail() {
       setReceiptDate(rec.receipt_date ?? "");
       setCompany(rec.company ?? "");
       setNotes(rec.notes ?? "");
+      setAttendees(parseAttendees(rec.attendees));
       setCompanies(c.companies);
+      setPeople(p.people);
     } catch (e) {
       setErr((e as Error).message);
     }
@@ -49,6 +60,7 @@ export default function ReceiptDetail() {
         receipt_date: receiptDate || null,
         company: company || null,
         notes: notes || null,
+        attendees: attendees as unknown as string, // server accepts array via PATCH
       });
       setReceipt(res.receipt);
       if (company && !companies.includes(company)) {
@@ -112,18 +124,27 @@ export default function ReceiptDetail() {
           </div>
           <Field label="Date" value={receiptDate} onChange={setReceiptDate} type="date" />
 
-          <label className="field">
+          <div className="field">
             <span className="label">Company</span>
-            <input
-              list="companies-list"
+            <CompanyPicker
+              companies={companies}
               value={company}
-              onChange={e => setCompany(e.target.value)}
-              placeholder="Pick or type a new one"
+              onChange={(v) => {
+                setCompany(v);
+                if (v && !companies.includes(v)) setCompanies([...companies, v].sort());
+              }}
             />
-            <datalist id="companies-list">
-              {companies.map(c => <option key={c} value={c} />)}
-            </datalist>
-          </label>
+          </div>
+
+          <div className="field">
+            <span className="label">People present</span>
+            <PeoplePicker
+              people={people}
+              selected={attendees}
+              onChange={setAttendees}
+              onPeopleAdded={(p) => setPeople((cur) => [...cur, p].sort((a, b) => Number(b.is_favorite) - Number(a.is_favorite) || a.name.localeCompare(b.name)))}
+            />
+          </div>
 
           <label className="field">
             <span className="label">Notes</span>

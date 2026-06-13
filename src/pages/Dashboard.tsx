@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, formatAmount, formatDate, imageUrl } from "../lib/api";
 import type { Receipt } from "../lib/types";
+import { parseAttendees } from "../lib/types";
 
 export default function Dashboard() {
   const [receipts, setReceipts] = useState<Receipt[] | null>(null);
@@ -79,6 +80,12 @@ export default function Dashboard() {
                       {r.company ?? "Uncategorized"}
                     </span>
                   </div>
+                  {(() => {
+                    const att = parseAttendees(r.attendees);
+                    return att.length > 0 ? (
+                      <div className="row3">with {att.join(", ")}</div>
+                    ) : null;
+                  })()}
                   {r.ocr_status === "pending" && <span className="badge">Reading…</span>}
                   {r.ocr_status === "failed" && <span className="badge warn">OCR failed</span>}
                 </div>

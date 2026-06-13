@@ -1,4 +1,4 @@
-import type { Receipt } from "./types";
+import type { Person, Receipt } from "./types";
 
 async function jsonFetch<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const res = await fetch(input, init);
@@ -37,6 +37,13 @@ export const api = {
     );
   },
   listCompanies: () => jsonFetch<{ companies: string[] }>("/api/companies"),
+  listPeople: () => jsonFetch<{ people: Person[] }>("/api/people"),
+  addPerson: (name: string, is_favorite = false) =>
+    jsonFetch<{ person: Person }>("/api/people", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, is_favorite }),
+    }),
 };
 
 export function imageUrl(id: string): string {

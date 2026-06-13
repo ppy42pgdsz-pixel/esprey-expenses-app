@@ -12,7 +12,7 @@ export const onRequestGet: PagesFunction<Env, "id"> = async ({ env, params }) =>
   return Response.json({ receipt: row });
 };
 
-const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes"] as const;
+const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees"] as const;
 type EditableField = (typeof EDITABLE)[number];
 
 export const onRequestPatch: PagesFunction<Env, "id"> = async ({ request, env, params }) => {
@@ -30,7 +30,21 @@ export const onRequestPatch: PagesFunction<Env, "id"> = async ({ request, env, p
     if (Object.prototype.hasOwnProperty.call(body, k)) {
       sets.push(`${k} = ?`);
       const v = body[k as EditableField];
-      args.push(typeof v === "string" || v === null ? v : String(v));
+      if (k === "attendees") {
+        // Accept either an array of names from the client or null.
+        if (Array.isArray(v)) {
+          args.push(JSON.stringify(v.map(String).filter(Boolean)));
+        } else if (v === null || v === "") {
+          args.push(null);
+        } else if (typeof v === "string") {
+          // tolerate already-JSON or comma-separated input
+          args.push(v);
+        } else {
+          args.push(null);
+        }
+      } else {
+        args.push(typeof v === "string" || v === null ? v : String(v));
+      }
     }
   }
   // If the user edited fields by hand, mark ocr_status='manual' so we don't pretend it's pristine OCR.
@@ -57,6 +71,21 @@ export const onRequestPatch: PagesFunction<Env, "id"> = async ({ request, env, p
     )
       .bind(name, Date.now())
       .run();
+  }
+
+  // If attendees were set as an array, make sure each name is in the people table
+  // (as a non-favourite by default). The frontend should normally call POST /api/people
+  // for new names, but this is a safety net.
+  if (Array.isArray(body.attendees)) {
+    for (const raw of body.attendees) {
+      const n = String(raw ?? "").trim();
+      if (!n) continue;
+      await env.DB.prepare(
+        `INSERT OR IGNORE INTO people (name, is_favorite, created_at) VALUES (?, 0, ?)`
+      )
+        .bind(n, Date.now())
+        .run();
+    }
   }
 
   const row = await env.DB.prepare(`SELECT * FROM receipts WHERE id = ?`).bind(id).first<ReceiptRow>();
