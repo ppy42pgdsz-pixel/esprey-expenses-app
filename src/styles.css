@@ -29,13 +29,13 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
 .topbar > span { width: 60px; } /* spacer for symmetry */
 .header-actions { display: flex; gap: 6px; align-items: center; }
 .header-actions .ghost-btn, .header-actions .primary-btn { font-size: 13px; padding: 6px 10px; }
-.icon-actions { gap: 14px; }
+.icon-actions { gap: 20px; }
 .icon-link {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 40px; height: 40px;
-  font-size: 22px;
+  width: 52px; height: 52px;
+  font-size: 30px;
   text-decoration: none;
-  border-radius: 8px;
+  border-radius: 10px;
   -webkit-tap-highlight-color: transparent;
 }
 .icon-link:active { background: #f0efee; }
