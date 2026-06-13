@@ -96,6 +96,22 @@ export const api = {
     }),
   deleteCurrency: (code: string) =>
     jsonFetch<{ deleted: string }>(`/api/currencies/${encodeURIComponent(code)}`, { method: "DELETE" }),
+
+  listReports: () =>
+    jsonFetch<{ reports: Array<{ month: string; sizeBytes: number; uploadedAt: number; downloadUrl: string }> }>("/api/reports"),
+  generateReport: (month: string) =>
+    jsonFetch<{
+      month: string;
+      receipts: number;
+      sizeBytes: number;
+      downloadUrl: string;
+      emailedTo: string | null;
+      emailError: string | null;
+    }>("/api/reports/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ month }),
+    }),
 };
 
 export function imageUrl(id: string): string {

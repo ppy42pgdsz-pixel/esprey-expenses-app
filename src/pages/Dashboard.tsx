@@ -31,7 +31,10 @@ export default function Dashboard() {
   return (
     <div className="page dashboard">
       <header className="topbar">
-        <Link to="/settings" className="back" aria-label="Settings">⚙</Link>
+        <div className="header-actions">
+          <Link to="/settings" className="back" aria-label="Settings">⚙</Link>
+          <Link to="/reports" className="back" aria-label="Reports">📄</Link>
+        </div>
         <h1>Expenses</h1>
         <div className="header-actions">
           <Link to="/capture-manual" className="ghost-btn">+ Manual</Link>

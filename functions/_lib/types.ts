@@ -6,6 +6,8 @@ export interface Env {
   CARL_EMAIL: string;
   ANTHROPIC_API_KEY: string;
   SESSION_SECRET: string;
+  RESEND_API_KEY?: string;          // optional — if absent, email step is skipped
+  REPORT_FROM_ADDRESS?: string;     // e.g. reports@esprey.net (must be Resend-verified)
 }
 
 export interface ReceiptRow {

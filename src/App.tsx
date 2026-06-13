@@ -4,6 +4,7 @@ import Capture from "./pages/Capture";
 import CaptureManual from "./pages/CaptureManual";
 import ReceiptDetail from "./pages/ReceiptDetail";
 import Settings from "./pages/Settings";
+import Reports from "./pages/Reports";
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/capture-manual" element={<CaptureManual />} />
         <Route path="/receipt/:id" element={<ReceiptDetail />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="*" element={<Dashboard />} />
       </Routes>
     </BrowserRouter>
