@@ -14,7 +14,7 @@ import {
   PDFImage,
   PDFPage,
 } from "pdf-lib";
-import type { ReceiptRow } from "./types";
+import type { BankDetails, BillFrom, ReceiptRow } from "./types";
 
 const PAGE_W = PageSizes.A4[0]; // 595
 const PAGE_H = PageSizes.A4[1]; // 842
@@ -36,11 +36,14 @@ export async function buildMonthlyReport(opts: {
   companyName: string | null;  // null = "All companies"
   currencyFilter: string | null;
   receipts: ReceiptRow[];
+  billFrom: BillFrom;
+  bank: BankDetails;
   fetchOriginal: OriginalLoader;
   generatedAt: Date;
 }): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Expense Report — ${opts.reportLabel}`);
+  pdf.setAuthor(opts.billFrom.name || "Esprey Expenses");
   pdf.setCreator("Esprey Expenses");
   pdf.setProducer("Esprey Expenses");
   const fonts: Fonts = {
@@ -66,50 +69,66 @@ function drawInvoice(
     companyName: string | null;
     currencyFilter: string | null;
     receipts: ReceiptRow[];
+    billFrom: BillFrom;
+    bank: BankDetails;
     generatedAt: Date;
   }
 ) {
   let page = pdf.addPage(PageSizes.A4);
   let y = PAGE_H - MARGIN;
-
-  // ----- Header band -----
-  // Top-left: bank-details placeholder block (visually muted).
-  const placeholderH = 86;
-  page.drawRectangle({
-    x: MARGIN, y: y - placeholderH,
-    width: 230, height: placeholderH,
-    borderColor: rgb(0.85, 0.85, 0.85), borderWidth: 0.5,
-    color: rgb(0.98, 0.98, 0.97),
-  });
-  page.drawText("[ Your business details + bank info ]", {
-    x: MARGIN + 8, y: y - 20, size: 9, font: fonts.reg, color: rgb(0.55, 0.55, 0.55),
-  });
-  page.drawText("(add via Settings later)", {
-    x: MARGIN + 8, y: y - 34, size: 8, font: fonts.reg, color: rgb(0.65, 0.65, 0.65),
-  });
-
-  // Top-right: "INVOICE" title + period + generated date + invoice number.
   const rightX = PAGE_W - MARGIN;
-  page.drawText("INVOICE", {
-    x: rightX - fonts.bold.widthOfTextAtSize("INVOICE", 22),
-    y: y - 18, size: 22, font: fonts.bold, color: rgb(0.1, 0.1, 0.1),
+
+  // ----- TOP BAND: BILL FROM (left) + INVOICE title (right) -----
+  // Left: name big, address smaller below.
+  page.drawText(opts.billFrom.name || "—", {
+    x: MARGIN, y: y - 22, size: 22, font: fonts.bold, color: rgb(0.1, 0.1, 0.1),
   });
-  const invoiceNo = buildInvoiceNumber(opts.companyName, opts.monthLabel, opts.generatedAt);
-  drawRight(page, `No. ${invoiceNo}`, rightX, y - 36, 10, fonts.reg, rgb(0.4, 0.4, 0.4));
-  drawRight(page, `Period: ${opts.monthLabel}`, rightX, y - 52, 10, fonts.reg);
-  drawRight(page, `Issued: ${opts.generatedAt.toISOString().slice(0, 10)}`, rightX, y - 66, 10, fonts.reg);
-  if (opts.currencyFilter) {
-    drawRight(page, `Currency: ${opts.currencyFilter}`, rightX, y - 80, 10, fonts.bold);
+  let addrY = y - 42;
+  for (const line of [opts.billFrom.line1, opts.billFrom.line2, opts.billFrom.country]) {
+    if (line) {
+      page.drawText(line, { x: MARGIN, y: addrY, size: 9, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
+      addrY -= 12;
+    }
   }
 
-  y -= placeholderH + 24;
+  // Right: "INVOICE" label + No. (big) + Issue date.
+  page.drawText("I N V O I C E", {
+    x: rightX - fonts.reg.widthOfTextAtSize("I N V O I C E", 11),
+    y: y - 16, size: 11, font: fonts.reg, color: rgb(0.4, 0.4, 0.4),
+  });
+  const invoiceNo = buildInvoiceNumber(opts.companyName, opts.monthLabel, opts.generatedAt);
+  drawRight(page, `No. ${invoiceNo}`, rightX, y - 38, 18, fonts.bold);
+  drawRight(page, "Issue date", rightX, y - 64, 9, fonts.reg, rgb(0.4, 0.4, 0.4));
+  drawRight(page, opts.generatedAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+    rightX, y - 76, 11, fonts.reg);
 
-  // ----- Bill To -----
-  page.drawText("BILL TO", { x: MARGIN, y, size: 9, font: fonts.bold, color: rgb(0.45, 0.45, 0.45) });
-  y -= 16;
-  const billTo = opts.companyName ?? "Multiple companies";
-  page.drawText(billTo, { x: MARGIN, y, size: 14, font: fonts.bold });
+  // Horizontal accent line.
+  y -= 100;
+  page.drawLine({
+    start: { x: MARGIN, y }, end: { x: MARGIN + 80, y },
+    thickness: 1.5, color: rgb(0.78, 0.55, 0.20),
+  });
   y -= 22;
+
+  // ----- MID BAND: BILLED TO (left) + FOR (right) -----
+  const midTopY = y;
+  page.drawText("B I L L E D   T O", {
+    x: MARGIN, y: midTopY, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45),
+  });
+  const billTo = opts.companyName ?? "Multiple companies";
+  page.drawText(billTo, {
+    x: MARGIN, y: midTopY - 18, size: 12, font: fonts.bold, color: rgb(0.1, 0.1, 0.1),
+  });
+
+  page.drawText("F O R", {
+    x: PAGE_W / 2 + 20, y: midTopY, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45),
+  });
+  const forText = `Reimbursable expenses — ${opts.monthLabel}${opts.currencyFilter ? ` (${opts.currencyFilter})` : ""}`;
+  page.drawText(forText, {
+    x: PAGE_W / 2 + 20, y: midTopY - 18, size: 11, font: fonts.reg, color: rgb(0.2, 0.2, 0.2),
+  });
+
+  y -= 60;
 
   // ----- Line items table -----
   // Column layout
@@ -190,9 +209,10 @@ function drawInvoice(
     }
   }
 
-  // ----- Totals -----
-  ensureSpace(60);
-  y -= 6;
+  // ----- Totals (right-aligned, just under the table) -----
+  // Reserve enough vertical room for totals (~80) + payment block (~70) + footer.
+  ensureSpace(180);
+  y -= 8;
   page.drawLine({
     start: { x: PAGE_W - MARGIN - 240, y: y + 6 },
     end:   { x: PAGE_W - MARGIN,       y: y + 6 },
@@ -201,15 +221,27 @@ function drawInvoice(
 
   const totals = sumByCurrency(opts.receipts);
   if (totals.size === 0) {
-    drawRight(page, "TOTAL: —", PAGE_W - MARGIN, y, 12, fonts.bold);
+    drawRight(page, "TOTAL —", PAGE_W - MARGIN, y, 12, fonts.bold);
     y -= LINE;
   } else if (opts.currencyFilter || totals.size === 1) {
-    // Single currency — invoice-style total
+    // Single currency — clean two-column subtotal/total like a real invoice.
     const [cur, amt] = Array.from(totals)[0];
-    drawRight(page, `TOTAL  ${cur || ""} ${fmtMoney(amt)}`, PAGE_W - MARGIN, y, 14, fonts.bold);
+    const labelX = PAGE_W - MARGIN - 180;
+    page.drawText("Subtotal", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
+    drawRight(page, `${cur || ""} ${fmtMoney(amt)}`, PAGE_W - MARGIN, y, 10, fonts.reg);
+    y -= LINE;
+    page.drawText("Tax", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
+    drawRight(page, "—", PAGE_W - MARGIN, y, 10, fonts.reg, rgb(0.5, 0.5, 0.5));
+    y -= LINE + 6;
+    page.drawLine({
+      start: { x: PAGE_W - MARGIN - 240, y: y + 6 }, end: { x: PAGE_W - MARGIN, y: y + 6 },
+      thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
+    });
+    page.drawText("Total due", { x: labelX, y, size: 11, font: fonts.bold });
+    drawRight(page, `${cur || ""} ${fmtMoney(amt)}`, PAGE_W - MARGIN, y, 14, fonts.bold);
     y -= LINE + 4;
   } else {
-    // Mixed currencies — list each, last line is "TOTAL (mixed)"
+    // Mixed currencies — list each, no single "total".
     drawRight(page, "Subtotals by currency", PAGE_W - MARGIN, y, 10, fonts.bold, rgb(0.35, 0.35, 0.35));
     y -= LINE;
     for (const [cur, amt] of totals) {
@@ -218,12 +250,49 @@ function drawInvoice(
     }
   }
 
-  // Footer note
-  ensureSpace(20);
-  page.drawText(
-    `${opts.receipts.length} line item${opts.receipts.length === 1 ? "" : "s"} · Generated ${opts.generatedAt.toISOString().slice(0, 19).replace("T", " ")} UTC · Originals attached in appendix`,
-    { x: MARGIN, y: MARGIN, size: 8, font: fonts.reg, color: rgb(0.55, 0.55, 0.55) }
-  );
+  // ----- Payment details block (always on the LAST invoice page) -----
+  drawPaymentDetailsAndFooter(page, fonts, opts);
+}
+
+function drawPaymentDetailsAndFooter(
+  page: PDFPage,
+  fonts: Fonts,
+  opts: { bank: BankDetails; receipts: ReceiptRow[] }
+) {
+  // Fixed position near the bottom of the current page.
+  const bottomBlockY = MARGIN + 70; // leave room for "Thank you" line under it
+
+  // Separator line
+  page.drawLine({
+    start: { x: MARGIN, y: bottomBlockY + 30 },
+    end:   { x: PAGE_W - MARGIN, y: bottomBlockY + 30 },
+    thickness: 0.5, color: rgb(0.85, 0.85, 0.85),
+  });
+
+  page.drawText("P A Y M E N T   D E T A I L S", {
+    x: MARGIN, y: bottomBlockY + 14, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45),
+  });
+
+  let yy = bottomBlockY - 2;
+  const labelX = MARGIN;
+  const valueX = MARGIN + 60;
+  const rows: Array<[string, string]> = [
+    ["Bank",  opts.bank.name  || "—"],
+    ["IBAN",  opts.bank.iban  || "—"],
+    ["SWIFT", opts.bank.swift || "—"],
+  ];
+  for (const [label, val] of rows) {
+    page.drawText(label, { x: labelX, y: yy, size: 9, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
+    page.drawText(val,   { x: valueX, y: yy, size: 9, font: fonts.reg });
+    yy -= 12;
+  }
+
+  // Centered footer
+  const footer = "Thank you for your business.";
+  const fw = fonts.reg.widthOfTextAtSize(footer, 9);
+  page.drawText(footer, {
+    x: (PAGE_W - fw) / 2, y: MARGIN - 14, size: 9, font: fonts.reg, color: rgb(0.5, 0.5, 0.5),
+  });
 }
 
 function buildInvoiceNumber(company: string | null, monthLabel: string, when: Date): string {

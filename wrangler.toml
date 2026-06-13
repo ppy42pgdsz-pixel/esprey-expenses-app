@@ -5,7 +5,18 @@ pages_build_output_dir = "./dist"
 # Plain (non-secret) environment variables
 [vars]
 CARL_EMAIL = "cesprey@gmail.com"
-REPORT_FROM_ADDRESS = "reports@esprey.net"  # must match a Resend-verified domain (subdomain mode: records live on send.esprey.net, but the verified domain in Resend is the apex esprey.net)
+REPORT_FROM_ADDRESS = "reports@esprey.net"  # must match a Resend-verified domain
+
+# Invoice "BILL FROM" block — your business details
+BILL_FROM_NAME    = "Carl Esprey"
+BILL_FROM_LINE1   = "207 Rua Praia do Moinho"
+BILL_FROM_LINE2   = "Carcavelos, Cascais, 2775-681"
+BILL_FROM_COUNTRY = "Portugal"
+
+# Payment details printed at the bottom of every invoice
+BANK_NAME  = "Millennium BCP"
+BANK_IBAN  = "PT50 0033 0000 45669096226 05"
+BANK_SWIFT = "BCOMPTPL"
 
 # D1 database binding (SQLite)
 [[d1_databases]]

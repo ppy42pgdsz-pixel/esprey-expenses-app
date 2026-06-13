@@ -56,6 +56,17 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     companyName: company,
     currencyFilter: currency,
     receipts,
+    billFrom: {
+      name:    env.BILL_FROM_NAME    ?? "",
+      line1:   env.BILL_FROM_LINE1   ?? "",
+      line2:   env.BILL_FROM_LINE2   ?? "",
+      country: env.BILL_FROM_COUNTRY ?? "",
+    },
+    bank: {
+      name:  env.BANK_NAME  ?? "",
+      iban:  env.BANK_IBAN  ?? "",
+      swift: env.BANK_SWIFT ?? "",
+    },
     fetchOriginal: async (r2_key) => {
       if (!r2_key || r2_key.startsWith("manual:")) return null;
       const obj = await env.RECEIPTS.get(r2_key);

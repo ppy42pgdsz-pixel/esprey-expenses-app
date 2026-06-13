@@ -8,6 +8,30 @@ export interface Env {
   SESSION_SECRET: string;
   RESEND_API_KEY?: string;          // optional — if absent, email step is skipped
   REPORT_FROM_ADDRESS?: string;     // e.g. reports@esprey.net (must be Resend-verified)
+
+  // Invoice "BILL FROM" block
+  BILL_FROM_NAME?: string;
+  BILL_FROM_LINE1?: string;
+  BILL_FROM_LINE2?: string;
+  BILL_FROM_COUNTRY?: string;
+
+  // Payment details
+  BANK_NAME?: string;
+  BANK_IBAN?: string;
+  BANK_SWIFT?: string;
+}
+
+export interface BillFrom {
+  name: string;
+  line1: string;
+  line2: string;
+  country: string;
+}
+
+export interface BankDetails {
+  name: string;
+  iban: string;
+  swift: string;
 }
 
 export interface ReceiptRow {
