@@ -137,24 +137,26 @@ async function processAttachment(
     .bind(id, r2Key, sourceMeta, uploadedAt)
     .run();
 
-  // OCR (images via vision, PDFs as text-only fallback for now).
+  // OCR — images via vision content type, PDFs via document content type.
   let ocrStatus: "success" | "failed" = "failed";
   let ocrRaw: string | null = null;
   let extracted = null as Awaited<ReturnType<typeof extractReceipt>>["extracted"] | null;
   try {
-    if (mime.startsWith("image/")) {
-      const result = await extractReceipt(env.ANTHROPIC_API_KEY, {
-        imageBase64: uint8ToBase64(bytes),
+    const base64 = uint8ToBase64(bytes);
+    let result;
+    if (mime === "application/pdf") {
+      result = await extractReceipt(env.ANTHROPIC_API_KEY, { pdfBase64: base64 });
+    } else if (mime.startsWith("image/")) {
+      result = await extractReceipt(env.ANTHROPIC_API_KEY, {
+        imageBase64: base64,
         imageMimeType: mime,
       });
-      ocrStatus = "success";
-      ocrRaw = result.raw;
-      extracted = result.extracted;
     } else {
-      // PDFs: skip vision for v1, leave as pending for manual review.
-      ocrStatus = "failed";
-      ocrRaw = "PDF attachments are stored but not yet OCR'd";
+      throw new Error("unsupported attachment mime type: " + mime);
     }
+    ocrStatus = "success";
+    ocrRaw = result.raw;
+    extracted = result.extracted;
   } catch (e) {
     ocrRaw = String((e as Error)?.message ?? e);
   }

@@ -33,14 +33,26 @@ interface AnthropicMessage {
   content: Array<
     | { type: "text"; text: string }
     | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
+    | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } }
   >;
 }
 
 export async function extractReceipt(
   apiKey: string,
-  opts: { imageBase64?: string; imageMimeType?: string; textBody?: string }
+  opts: {
+    imageBase64?: string;
+    imageMimeType?: string;
+    pdfBase64?: string;
+    textBody?: string;
+  }
 ): Promise<{ extracted: ExtractedReceipt; raw: string }> {
   const content: AnthropicMessage["content"] = [];
+  if (opts.pdfBase64) {
+    content.push({
+      type: "document",
+      source: { type: "base64", media_type: "application/pdf", data: opts.pdfBase64 },
+    });
+  }
   if (opts.imageBase64 && opts.imageMimeType) {
     content.push({
       type: "image",
@@ -54,7 +66,7 @@ export async function extractReceipt(
     });
   }
   if (!content.length) {
-    throw new Error("extractReceipt: neither imageBase64 nor textBody supplied");
+    throw new Error("extractReceipt: no image, pdf, or text body supplied");
   }
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
