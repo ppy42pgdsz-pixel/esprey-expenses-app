@@ -105,11 +105,47 @@ function parseJsonish(text: string): ExtractedReceipt {
     return {
       vendor: typeof obj.vendor === "string" ? obj.vendor : null,
       amount: typeof obj.amount === "string" ? obj.amount : null,
-      currency: typeof obj.currency === "string" ? obj.currency : null,
+      currency: typeof obj.currency === "string" ? normalizeCurrency(obj.currency) : null,
       receipt_date: typeof obj.receipt_date === "string" ? obj.receipt_date : null,
       notes: typeof obj.notes === "string" ? obj.notes : null,
     };
   } catch {
     return empty;
   }
+}
+
+// Snap currency symbols and common words to ISO 4217 codes so the picker matches.
+// Ambiguous defaults: "$" → USD, "R" → ZAR. Override manually for edge cases.
+function normalizeCurrency(raw: string): string | null {
+  const t = raw.trim();
+  if (!t) return null;
+  // Already a 3-letter alpha code — just uppercase.
+  if (/^[A-Za-z]{3}$/.test(t)) return t.toUpperCase();
+
+  const lower = t.toLowerCase();
+  const map: Record<string, string> = {
+    "$": "USD", "us$": "USD", "usd$": "USD",
+    "c$": "CAD", "ca$": "CAD", "cad$": "CAD",
+    "a$": "AUD", "au$": "AUD",
+    "hk$": "HKD", "nz$": "NZD", "s$": "SGD",
+    "€": "EUR", "eur€": "EUR", "euro": "EUR", "euros": "EUR",
+    "£": "GBP", "gbp£": "GBP", "pound": "GBP", "pounds": "GBP",
+    "¥": "JPY", "yen": "JPY",
+    "₹": "INR", "rs": "INR", "rs.": "INR", "rupee": "INR", "rupees": "INR",
+    "₩": "KRW", "₽": "RUB",
+    "د.إ": "AED", "dh.": "AED", "dhs": "AED", "dirham": "AED",
+    "د.م.": "MAD", "dh": "MAD", "mad.": "MAD",
+    "ر.س": "SAR", "sr": "SAR",
+    "r": "ZAR", "rand": "ZAR",
+    "cfa": "XOF", "fcfa": "XOF", "fr.cfa": "XOF", "fr cfa": "XOF",
+    "dollar": "USD", "dollars": "USD",
+    "₨": "PKR",
+  };
+  if (map[lower]) return map[lower];
+
+  // If the string contains a 3-letter alpha code somewhere (e.g. "EUR 42"), extract it.
+  const m = t.toUpperCase().match(/\b([A-Z]{3})\b/);
+  if (m) return m[1];
+
+  return t.toUpperCase();
 }
