@@ -7,6 +7,7 @@ import type { Env, ReceiptRow } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
 import { buildMonthlyReport } from "../../_lib/pdf";
 import { sendReportEmail } from "../../_lib/resend";
+import { fetchLatestRates, type FxRates } from "../../_lib/fx";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   let body: { month?: string; company?: string | null; currency?: string | null };
@@ -25,13 +26,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const endISO = monthFirstDay(addMonth(month, 1));
 
   // Build WHERE clause dynamically.
+  // NOTE: we do NOT filter by currency here — when a target currency is set, we
+  // include receipts of every currency and convert them in the PDF.
   const where: string[] = [
     `((receipt_date IS NOT NULL AND receipt_date >= ? AND receipt_date < ?)
       OR (receipt_date IS NULL AND uploaded_at >= ? AND uploaded_at < ?))`,
   ];
   const args: unknown[] = [startISO, endISO, startMs, endMs];
   if (company) { where.push(`company = ?`); args.push(company); }
-  if (currency) { where.push(`UPPER(COALESCE(currency,'')) = ?`); args.push(currency); }
   const sql = `SELECT * FROM receipts WHERE ${where.join(" AND ")} ORDER BY receipt_date, uploaded_at`;
   const { results } = await env.DB.prepare(sql).bind(...args).all<ReceiptRow>();
   const receipts = results ?? [];
@@ -49,12 +51,24 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const filename = `Expense Report - ${parts.join(" - ")}.pdf`;
   const reportLabel = parts.join(" — ");
 
+  // If a target currency was chosen, fetch live FX rates so we can convert each
+  // line item into that currency. If the fetch fails, the PDF still generates —
+  // unconvertible rows just show "—" instead of a converted figure.
+  let fxRates: FxRates | null = null;
+  let fxError: string | null = null;
+  if (currency) {
+    try { fxRates = await fetchLatestRates(); }
+    catch (e) { fxError = (e as Error).message; }
+  }
+
   // Build PDF.
   const pdfBytes = await buildMonthlyReport({
     monthLabel,
     reportLabel,
     companyName: company,
     currencyFilter: currency,
+    fxRates,
+    fxError,
     receipts,
     billFrom: {
       name:    env.BILL_FROM_NAME    ?? "",

@@ -15,6 +15,7 @@ import {
   PDFPage,
 } from "pdf-lib";
 import type { BankDetails, BillFrom, ReceiptRow } from "./types";
+import { convert, type FxRates } from "./fx";
 
 const PAGE_W = PageSizes.A4[0]; // 595
 const PAGE_H = PageSizes.A4[1]; // 842
@@ -35,6 +36,8 @@ export async function buildMonthlyReport(opts: {
   reportLabel: string;         // e.g. "June 2026 — Waraba Gold — EUR"
   companyName: string | null;  // null = "All companies"
   currencyFilter: string | null;
+  fxRates?: FxRates | null;    // set when currencyFilter is non-null
+  fxError?: string | null;
   receipts: ReceiptRow[];
   billFrom: BillFrom;
   bank: BankDetails;
@@ -68,6 +71,8 @@ function drawInvoice(
     monthLabel: string;
     companyName: string | null;
     currencyFilter: string | null;
+    fxRates?: FxRates | null;
+    fxError?: string | null;
     receipts: ReceiptRow[];
     billFrom: BillFrom;
     bank: BankDetails;
@@ -131,25 +136,45 @@ function drawInvoice(
   y -= 60;
 
   // ----- Line items table -----
-  // Column layout
-  const cols = {
+  const useFx = !!(opts.currencyFilter && opts.fxRates);
+  const targetCur = (opts.currencyFilter ?? "").toUpperCase();
+
+  // Column layout depends on whether we're converting currencies.
+  // Without conversion:  Date | Vendor | Category | Description | Amount
+  // With conversion:     Date | Vendor | Description | Original | Code | Converted
+  const cols = useFx ? {
+    date: MARGIN,
+    vendor: MARGIN + 60,
+    desc: MARGIN + 160,
+    origAmt: MARGIN + 305,
+    code: MARGIN + 360,
+    conv: PAGE_W - MARGIN,
+  } : {
     date: MARGIN,
     vendor: MARGIN + 70,
     cat: MARGIN + 200,
     desc: MARGIN + 290,
     amt: PAGE_W - MARGIN,
-  };
+  } as any;
 
   function drawTableHeader(p: PDFPage, yy: number) {
     p.drawLine({
       start: { x: MARGIN, y: yy + 12 }, end: { x: PAGE_W - MARGIN, y: yy + 12 },
       thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
     });
-    p.drawText("Date",     { x: cols.date,   y: yy, size: 9, font: fonts.bold, color: rgb(0.3, 0.3, 0.3) });
-    p.drawText("Vendor",   { x: cols.vendor, y: yy, size: 9, font: fonts.bold, color: rgb(0.3, 0.3, 0.3) });
-    p.drawText("Category", { x: cols.cat,    y: yy, size: 9, font: fonts.bold, color: rgb(0.3, 0.3, 0.3) });
-    p.drawText("Description", { x: cols.desc, y: yy, size: 9, font: fonts.bold, color: rgb(0.3, 0.3, 0.3) });
-    drawRight(p, "Amount", cols.amt, yy, 9, fonts.bold, rgb(0.3, 0.3, 0.3));
+    const c = rgb(0.3, 0.3, 0.3);
+    p.drawText("Date",     { x: cols.date,   y: yy, size: 9, font: fonts.bold, color: c });
+    p.drawText("Vendor",   { x: cols.vendor, y: yy, size: 9, font: fonts.bold, color: c });
+    if (useFx) {
+      p.drawText("Description", { x: cols.desc, y: yy, size: 9, font: fonts.bold, color: c });
+      drawRight(p, "Original", (cols as any).origAmt + 40, yy, 9, fonts.bold, c);
+      p.drawText("Cur",     { x: (cols as any).code, y: yy, size: 9, font: fonts.bold, color: c });
+      drawRight(p, `${targetCur}`, cols.conv, yy, 9, fonts.bold, c);
+    } else {
+      p.drawText("Category",    { x: (cols as any).cat,  y: yy, size: 9, font: fonts.bold, color: c });
+      p.drawText("Description", { x: cols.desc, y: yy, size: 9, font: fonts.bold, color: c });
+      drawRight(p, "Amount", (cols as any).amt, yy, 9, fonts.bold, c);
+    }
     p.drawLine({
       start: { x: MARGIN, y: yy - 4 }, end: { x: PAGE_W - MARGIN, y: yy - 4 },
       thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
@@ -194,12 +219,36 @@ function drawInvoice(
     );
     for (const r of sorted) {
       ensureSpace(LINE);
-      const amtStr = formatAmount(r);
       page.drawText(truncate(r.receipt_date ?? "—", 10), { x: cols.date,   y, size: 10, font: fonts.reg });
-      page.drawText(truncate(r.vendor ?? "—",        18), { x: cols.vendor, y, size: 10, font: fonts.reg });
-      page.drawText(truncate(r.category ?? "—",      13), { x: cols.cat,    y, size: 10, font: fonts.reg, color: rgb(0.35, 0.35, 0.35) });
-      page.drawText(truncate(r.notes ?? "",          28), { x: cols.desc,   y, size: 10, font: fonts.reg, color: rgb(0.35, 0.35, 0.35) });
-      drawRight(page, amtStr, cols.amt, y, 10, fonts.reg);
+      if (useFx) {
+        page.drawText(truncate(r.vendor ?? "—",   16), { x: cols.vendor, y, size: 10, font: fonts.reg });
+        const descStr = r.notes && r.notes.trim()
+          ? truncate(r.notes, 24)
+          : truncate(r.category ?? "", 24);
+        page.drawText(descStr, { x: cols.desc, y, size: 10, font: fonts.reg, color: rgb(0.35, 0.35, 0.35) });
+        const origAmt = parseFloat((r.amount ?? "").replace(",", "."));
+        if (isFinite(origAmt)) {
+          drawRight(page, fmtMoney(origAmt), (cols as any).origAmt + 40, y, 10, fonts.reg);
+        } else {
+          drawRight(page, "—", (cols as any).origAmt + 40, y, 10, fonts.reg, rgb(0.5, 0.5, 0.5));
+        }
+        const code = (r.currency ?? "").toUpperCase().slice(0, 4);
+        page.drawText(code, { x: (cols as any).code, y, size: 10, font: fonts.reg, color: rgb(0.35, 0.35, 0.35) });
+        const converted = isFinite(origAmt)
+          ? convert(origAmt, code, targetCur, opts.fxRates!)
+          : null;
+        if (converted !== null) {
+          drawRight(page, fmtMoney(converted), cols.conv, y, 10, fonts.reg);
+        } else {
+          drawRight(page, "—", cols.conv, y, 10, fonts.reg, rgb(0.6, 0.2, 0.2));
+        }
+      } else {
+        const amtStr = formatAmount(r);
+        page.drawText(truncate(r.vendor ?? "—",    18), { x: cols.vendor, y, size: 10, font: fonts.reg });
+        page.drawText(truncate(r.category ?? "—",  13), { x: (cols as any).cat,  y, size: 10, font: fonts.reg, color: rgb(0.35, 0.35, 0.35) });
+        page.drawText(truncate(r.notes ?? "",      28), { x: cols.desc, y, size: 10, font: fonts.reg, color: rgb(0.35, 0.35, 0.35) });
+        drawRight(page, amtStr, (cols as any).amt, y, 10, fonts.reg);
+      }
       y -= LINE;
     }
 
@@ -219,16 +268,21 @@ function drawInvoice(
     thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
   });
 
-  const totals = sumByCurrency(opts.receipts);
-  if (totals.size === 0) {
-    drawRight(page, "TOTAL —", PAGE_W - MARGIN, y, 12, fonts.bold);
-    y -= LINE;
-  } else if (opts.currencyFilter || totals.size === 1) {
-    // Single currency — clean two-column subtotal/total like a real invoice.
-    const [cur, amt] = Array.from(totals)[0];
-    const labelX = PAGE_W - MARGIN - 180;
+  const labelX = PAGE_W - MARGIN - 180;
+
+  if (useFx) {
+    // Converted totals in target currency.
+    let convertedTotal = 0;
+    let unconvertibleCount = 0;
+    for (const r of opts.receipts) {
+      const amt = parseFloat((r.amount ?? "").replace(",", "."));
+      if (!isFinite(amt)) continue;
+      const v = convert(amt, (r.currency ?? "").toUpperCase(), targetCur, opts.fxRates!);
+      if (v === null) unconvertibleCount++;
+      else convertedTotal += v;
+    }
     page.drawText("Subtotal", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
-    drawRight(page, `${cur || ""} ${fmtMoney(amt)}`, PAGE_W - MARGIN, y, 10, fonts.reg);
+    drawRight(page, `${targetCur} ${fmtMoney(convertedTotal)}`, PAGE_W - MARGIN, y, 10, fonts.reg);
     y -= LINE;
     page.drawText("Tax", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
     drawRight(page, "—", PAGE_W - MARGIN, y, 10, fonts.reg, rgb(0.5, 0.5, 0.5));
@@ -238,15 +292,48 @@ function drawInvoice(
       thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
     });
     page.drawText("Total due", { x: labelX, y, size: 11, font: fonts.bold });
-    drawRight(page, `${cur || ""} ${fmtMoney(amt)}`, PAGE_W - MARGIN, y, 14, fonts.bold);
+    drawRight(page, `${targetCur} ${fmtMoney(convertedTotal)}`, PAGE_W - MARGIN, y, 14, fonts.bold);
     y -= LINE + 4;
-  } else {
-    // Mixed currencies — list each, no single "total".
-    drawRight(page, "Subtotals by currency", PAGE_W - MARGIN, y, 10, fonts.bold, rgb(0.35, 0.35, 0.35));
-    y -= LINE;
-    for (const [cur, amt] of totals) {
-      drawRight(page, `${cur || "(unknown)"}  ${fmtMoney(amt)}`, PAGE_W - MARGIN, y, 11, fonts.reg);
+    if (unconvertibleCount > 0) {
+      drawRight(page, `${unconvertibleCount} row(s) could not be converted — excluded from total`,
+        PAGE_W - MARGIN, y, 8, fonts.reg, rgb(0.6, 0.2, 0.2));
       y -= LINE;
+    }
+    // Rates source line, so accountants can verify.
+    const rateNote = `Exchange rates: ${opts.fxRates!.source} · as of ${opts.fxRates!.date}`;
+    page.drawText(rateNote, { x: MARGIN, y, size: 8, font: fonts.reg, color: rgb(0.5, 0.5, 0.5) });
+    y -= LINE;
+  } else if (opts.fxError) {
+    drawRight(page, `(FX rate fetch failed: ${opts.fxError})`, PAGE_W - MARGIN, y, 9, fonts.reg, rgb(0.6, 0.2, 0.2));
+    y -= LINE;
+  } else {
+    // No target currency selected — fall back to per-original-currency subtotals.
+    const totals = sumByCurrency(opts.receipts);
+    if (totals.size === 0) {
+      drawRight(page, "TOTAL —", PAGE_W - MARGIN, y, 12, fonts.bold);
+      y -= LINE;
+    } else if (totals.size === 1) {
+      const [cur, amt] = Array.from(totals)[0];
+      page.drawText("Subtotal", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
+      drawRight(page, `${cur || ""} ${fmtMoney(amt)}`, PAGE_W - MARGIN, y, 10, fonts.reg);
+      y -= LINE;
+      page.drawText("Tax", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
+      drawRight(page, "—", PAGE_W - MARGIN, y, 10, fonts.reg, rgb(0.5, 0.5, 0.5));
+      y -= LINE + 6;
+      page.drawLine({
+        start: { x: PAGE_W - MARGIN - 240, y: y + 6 }, end: { x: PAGE_W - MARGIN, y: y + 6 },
+        thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
+      });
+      page.drawText("Total due", { x: labelX, y, size: 11, font: fonts.bold });
+      drawRight(page, `${cur || ""} ${fmtMoney(amt)}`, PAGE_W - MARGIN, y, 14, fonts.bold);
+      y -= LINE + 4;
+    } else {
+      drawRight(page, "Subtotals by currency", PAGE_W - MARGIN, y, 10, fonts.bold, rgb(0.35, 0.35, 0.35));
+      y -= LINE;
+      for (const [cur, amt] of totals) {
+        drawRight(page, `${cur || "(unknown)"}  ${fmtMoney(amt)}`, PAGE_W - MARGIN, y, 11, fonts.reg);
+        y -= LINE;
+      }
     }
   }
 
