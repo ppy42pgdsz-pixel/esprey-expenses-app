@@ -260,18 +260,18 @@ function drawInvoice(
   });
 
   // Address lines under the name (if set).
-  let addrY = midTopY - 33;
+  let billToY = midTopY - 33;
   const addrLines: string[] = [];
   if (co?.address_line1) addrLines.push(co.address_line1);
   if (co?.address_line2) addrLines.push(co.address_line2);
   if (co?.address_country) addrLines.push(co.address_country);
   for (const line of addrLines) {
-    page.drawText(line, { x: MARGIN, y: addrY, size: 9, font: fonts.reg, color: rgb(0.35, 0.35, 0.35) });
-    addrY -= 12;
+    page.drawText(line, { x: MARGIN, y: billToY, size: 9, font: fonts.reg, color: rgb(0.35, 0.35, 0.35) });
+    billToY -= 12;
   }
   if (co?.vat_number) {
-    page.drawText(`VAT: ${co.vat_number}`, { x: MARGIN, y: addrY, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45) });
-    addrY -= 12;
+    page.drawText(`VAT: ${co.vat_number}`, { x: MARGIN, y: billToY, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45) });
+    billToY -= 12;
   }
 
   // FOR block on the right, vertically aligned to billing block top.
@@ -284,7 +284,7 @@ function drawInvoice(
   });
 
   // Advance y past the taller of the two columns (addresses can push down).
-  y = Math.min(midTopY - 60, addrY - 8);
+  y = Math.min(midTopY - 60, billToY - 8);
 
   // ----- Line items table -----
   const useFx = !!(opts.currencyFilter && opts.fxRates);
