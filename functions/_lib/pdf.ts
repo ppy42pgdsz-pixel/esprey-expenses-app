@@ -57,10 +57,130 @@ export async function buildMonthlyReport(opts: {
   // Invoice + line items (may span multiple pages).
   drawInvoice(pdf, fonts, opts);
 
+  // Category breakdown (new page after the invoice, before the appendix).
+  drawCategoryBreakdown(pdf, fonts, opts.receipts);
+
   // Appendix.
   await drawAppendix(pdf, fonts, opts.receipts, opts.fetchOriginal);
 
   return pdf.save();
+}
+
+/* ---------------- Category breakdown ---------------- */
+function drawCategoryBreakdown(pdf: PDFDocument, fonts: Fonts, receipts: ReceiptRow[]) {
+  if (receipts.length === 0) return;
+
+  let page = pdf.addPage(PageSizes.A4);
+  let y = PAGE_H - MARGIN;
+
+  page.drawText("Breakdown by category", {
+    x: MARGIN, y, size: 16, font: fonts.bold, color: rgb(0.1, 0.1, 0.1),
+  });
+  y -= 24;
+
+  // Group by category (Uncategorized at the end, otherwise alphabetical).
+  const byCat = groupBy(receipts, (r) => r.category || "Uncategorized");
+  const catNames = Array.from(byCat.keys()).sort((a, b) => {
+    if (a === "Uncategorized") return 1;
+    if (b === "Uncategorized") return -1;
+    return a.localeCompare(b);
+  });
+
+  // Column layout — give as much space as possible to "Name".
+  const cols = {
+    date: MARGIN,                                  //   x = 40
+    name: MARGIN + 65,                             //   x = 105 → wide
+    amt:  PAGE_W - MARGIN - 50,                    //   x = 505 (right-aligned anchor)
+    cur:  PAGE_W - MARGIN,                         //   x = 555 (right-aligned anchor)
+  };
+  const nameMaxWidth = cols.amt - cols.name - 12;  // ~388px of space for the name
+
+  function newPage(continued: boolean) {
+    page = pdf.addPage(PageSizes.A4);
+    y = PAGE_H - MARGIN;
+    if (continued) {
+      page.drawText("Breakdown by category (continued)", {
+        x: MARGIN, y, size: 11, font: fonts.bold, color: rgb(0.4, 0.4, 0.4),
+      });
+      y -= 20;
+    }
+  }
+  function ensureSpace(needed: number) {
+    if (y - needed < MARGIN + 30) newPage(true);
+  }
+  function drawTableHeader() {
+    page.drawLine({
+      start: { x: MARGIN, y: y + 12 }, end: { x: PAGE_W - MARGIN, y: y + 12 },
+      thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
+    });
+    const c = rgb(0.3, 0.3, 0.3);
+    page.drawText("Date", { x: cols.date, y, size: 9, font: fonts.bold, color: c });
+    page.drawText("Name", { x: cols.name, y, size: 9, font: fonts.bold, color: c });
+    drawRight(page, "Amount",   cols.amt, y, 9, fonts.bold, c);
+    drawRight(page, "Currency", cols.cur, y, 9, fonts.bold, c);
+    page.drawLine({
+      start: { x: MARGIN, y: y - 4 }, end: { x: PAGE_W - MARGIN, y: y - 4 },
+      thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
+    });
+    y -= LINE;
+  }
+
+  for (const cat of catNames) {
+    const items = (byCat.get(cat) || []).slice().sort(
+      (a, b) => (a.receipt_date ?? "").localeCompare(b.receipt_date ?? "")
+    );
+
+    ensureSpace(60);
+    // Category heading
+    page.drawText(cat.toUpperCase(), {
+      x: MARGIN, y, size: 14, font: fonts.bold, color: rgb(0.1, 0.1, 0.1),
+    });
+    y -= 6;
+    page.drawLine({
+      start: { x: MARGIN, y }, end: { x: MARGIN + 60, y },
+      thickness: 1.5, color: rgb(0.78, 0.55, 0.20),
+    });
+    y -= 18;
+
+    drawTableHeader();
+
+    for (const r of items) {
+      const name = (r.vendor && r.vendor.trim()) || "—";
+      const nameLines = wrapText(name, fonts.reg, 10, nameMaxWidth);
+      const rowH = LINE * Math.max(1, nameLines.length);
+      ensureSpace(rowH);
+      // Date and amount/currency align with the FIRST line of the wrapped name.
+      page.drawText(r.receipt_date ?? "—", { x: cols.date, y, size: 10, font: fonts.reg });
+      const amtNum = parseFloat((r.amount ?? "").replace(",", "."));
+      drawRight(page, isFinite(amtNum) ? fmtMoney(amtNum) : "—", cols.amt, y, 10, fonts.reg);
+      drawRight(page, (r.currency ?? "").toUpperCase().slice(0, 4) || "—",
+        cols.cur, y, 10, fonts.reg, rgb(0.35, 0.35, 0.35));
+      for (let i = 0; i < nameLines.length; i++) {
+        page.drawText(nameLines[i], { x: cols.name, y, size: 10, font: fonts.reg });
+        y -= LINE;
+      }
+    }
+
+    // Per-currency subtotals for this category.
+    const subs = sumByCurrency(items);
+    ensureSpace(LINE * (subs.size + 1) + 10);
+    y -= 4;
+    page.drawLine({
+      start: { x: cols.name, y: y + 6 }, end: { x: PAGE_W - MARGIN, y: y + 6 },
+      thickness: 0.5, color: rgb(0.8, 0.8, 0.8),
+    });
+    if (subs.size === 0) {
+      drawRight(page, "Subtotal —", PAGE_W - MARGIN, y, 9, fonts.bold, rgb(0.3, 0.3, 0.3));
+      y -= LINE;
+    } else {
+      for (const [cur, amt] of subs) {
+        drawRight(page, `Subtotal  ${fmtMoney(amt)}`, cols.amt, y, 9, fonts.bold, rgb(0.3, 0.3, 0.3));
+        drawRight(page, cur || "—", cols.cur, y, 9, fonts.bold, rgb(0.35, 0.35, 0.35));
+        y -= LINE;
+      }
+    }
+    y -= 14; // gap before next category
+  }
 }
 
 /* ---------------- Invoice page(s) ---------------- */
