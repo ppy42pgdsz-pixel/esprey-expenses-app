@@ -379,16 +379,13 @@ function drawInvoice(
   }
 
   // ----- Totals (right-aligned, just under the table) -----
-  // Reserve enough vertical room for totals (~80) + payment block (~70) + footer.
-  ensureSpace(180);
-  y -= 8;
-  page.drawLine({
-    start: { x: PAGE_W - MARGIN - 240, y: y + 6 },
-    end:   { x: PAGE_W - MARGIN,       y: y + 6 },
-    thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
-  });
+  // Reserve enough vertical room for totals (~90) + payment block (~70) + footer.
+  ensureSpace(190);
+  y -= 18; // gap from the last table row
 
-  const labelX = PAGE_W - MARGIN - 180;
+  const labelX = PAGE_W - MARGIN - 200;
+  const totalLineLeftX = labelX - 8;
+  const totalLineRightX = PAGE_W - MARGIN;
 
   if (useFx) {
     // Converted totals in target currency.
@@ -401,19 +398,22 @@ function drawInvoice(
       if (v === null) unconvertibleCount++;
       else convertedTotal += v;
     }
+    // Subtotal & Tax rows (no rule above; matches Carl's invoice template).
     page.drawText("Subtotal", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
-    drawRight(page, `${targetCur} ${fmtMoney(convertedTotal)}`, PAGE_W - MARGIN, y, 10, fonts.reg);
+    drawRight(page, `${targetCur} ${fmtMoney(convertedTotal)}`, totalLineRightX, y, 10, fonts.reg);
     y -= LINE;
     page.drawText("Tax", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
-    drawRight(page, "—", PAGE_W - MARGIN, y, 10, fonts.reg, rgb(0.5, 0.5, 0.5));
-    y -= LINE + 6;
+    drawRight(page, "—", totalLineRightX, y, 10, fonts.reg, rgb(0.5, 0.5, 0.5));
+    // Gap, then divider rule clearly above the Total row.
+    y -= LINE + 10;
     page.drawLine({
-      start: { x: PAGE_W - MARGIN - 240, y: y + 6 }, end: { x: PAGE_W - MARGIN, y: y + 6 },
+      start: { x: totalLineLeftX, y: y + 18 }, end: { x: totalLineRightX, y: y + 18 },
       thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
     });
-    page.drawText("Total due", { x: labelX, y, size: 11, font: fonts.bold });
-    drawRight(page, `${targetCur} ${fmtMoney(convertedTotal)}`, PAGE_W - MARGIN, y, 14, fonts.bold);
-    y -= LINE + 4;
+    // Total row — label and amount the same size for clean baseline alignment.
+    page.drawText("Total due", { x: labelX, y, size: 13, font: fonts.bold });
+    drawRight(page, `${targetCur} ${fmtMoney(convertedTotal)}`, totalLineRightX, y, 13, fonts.bold);
+    y -= LINE + 6;
     if (unconvertibleCount > 0) {
       drawRight(page, `${unconvertibleCount} row(s) could not be converted — excluded from total`,
         PAGE_W - MARGIN, y, 8, fonts.reg, rgb(0.6, 0.2, 0.2));
@@ -435,18 +435,18 @@ function drawInvoice(
     } else if (totals.size === 1) {
       const [cur, amt] = Array.from(totals)[0];
       page.drawText("Subtotal", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
-      drawRight(page, `${cur || ""} ${fmtMoney(amt)}`, PAGE_W - MARGIN, y, 10, fonts.reg);
+      drawRight(page, `${cur || ""} ${fmtMoney(amt)}`, totalLineRightX, y, 10, fonts.reg);
       y -= LINE;
       page.drawText("Tax", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
-      drawRight(page, "—", PAGE_W - MARGIN, y, 10, fonts.reg, rgb(0.5, 0.5, 0.5));
-      y -= LINE + 6;
+      drawRight(page, "—", totalLineRightX, y, 10, fonts.reg, rgb(0.5, 0.5, 0.5));
+      y -= LINE + 10;
       page.drawLine({
-        start: { x: PAGE_W - MARGIN - 240, y: y + 6 }, end: { x: PAGE_W - MARGIN, y: y + 6 },
+        start: { x: totalLineLeftX, y: y + 18 }, end: { x: totalLineRightX, y: y + 18 },
         thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
       });
-      page.drawText("Total due", { x: labelX, y, size: 11, font: fonts.bold });
-      drawRight(page, `${cur || ""} ${fmtMoney(amt)}`, PAGE_W - MARGIN, y, 14, fonts.bold);
-      y -= LINE + 4;
+      page.drawText("Total due", { x: labelX, y, size: 13, font: fonts.bold });
+      drawRight(page, `${cur || ""} ${fmtMoney(amt)}`, totalLineRightX, y, 13, fonts.bold);
+      y -= LINE + 6;
     } else {
       drawRight(page, "Subtotals by currency", PAGE_W - MARGIN, y, 10, fonts.bold, rgb(0.35, 0.35, 0.35));
       y -= LINE;
