@@ -15,6 +15,8 @@ export default function Reports() {
   const [company, setCompany] = useState<string>(""); // "" = all companies
   const [currency, setCurrency] = useState<string>(""); // "" = all currencies
   const [busy, setBusy] = useState(false);
+  const [emailingZip, setEmailingZip] = useState(false);
+  const [zipEmailMsg, setZipEmailMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<null | {
     file: string; monthLabel: string; receipts: number; sizeBytes: number;
@@ -37,8 +39,20 @@ export default function Reports() {
     })();
   }, []);
 
+  async function emailZip(file: string) {
+    setEmailingZip(true); setZipEmailMsg(null);
+    try {
+      const res = await api.emailReportZip(file);
+      setZipEmailMsg(`📧 ZIP emailed to ${res.emailedTo}.`);
+    } catch (e) {
+      setZipEmailMsg(`Email failed: ${(e as Error).message}`);
+    } finally {
+      setEmailingZip(false);
+    }
+  }
+
   async function generate() {
-    setBusy(true); setErr(null); setLastResult(null);
+    setBusy(true); setErr(null); setLastResult(null); setZipEmailMsg(null);
     try {
       const res = await api.generateReport(month, company || null, currency || null);
       setLastResult(res);
@@ -88,13 +102,22 @@ export default function Reports() {
           <div className="report-result">
             <div>✅ Generated <strong>{lastResult.monthLabel}</strong> · {lastResult.receipts} receipts · {fmtSize(lastResult.sizeBytes)}</div>
             <div><Link to={`/pdf?file=${encodeURIComponent(lastResult.file)}`}>Open PDF</Link></div>
-            {lastResult.zipDownloadUrl && (
-              <div>
+            {lastResult.zipDownloadUrl && lastResult.zipFile && (
+              <div className="zip-actions">
                 <a href={lastResult.zipDownloadUrl} download>
                   Download originals ({lastResult.zipFilesIncluded} files, {fmtSize(lastResult.zipSizeBytes)})
                 </a>
+                <button
+                  type="button"
+                  className="ghost-btn small"
+                  onClick={() => emailZip(lastResult.zipFile!)}
+                  disabled={emailingZip}
+                >
+                  {emailingZip ? "Emailing…" : "📧 Email ZIP"}
+                </button>
               </div>
             )}
+            {zipEmailMsg && <div className="hint">{zipEmailMsg}</div>}
             {lastResult.zipError && (
               <div className="warn-text">ZIP build failed: {lastResult.zipError}</div>
             )}

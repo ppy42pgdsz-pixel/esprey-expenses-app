@@ -118,6 +118,12 @@ export const api = {
     }>("/api/reports"),
   deleteReport: (file: string) =>
     jsonFetch<{ deleted: string }>(`/api/reports/delete?file=${encodeURIComponent(file)}`, { method: "DELETE" }),
+  emailReportZip: (file: string) =>
+    jsonFetch<{ emailedTo: string; sizeBytes: number }>("/api/reports/email-zip", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file }),
+    }),
   generateReport: (month: string, company: string | null, currency: string | null) =>
     jsonFetch<{
       month: string;

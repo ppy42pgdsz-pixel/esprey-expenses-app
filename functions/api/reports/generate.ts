@@ -181,30 +181,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     console.error("ZIP build failed", e);
   }
 
-  // Email both (or just PDF if ZIP is missing or would push us over the Resend
-  // 40-MB-ish soft limit after base64 inflation).
+  // Email the PDF only — ZIP is sent separately via /api/reports/email-zip when
+  // the user explicitly asks for it.
   let emailedTo: string | null = null;
   let emailError: string | null = null;
   if (env.RESEND_API_KEY && env.REPORT_FROM_ADDRESS) {
     try {
-      const attachments = [{ filename, bytes: pdfBytes }];
-      // Estimate total post-base64 size: ~1.34x raw. Resend allows ~40 MB.
-      const RESEND_BUDGET = 38 * 1024 * 1024; // bytes
-      const pdfEstimate = pdfBytes.length * 1.34;
-      if (zipBytes && zipFile) {
-        const zipEstimate = zipBytes.length * 1.34;
-        if (pdfEstimate + zipEstimate < RESEND_BUDGET) {
-          attachments.push({ filename: zipFile, bytes: zipBytes });
-        } else {
-          console.log(`ZIP too large to attach (${zipBytes.length} bytes raw); skipping email attachment but file is in R2.`);
-        }
-      }
       await sendReportEmail({
         apiKey: env.RESEND_API_KEY,
         fromAddress: env.REPORT_FROM_ADDRESS,
         toAddress: env.CARL_EMAIL,
         monthLabel: reportLabel,
-        attachments,
+        attachments: [{ filename, bytes: pdfBytes }],
       });
       emailedTo = env.CARL_EMAIL;
     } catch (e) {
