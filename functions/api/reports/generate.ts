@@ -9,6 +9,7 @@ import type { CompanyRow } from "../companies";
 import { buildMonthlyReport } from "../../_lib/pdf";
 import { sendReportEmail } from "../../_lib/resend";
 import { fetchLatestRates, type FxRates } from "../../_lib/fx";
+import { htmlToPdf } from "../../_lib/pdfshift";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   let body: { month?: string; company?: string | null; currency?: string | null };
@@ -97,7 +98,46 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       if (!r2_key || r2_key.startsWith("manual:")) return null;
       const obj = await env.RECEIPTS.get(r2_key);
       if (!obj) return null;
-      const mime = obj.httpMetadata?.contentType ?? "application/octet-stream";
+      const mime = (obj.httpMetadata?.contentType ?? "application/octet-stream").toLowerCase();
+      const baseMime = mime.split(";")[0].trim();
+
+      // Special path for email-body HTML receipts: render via PDFShift (cached in R2).
+      if (baseMime === "text/html" && r2_key.toLowerCase().endsWith(".html")) {
+        // Look for a cached PDF rendering first.
+        const cachedKey = r2_key.replace(/\.html$/i, ".rendered.pdf");
+        const cached = await env.RECEIPTS.get(cachedKey);
+        if (cached) {
+          const bytes = new Uint8Array(await cached.arrayBuffer());
+          return { mime: "text/html", bytes };  // tell pdf.ts this is the HTML branch — bytes are PDF
+        }
+        // No cached render yet → call PDFShift if configured, then cache.
+        if (!env.PDFSHIFT_API_KEY) {
+          // No API key configured → fall back to text rendering via the .txt sidecar.
+          const textKey = r2_key.replace(/\.html$/i, ".txt");
+          const textObj = await env.RECEIPTS.get(textKey);
+          if (!textObj) return null;
+          return { mime: "text/plain", bytes: new Uint8Array(await textObj.arrayBuffer()) };
+        }
+        try {
+          const htmlBytes = await obj.arrayBuffer();
+          const html = new TextDecoder().decode(htmlBytes);
+          const pdfBytes = await htmlToPdf({ apiKey: env.PDFSHIFT_API_KEY, html });
+          // Cache so we never re-spend a credit on this email.
+          await env.RECEIPTS.put(cachedKey, pdfBytes, {
+            httpMetadata: { contentType: "application/pdf" },
+            customMetadata: { kind: "email-html-render", source_key: r2_key },
+          });
+          return { mime: "text/html", bytes: pdfBytes };
+        } catch (e) {
+          console.error("PDFShift render failed", e);
+          // Fall back to text sidecar.
+          const textKey = r2_key.replace(/\.html$/i, ".txt");
+          const textObj = await env.RECEIPTS.get(textKey);
+          if (!textObj) return null;
+          return { mime: "text/plain", bytes: new Uint8Array(await textObj.arrayBuffer()) };
+        }
+      }
+
       const bytes = new Uint8Array(await obj.arrayBuffer());
       return { mime, bytes };
     },

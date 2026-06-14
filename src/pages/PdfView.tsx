@@ -4,7 +4,10 @@ export default function PdfView() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const file = params.get("file") ?? "";
-  const url = `/api/reports/download?file=${encodeURIComponent(file)}#toolbar=1&view=FitH`;
+  // viewUrl uses inline-disposition so iOS renders inside the iframe.
+  // downloadUrl uses attachment-disposition for the explicit Save button.
+  const viewUrl = `/api/reports/view?file=${encodeURIComponent(file)}#toolbar=1&view=FitH`;
+  const downloadUrl = `/api/reports/download?file=${encodeURIComponent(file)}`;
 
   return (
     <div className="pdf-view">
@@ -18,14 +21,14 @@ export default function PdfView() {
         </button>
         <span className="pdf-view-title">{file}</span>
         <a
-          href={url}
+          href={downloadUrl}
           download={file}
           className="download-link"
           aria-label="Save to Files"
         >Save</a>
       </header>
       <iframe
-        src={url}
+        src={viewUrl}
         title="Monthly report PDF"
         className="pdf-view-frame"
       />

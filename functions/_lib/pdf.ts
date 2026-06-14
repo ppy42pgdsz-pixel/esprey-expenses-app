@@ -614,6 +614,17 @@ async function drawAppendix(
       } else if (baseMime === "image/png") {
         const img = await pdf.embedPng(obj.bytes);
         addImagePage(pdf, fonts, header, img);
+      } else if (baseMime === "text/html") {
+        // High-fidelity rendering of email-body receipts via PDFShift.
+        // The caller (generate.ts) takes care of fetching/caching the rendered PDF
+        // bytes — by this point obj.bytes already holds the PDF, not raw HTML.
+        const src = await PDFDocument.load(obj.bytes);
+        const copied = await pdf.copyPages(src, src.getPageIndices());
+        let first = true;
+        for (const p of copied) {
+          pdf.addPage(p);
+          if (first) { drawHeader(p, fonts, header); first = false; }
+        }
       } else if (baseMime === "text/plain") {
         const text = new TextDecoder().decode(obj.bytes);
         addTextPage(pdf, fonts, header, text);

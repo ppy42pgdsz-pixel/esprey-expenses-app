@@ -40,6 +40,44 @@ export function extFromMime(mime: string): string {
   }
 }
 
+// Wrap an email's raw body HTML in a standalone document so PDFShift can render
+// it as a self-contained page. Many emails come as fragments without <html>/<body>
+// wrappers, which would inherit junk from a default UA stylesheet.
+export function wrapEmailHtml(subject: string, bodyHtml: string): string {
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>${escapeHtml(subject)}</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f1f1f; margin: 0; padding: 20px; line-height: 1.45; }
+  .email-header { border-bottom: 1px solid #e5e5e5; padding-bottom: 10px; margin-bottom: 16px; }
+  .email-header .label { color: #888; font-size: 12px; }
+  .email-header .subject { font-size: 18px; font-weight: 600; margin-top: 4px; }
+  .email-body { font-size: 14px; }
+  .email-body img { max-width: 100%; height: auto; }
+  .email-body table { border-collapse: collapse; }
+</style>
+</head>
+<body>
+  <div class="email-header">
+    <div class="label">Subject</div>
+    <div class="subject">${escapeHtml(subject)}</div>
+  </div>
+  <div class="email-body">${bodyHtml}</div>
+</body>
+</html>`;
+}
+
+function escapeHtml(s: string): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function stripHtml(html: string): string {
   // Preserve paragraph/line structure when converting HTML → plain text so the
   // PDF appendix reads like an email instead of one giant run-on paragraph.

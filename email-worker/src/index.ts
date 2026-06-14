@@ -10,6 +10,7 @@ import {
   r2KeyForReceipt,
   stripHtml,
   uint8ToBase64,
+  wrapEmailHtml,
 } from "./util";
 
 interface Env {
@@ -65,12 +66,11 @@ export default {
 
     // If no attachments produced a row, fall back to the email body text.
     if (!createdAny) {
-      const body = (parsed.text && parsed.text.trim())
-        || stripHtml(parsed.html ?? "")
-        || subject;
-      if (body && body.length > 20) {
+      const html = parsed.html ?? "";
+      const text = (parsed.text && parsed.text.trim()) || stripHtml(html) || subject;
+      if (text && text.length > 20) {
         try {
-          await processBody(env, body, subject, sourceMeta);
+          await processBody(env, text, html, subject, sourceMeta);
         } catch (e) {
           console.error("body failed", e);
         }
@@ -179,16 +179,37 @@ async function processAttachment(
     .run();
 }
 
-async function processBody(env: Env, body: string, subject: string, sourceMeta: string) {
+async function processBody(env: Env, body: string, html: string, subject: string, sourceMeta: string) {
   const id = newId();
-  const r2Key = r2KeyForReceipt(id, "txt");
+  // Primary asset: HTML if available (so we can render it faithfully via PDFShift
+  // in the monthly report appendix), text otherwise.
+  const hasHtml = !!html && html.trim().length > 20;
+  const primaryExt = hasHtml ? "html" : "txt";
+  const r2Key = r2KeyForReceipt(id, primaryExt);
 
-  // Save the body to R2 as a text file — the "original" for an email-body receipt.
-  const composed = `Subject: ${subject}\n\n${body}`;
-  await env.RECEIPTS.put(r2Key, composed, {
-    httpMetadata: { contentType: "text/plain; charset=utf-8" },
-    customMetadata: { receiptId: id, source: "email-body" },
-  });
+  // Save primary (HTML if we have it).
+  if (hasHtml) {
+    const fullHtml = wrapEmailHtml(subject, html);
+    await env.RECEIPTS.put(r2Key, fullHtml, {
+      httpMetadata: { contentType: "text/html; charset=utf-8" },
+      customMetadata: { receiptId: id, source: "email-body" },
+    });
+  }
+
+  // Always save the plain-text sidecar — useful for fallback rendering AND for OCR.
+  const composedText = `Subject: ${subject}\n\n${body}`;
+  const textKey = hasHtml ? r2KeyForReceipt(id, "txt") : r2Key;
+  if (hasHtml) {
+    await env.RECEIPTS.put(textKey, composedText, {
+      httpMetadata: { contentType: "text/plain; charset=utf-8" },
+      customMetadata: { receiptId: id, source: "email-body-text" },
+    });
+  } else {
+    await env.RECEIPTS.put(r2Key, composedText, {
+      httpMetadata: { contentType: "text/plain; charset=utf-8" },
+      customMetadata: { receiptId: id, source: "email-body" },
+    });
+  }
 
   const uploadedAt = Date.now();
   await env.DB.prepare(
@@ -202,7 +223,7 @@ async function processBody(env: Env, body: string, subject: string, sourceMeta: 
   let ocrRaw: string | null = null;
   let extracted = null as Awaited<ReturnType<typeof extractReceipt>>["extracted"] | null;
   try {
-    const result = await extractReceipt(env.ANTHROPIC_API_KEY, { textBody: composed });
+    const result = await extractReceipt(env.ANTHROPIC_API_KEY, { textBody: composedText });
     ocrStatus = "success";
     ocrRaw = result.raw;
     extracted = result.extracted;

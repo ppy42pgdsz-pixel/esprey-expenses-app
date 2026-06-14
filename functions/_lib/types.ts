@@ -8,6 +8,7 @@ export interface Env {
   SESSION_SECRET: string;
   RESEND_API_KEY?: string;          // optional — if absent, email step is skipped
   REPORT_FROM_ADDRESS?: string;     // e.g. reports@esprey.net (must be Resend-verified)
+  PDFSHIFT_API_KEY?: string;        // optional — used to render email HTML into PDF appendix pages
 
   // Invoice "BILL FROM" block
   BILL_FROM_NAME?: string;
