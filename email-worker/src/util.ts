@@ -41,9 +41,18 @@ export function extFromMime(mime: string): string {
 }
 
 export function stripHtml(html: string): string {
+  // Preserve paragraph/line structure when converting HTML → plain text so the
+  // PDF appendix reads like an email instead of one giant run-on paragraph.
   return html
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<\/tr>/gi, "\n")
+    .replace(/<\/td>/gi, "  ") // double-space between cells
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -51,6 +60,8 @@ export function stripHtml(html: string): string {
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
-    .replace(/\s+/g, " ")
+    .replace(/[ \t]+/g, " ")        // collapse horizontal whitespace only
+    .replace(/[ \t]*\n[ \t]*/g, "\n") // trim line-start/end spaces
+    .replace(/\n{3,}/g, "\n\n")     // collapse runs of 3+ blank lines
     .trim();
 }

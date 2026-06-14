@@ -648,12 +648,19 @@ function addImagePage(pdf: PDFDocument, fonts: Fonts, header: string, img: PDFIm
 }
 
 function addTextPage(pdf: PDFDocument, fonts: Fonts, header: string, text: string) {
-  const page = pdf.addPage(PageSizes.A4);
+  let page = pdf.addPage(PageSizes.A4);
   drawHeader(page, fonts, header);
   const lines = wrapText(text, fonts.reg, 9, PAGE_W - 2 * MARGIN);
   let y = PAGE_H - MARGIN - 30;
+  let pageNum = 1;
   for (const line of lines) {
-    if (y < MARGIN) break;
+    if (y < MARGIN + 12) {
+      // Start a new page when we run out of room.
+      pageNum++;
+      page = pdf.addPage(PageSizes.A4);
+      drawHeader(page, fonts, `${header} (cont. p${pageNum})`);
+      y = PAGE_H - MARGIN - 30;
+    }
     page.drawText(line, { x: MARGIN, y, size: 9, font: fonts.reg, color: rgb(0.2, 0.2, 0.2) });
     y -= 12;
   }
