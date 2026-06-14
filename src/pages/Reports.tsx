@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 
@@ -8,12 +8,28 @@ function defaultMonth() {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+// Generate ~24 month options spanning 2 years back from current month so the
+// dropdown works the same on iOS Safari and macOS Safari (the native
+// <input type="month"> looks like a plain text input on desktop Safari).
+function buildMonthOptions(): Array<{ value: string; label: string }> {
+  const out: Array<{ value: string; label: string }> = [];
+  const now = new Date();
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    const value = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+    out.push({ value, label });
+  }
+  return out;
+}
+
 export default function Reports() {
   const [companies, setCompanies] = useState<string[]>([]);
   const [currencies, setCurrencies] = useState<Array<{ code: string; name: string }>>([]);
   const [month, setMonth] = useState(defaultMonth());
   const [company, setCompany] = useState<string>(""); // "" = all companies
   const [currency, setCurrency] = useState<string>(""); // "" = all currencies
+  const monthOptions = useMemo(buildMonthOptions, []);
   const [busy, setBusy] = useState(false);
   const [emailingZip, setEmailingZip] = useState(false);
   const [zipEmailMsg, setZipEmailMsg] = useState<string | null>(null);
@@ -78,7 +94,15 @@ export default function Reports() {
         <div className="report-form">
           <label className="field">
             <span className="label">Month</span>
-            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+            <select
+              className="picker-select"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+            >
+              {monthOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </label>
           <label className="field">
             <span className="label">Company</span>

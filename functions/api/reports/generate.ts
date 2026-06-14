@@ -142,10 +142,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     fxError,
     receipts,
     billFrom: {
-      name:    profile?.name              || env.BILL_FROM_NAME    || "",
-      line1:   profile?.address_line1     || env.BILL_FROM_LINE1   || "",
-      line2:   profile?.address_line2     || env.BILL_FROM_LINE2   || "",
-      country: profile?.address_country   || env.BILL_FROM_COUNTRY || "",
+      name:          profile?.name              || env.BILL_FROM_NAME    || "",
+      business_name: profile?.business_name     || "",
+      line1:         profile?.address_line1     || env.BILL_FROM_LINE1   || "",
+      line2:         profile?.address_line2     || env.BILL_FROM_LINE2   || "",
+      country:       profile?.address_country   || env.BILL_FROM_COUNTRY || "",
+      vat_number:    profile?.vat_number        || "",
+      email:         profile?.email             || env.CARL_EMAIL        || "",
+      phone:         profile?.phone             || "",
     },
     bank: {
       // Free-form payment details. Prefer the new bank_details column;

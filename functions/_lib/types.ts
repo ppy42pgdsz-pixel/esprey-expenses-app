@@ -24,9 +24,13 @@ export interface Env {
 
 export interface BillFrom {
   name: string;
+  business_name?: string;
   line1: string;
   line2: string;
   country: string;
+  vat_number?: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface BankDetails {

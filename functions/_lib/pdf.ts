@@ -215,16 +215,38 @@ function drawInvoice(
   const rightX = PAGE_W - MARGIN;
 
   // ----- TOP BAND: BILL FROM (left) + INVOICE title (right) -----
-  // Left: name big, address smaller below.
-  page.drawText(opts.billFrom.name || "—", {
+  // Left: business or personal name big; if both, subtitle below.
+  const bf = opts.billFrom;
+  const bigName = bf.business_name?.trim() || bf.name || "—";
+  page.drawText(bigName, {
     x: MARGIN, y: y - 22, size: 22, font: fonts.bold, color: rgb(0.1, 0.1, 0.1),
   });
   let addrY = y - 42;
-  for (const line of [opts.billFrom.line1, opts.billFrom.line2, opts.billFrom.country]) {
-    if (line) {
+  // Personal name as subtitle when a business name is the primary line.
+  if (bf.business_name && bf.business_name.trim() && bf.name && bf.name.trim() && bf.business_name.trim() !== bf.name.trim()) {
+    page.drawText(bf.name, { x: MARGIN, y: addrY, size: 11, font: fonts.reg, color: rgb(0.3, 0.3, 0.3) });
+    addrY -= 14;
+  }
+  // Address.
+  for (const line of [bf.line1, bf.line2, bf.country]) {
+    if (line && line.trim()) {
       page.drawText(line, { x: MARGIN, y: addrY, size: 9, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
       addrY -= 12;
     }
+  }
+  // VAT / Tax ID (if set).
+  if (bf.vat_number && bf.vat_number.trim()) {
+    page.drawText(`VAT: ${bf.vat_number}`, { x: MARGIN, y: addrY, size: 9, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
+    addrY -= 12;
+  }
+  // Contact line(s).
+  if (bf.email && bf.email.trim()) {
+    page.drawText(bf.email, { x: MARGIN, y: addrY, size: 9, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
+    addrY -= 12;
+  }
+  if (bf.phone && bf.phone.trim()) {
+    page.drawText(bf.phone, { x: MARGIN, y: addrY, size: 9, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
+    addrY -= 12;
   }
 
   // Right: "INVOICE" label + No. (big) + Issue date.
@@ -238,8 +260,11 @@ function drawInvoice(
   drawRight(page, opts.generatedAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
     rightX, y - 76, 11, fonts.reg);
 
-  // Horizontal accent line.
-  y -= 100;
+  // Horizontal accent line. Position it below whichever column extends further
+  // — either the right-side INVOICE block (fixed at y - 100) or the BILL FROM
+  // address block (which can grow when email/phone/vat are added).
+  const blockBottomY = Math.min(y - 100, addrY - 8);
+  y = blockBottomY;
   page.drawLine({
     start: { x: MARGIN, y }, end: { x: MARGIN + 80, y },
     thickness: 1.5, color: rgb(0.78, 0.55, 0.20),
@@ -511,21 +536,34 @@ function drawPaymentDetailsAndFooter(
     x: MARGIN, y: bottomBlockY + 14, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45),
   });
 
-  // Free-form payment instructions: one line per row, monospace-ish font,
-  // verbatim what the user typed.
+  // Free-form payment instructions: one line per typed line, verbatim.
+  // We hand-roll the wrap here (rather than calling wrapText) to avoid the
+  // extra trailing-empty rows that helper inserts between paragraphs — those
+  // were eating vertical space and pushing the last user-typed line off the page.
   let yy = bottomBlockY - 2;
   const text = (opts.bank.details ?? "").trim();
   if (!text) {
     page.drawText("—", { x: MARGIN, y: yy, size: 9, font: fonts.reg, color: rgb(0.6, 0.6, 0.6) });
   } else {
+    const maxW = PAGE_W - 2 * MARGIN;
     const lines: string[] = [];
     for (const para of text.split(/\r?\n/)) {
-      for (const wrapped of wrapText(para, fonts.reg, 9, PAGE_W - 2 * MARGIN)) {
-        lines.push(wrapped);
+      const trimmed = para.replace(/\s+$/g, "");
+      if (!trimmed) { lines.push(""); continue; }
+      let line = "";
+      for (const word of trimmed.split(/\s+/).filter(Boolean)) {
+        const tentative = line ? line + " " + word : word;
+        if (fonts.reg.widthOfTextAtSize(tentative, 9) > maxW) {
+          if (line) lines.push(line);
+          line = word;
+        } else {
+          line = tentative;
+        }
       }
+      if (line) lines.push(line);
     }
     for (const line of lines) {
-      if (yy < MARGIN - 4) break; // ran out of room
+      if (yy < MARGIN - 4) break;
       page.drawText(line, { x: MARGIN, y: yy, size: 9, font: fonts.reg });
       yy -= 12;
     }
