@@ -10,6 +10,7 @@ import { buildMonthlyReport } from "../../_lib/pdf";
 import { sendReportEmail } from "../../_lib/resend";
 import { fetchLatestRates, type FxRates } from "../../_lib/fx";
 import { htmlToPdf } from "../../_lib/pdfshift";
+import { buildReceiptZip } from "../../_lib/zip";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   let body: { month?: string; company?: string | null; currency?: string | null };
@@ -73,28 +74,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     ).bind(company).first<CompanyRow>();
   }
 
-  // Build PDF.
-  const pdfBytes = await buildMonthlyReport({
-    monthLabel,
-    reportLabel,
-    companyName: company,
-    billedToCompany,
-    currencyFilter: currency,
-    fxRates,
-    fxError,
-    receipts,
-    billFrom: {
-      name:    env.BILL_FROM_NAME    ?? "",
-      line1:   env.BILL_FROM_LINE1   ?? "",
-      line2:   env.BILL_FROM_LINE2   ?? "",
-      country: env.BILL_FROM_COUNTRY ?? "",
-    },
-    bank: {
-      name:  env.BANK_NAME  ?? "",
-      iban:  env.BANK_IBAN  ?? "",
-      swift: env.BANK_SWIFT ?? "",
-    },
-    fetchOriginal: async (r2_key) => {
+  // Shared fetcher used by both the PDF appendix and the receipts ZIP.
+  // For email-body HTML receipts it goes through PDFShift (cached in R2) so the
+  // second consumer doesn't burn a credit.
+  const fetchOriginal = async (r2_key: string) => {
       if (!r2_key || r2_key.startsWith("manual:")) return null;
       const obj = await env.RECEIPTS.get(r2_key);
       if (!obj) return null;
@@ -140,11 +123,34 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
       const bytes = new Uint8Array(await obj.arrayBuffer());
       return { mime, bytes };
+  };
+
+  // Build PDF.
+  const pdfBytes = await buildMonthlyReport({
+    monthLabel,
+    reportLabel,
+    companyName: company,
+    billedToCompany,
+    currencyFilter: currency,
+    fxRates,
+    fxError,
+    receipts,
+    billFrom: {
+      name:    env.BILL_FROM_NAME    ?? "",
+      line1:   env.BILL_FROM_LINE1   ?? "",
+      line2:   env.BILL_FROM_LINE2   ?? "",
+      country: env.BILL_FROM_COUNTRY ?? "",
     },
+    bank: {
+      name:  env.BANK_NAME  ?? "",
+      iban:  env.BANK_IBAN  ?? "",
+      swift: env.BANK_SWIFT ?? "",
+    },
+    fetchOriginal,
     generatedAt: new Date(),
   });
 
-  // Save to R2.
+  // Save PDF to R2.
   await env.RECEIPTS.put(r2Key, pdfBytes, {
     httpMetadata: { contentType: "application/pdf" },
     customMetadata: {
@@ -155,18 +161,50 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     },
   });
 
-  // Email it.
+  // Build the receipt-originals ZIP. This reuses fetchOriginal so HTML→PDF
+  // renders are taken from cache rather than re-spent on PDFShift.
+  let zipBytes: Uint8Array | null = null;
+  let zipFile: string | null = null;
+  let zipFilesIncluded = 0;
+  let zipError: string | null = null;
+  try {
+    const result = await buildReceiptZip({ receipts, fetchOriginal });
+    zipBytes = result.bytes;
+    zipFilesIncluded = result.filesIncluded;
+    zipFile = file.replace(/\.pdf$/i, ".zip");
+    await env.RECEIPTS.put(`reports/${zipFile}`, zipBytes, {
+      httpMetadata: { contentType: "application/zip" },
+      customMetadata: { kind: "monthly-report-zip", month, company: company ?? "" },
+    });
+  } catch (e) {
+    zipError = (e as Error).message;
+    console.error("ZIP build failed", e);
+  }
+
+  // Email both (or just PDF if ZIP is missing or would push us over the Resend
+  // 40-MB-ish soft limit after base64 inflation).
   let emailedTo: string | null = null;
   let emailError: string | null = null;
   if (env.RESEND_API_KEY && env.REPORT_FROM_ADDRESS) {
     try {
+      const attachments = [{ filename, bytes: pdfBytes }];
+      // Estimate total post-base64 size: ~1.34x raw. Resend allows ~40 MB.
+      const RESEND_BUDGET = 38 * 1024 * 1024; // bytes
+      const pdfEstimate = pdfBytes.length * 1.34;
+      if (zipBytes && zipFile) {
+        const zipEstimate = zipBytes.length * 1.34;
+        if (pdfEstimate + zipEstimate < RESEND_BUDGET) {
+          attachments.push({ filename: zipFile, bytes: zipBytes });
+        } else {
+          console.log(`ZIP too large to attach (${zipBytes.length} bytes raw); skipping email attachment but file is in R2.`);
+        }
+      }
       await sendReportEmail({
         apiKey: env.RESEND_API_KEY,
         fromAddress: env.REPORT_FROM_ADDRESS,
         toAddress: env.CARL_EMAIL,
         monthLabel: reportLabel,
-        pdfBytes,
-        filename,
+        attachments,
       });
       emailedTo = env.CARL_EMAIL;
     } catch (e) {
@@ -183,6 +221,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     receipts: receipts.length,
     sizeBytes: pdfBytes.length,
     downloadUrl: `/api/reports/download?file=${encodeURIComponent(file)}`,
+    zipFile,
+    zipSizeBytes: zipBytes?.length ?? 0,
+    zipFilesIncluded,
+    zipError,
+    zipDownloadUrl: zipFile ? `/api/reports/download?file=${encodeURIComponent(zipFile)}` : null,
     emailedTo,
     emailError,
   });

@@ -18,7 +18,10 @@ export default function Reports() {
   const [err, setErr] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<null | {
     file: string; monthLabel: string; receipts: number; sizeBytes: number;
-    downloadUrl: string; emailedTo: string | null; emailError: string | null;
+    downloadUrl: string;
+    zipFile: string | null; zipSizeBytes: number; zipFilesIncluded: number;
+    zipError: string | null; zipDownloadUrl: string | null;
+    emailedTo: string | null; emailError: string | null;
   }>(null);
 
   useEffect(() => {
@@ -85,6 +88,16 @@ export default function Reports() {
           <div className="report-result">
             <div>✅ Generated <strong>{lastResult.monthLabel}</strong> · {lastResult.receipts} receipts · {fmtSize(lastResult.sizeBytes)}</div>
             <div><Link to={`/pdf?file=${encodeURIComponent(lastResult.file)}`}>Open PDF</Link></div>
+            {lastResult.zipDownloadUrl && (
+              <div>
+                <a href={lastResult.zipDownloadUrl} download>
+                  Download originals ({lastResult.zipFilesIncluded} files, {fmtSize(lastResult.zipSizeBytes)})
+                </a>
+              </div>
+            )}
+            {lastResult.zipError && (
+              <div className="warn-text">ZIP build failed: {lastResult.zipError}</div>
+            )}
             {lastResult.emailedTo
               ? <div>📧 Emailed to {lastResult.emailedTo}</div>
               : lastResult.emailError

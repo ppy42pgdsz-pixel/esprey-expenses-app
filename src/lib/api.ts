@@ -128,6 +128,11 @@ export const api = {
       receipts: number;
       sizeBytes: number;
       downloadUrl: string;
+      zipFile: string | null;
+      zipSizeBytes: number;
+      zipFilesIncluded: number;
+      zipError: string | null;
+      zipDownloadUrl: string | null;
       emailedTo: string | null;
       emailError: string | null;
     }>("/api/reports/generate", {

@@ -7,15 +7,15 @@ import { jsonError } from "../../_lib/types";
 export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   const url = new URL(request.url);
   const file = url.searchParams.get("file") ?? "";
-  if (!file || !/^[\w\-.]+\.pdf$/i.test(file)) {
+  if (!file || !/^[\w\-.]+\.(pdf|zip)$/i.test(file)) {
     return jsonError(400, "invalid 'file' parameter");
   }
   const obj = await env.RECEIPTS.get(`reports/${file}`);
   if (!obj) return jsonError(404, "report not found — generate it first");
   const headers = new Headers();
   obj.writeHttpMetadata(headers);
-  headers.set("Content-Type", "application/pdf");
-  // Use a friendlier filename when downloading.
+  const isZip = /\.zip$/i.test(file);
+  headers.set("Content-Type", isZip ? "application/zip" : "application/pdf");
   const friendly = friendlyName(file);
   headers.set("Content-Disposition", `attachment; filename="${friendly}"`);
   return new Response(obj.body, { headers });
@@ -23,9 +23,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 
 function friendlyName(file: string): string {
   // "2026-06__waraba-gold.pdf" → "Expense Report - 2026-06 - waraba-gold.pdf"
-  const m = file.match(/^(\d{4}-\d{2})__(.+)\.pdf$/i);
+  // "2026-06__waraba-gold.zip" → "Receipts - 2026-06 - waraba-gold.zip"
+  const m = file.match(/^(\d{4}-\d{2})__(.+)\.(pdf|zip)$/i);
   if (!m) return file;
-  const [, month, slug] = m;
-  if (slug === "all") return `Expense Report - ${month}.pdf`;
-  return `Expense Report - ${month} - ${slug.replace(/-/g, " ")}.pdf`;
+  const [, month, slug, ext] = m;
+  const prefix = ext.toLowerCase() === "zip" ? "Receipts" : "Expense Report";
+  if (slug === "all") return `${prefix} - ${month}.${ext}`;
+  return `${prefix} - ${month} - ${slug.replace(/-/g, " ")}.${ext}`;
 }
