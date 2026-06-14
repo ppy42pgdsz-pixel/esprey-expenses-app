@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
 
@@ -9,6 +9,20 @@ export default function Capture() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [online, setOnline] = useState<boolean>(
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
+
+  useEffect(() => {
+    function up()   { setOnline(true);  }
+    function down() { setOnline(false); }
+    window.addEventListener("online",  up);
+    window.addEventListener("offline", down);
+    return () => {
+      window.removeEventListener("online",  up);
+      window.removeEventListener("offline", down);
+    };
+  }, []);
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
@@ -46,6 +60,17 @@ export default function Capture() {
 
       {err && <div className="err">{err}</div>}
 
+      {!online && (
+        <div className="offline-warn">
+          <strong>📡 No internet detected.</strong>
+          <p>
+            Photos taken in this app are <strong>not yet</strong> saved while offline — they'd be lost when the upload fails.
+            As a fallback right now: take the photo with your phone's <strong>Camera app</strong>, then email it to{" "}
+            <code>receipts@esprey.net</code>. Your mail app's outbox will queue and send it when you're back online.
+          </p>
+        </div>
+      )}
+
       {!previewUrl ? (
         <div className="capture-cta">
           <p>Snap a photo of your receipt — Claude will read it.</p>
@@ -76,6 +101,10 @@ export default function Capture() {
           >
             Pick from photo library
           </button>
+          <div className="capture-tip">
+            No signal? Use your <strong>Camera app</strong> and email the photo to{" "}
+            <code>receipts@esprey.net</code> — your mail app will send it when you're back online.
+          </div>
         </div>
       ) : (
         <div className="capture-preview">
