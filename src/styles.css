@@ -27,21 +27,34 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
 .topbar h1 { font-size: 18px; margin: 0; }
 .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .brand-logo { width: 32px; height: 32px; border-radius: 6px; flex: 0 0 32px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+/* Hide the logo on narrow screens — the topbar is too cramped on iPhone. */
+@media (max-width: 720px) {
+  .brand-logo { display: none; }
+}
 @media (min-width: 900px) {
   .brand-logo { width: 42px; height: 42px; flex-basis: 42px; border-radius: 8px; }
 }
 .topbar .back { color: var(--muted); text-decoration: none; font-size: 14px; }
 .topbar > span { width: 60px; } /* spacer for symmetry */
 .header-actions { display: flex; gap: 6px; align-items: center; }
-.header-actions .ghost-btn, .header-actions .primary-btn { font-size: 13px; padding: 6px 10px; }
-.icon-actions { gap: 20px; }
+.header-actions .ghost-btn, .header-actions .primary-btn {
+  font-size: 13px; padding: 6px 10px;
+  white-space: nowrap;
+}
+.icon-actions { gap: 8px; }
+@media (min-width: 900px) {
+  .icon-actions { gap: 14px; }
+}
 .icon-link {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 52px; height: 52px;
-  font-size: 30px;
+  width: 44px; height: 44px;
+  font-size: 24px;
   text-decoration: none;
   border-radius: 10px;
   -webkit-tap-highlight-color: transparent;
+}
+@media (min-width: 900px) {
+  .icon-link { width: 52px; height: 52px; font-size: 30px; }
 }
 .icon-link:active { background: #f0efee; }
 
