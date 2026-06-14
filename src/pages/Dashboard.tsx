@@ -143,7 +143,10 @@ export default function Dashboard() {
           <Link to="/settings" className="icon-link" aria-label="Settings">⚙</Link>
           <Link to="/reports" className="icon-link" aria-label="Reports">📄</Link>
         </div>
-        <h1>Expenses</h1>
+        <div className="brand">
+          <img src="/icons/icon-192.png" alt="" className="brand-logo" />
+          <h1>Expenses</h1>
+        </div>
         <div className="header-actions">
           <Link to="/capture-manual" className="ghost-btn">+ Manual</Link>
           <Link to="/capture" className="primary-btn">+ Capture</Link>
