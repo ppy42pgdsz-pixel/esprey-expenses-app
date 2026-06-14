@@ -1,7 +1,7 @@
 // Build a ZIP of receipt originals for a monthly report. One file per receipt,
 // named "YYYY-MM-DD_VendorName.ext", flat structure (no subfolders).
 
-import { zip } from "fflate";
+import { zipSync } from "fflate";
 import type { ReceiptRow } from "./types";
 
 interface FileLoader {
@@ -55,12 +55,9 @@ export async function buildReceiptZip(opts: {
     included++;
   }
 
-  const bytes = await new Promise<Uint8Array>((resolve, reject) => {
-    zip(entries, { level: 6 }, (err, data) => {
-      if (err) reject(err);
-      else resolve(data);
-    });
-  });
+  // Synchronous variant — fflate's async `zip()` tries to spawn a Web Worker for
+  // parallel compression, which doesn't exist in the Cloudflare Workers runtime.
+  const bytes = zipSync(entries, { level: 6 });
   return { bytes, filesIncluded: included, filesSkipped: skipped };
 }
 
