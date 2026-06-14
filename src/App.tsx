@@ -6,6 +6,7 @@ import ReceiptDetail from "./pages/ReceiptDetail";
 import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import CompanyDetail from "./pages/CompanyDetail";
+import PdfView from "./pages/PdfView";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/companies/:name" element={<CompanyDetail />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/pdf" element={<PdfView />} />
         <Route path="*" element={<Dashboard />} />
       </Routes>
     </BrowserRouter>

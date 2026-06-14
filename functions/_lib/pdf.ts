@@ -597,8 +597,10 @@ async function drawAppendix(
     }
 
     const mime = obj.mime.toLowerCase();
+    // Strip any "; charset=…" suffix so comparisons work against the base type.
+    const baseMime = mime.split(";")[0].trim();
     try {
-      if (mime === "application/pdf") {
+      if (baseMime === "application/pdf") {
         const src = await PDFDocument.load(obj.bytes);
         const copied = await pdf.copyPages(src, src.getPageIndices());
         let first = true;
@@ -606,13 +608,13 @@ async function drawAppendix(
           pdf.addPage(p);
           if (first) { drawHeader(p, fonts, header); first = false; }
         }
-      } else if (mime === "image/jpeg" || mime === "image/jpg") {
+      } else if (baseMime === "image/jpeg" || baseMime === "image/jpg") {
         const img = await pdf.embedJpg(obj.bytes);
         addImagePage(pdf, fonts, header, img);
-      } else if (mime === "image/png") {
+      } else if (baseMime === "image/png") {
         const img = await pdf.embedPng(obj.bytes);
         addImagePage(pdf, fonts, header, img);
-      } else if (mime === "text/plain") {
+      } else if (baseMime === "text/plain") {
         const text = new TextDecoder().decode(obj.bytes);
         addTextPage(pdf, fonts, header, text);
       } else {

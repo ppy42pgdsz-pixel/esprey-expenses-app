@@ -84,7 +84,7 @@ export default function Reports() {
         {lastResult && (
           <div className="report-result">
             <div>✅ Generated <strong>{lastResult.monthLabel}</strong> · {lastResult.receipts} receipts · {fmtSize(lastResult.sizeBytes)}</div>
-            <div><a href={lastResult.downloadUrl} target="_blank" rel="noopener noreferrer">Open PDF</a></div>
+            <div><Link to={`/pdf?file=${encodeURIComponent(lastResult.file)}`}>Open PDF</Link></div>
             {lastResult.emailedTo
               ? <div>📧 Emailed to {lastResult.emailedTo}</div>
               : lastResult.emailError
