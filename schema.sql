@@ -50,6 +50,24 @@ CREATE TABLE IF NOT EXISTS currencies (
   created_at  INTEGER NOT NULL
 );
 
+-- Personal profile of the invoicing user. Single row for now (id=1);
+-- becomes one-row-per-user when we expand to multi-user.
+CREATE TABLE IF NOT EXISTS user_profile (
+  id              INTEGER PRIMARY KEY,
+  name            TEXT,
+  business_name   TEXT,
+  email           TEXT,
+  phone           TEXT,
+  address_line1   TEXT,
+  address_line2   TEXT,
+  address_country TEXT,
+  vat_number      TEXT,
+  bank_name       TEXT,
+  bank_iban       TEXT,
+  bank_swift      TEXT,
+  updated_at      INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS magic_tokens (
   token       TEXT PRIMARY KEY,
   expires_at  INTEGER NOT NULL,

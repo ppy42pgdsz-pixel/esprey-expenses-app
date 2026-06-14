@@ -1,4 +1,4 @@
-import type { Company, Person, Receipt } from "./types";
+import type { Company, Person, Receipt, UserProfile } from "./types";
 
 async function jsonFetch<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const res = await fetch(input, init);
@@ -123,6 +123,14 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ file }),
+    }),
+
+  getUserProfile: () => jsonFetch<{ profile: UserProfile }>("/api/user"),
+  updateUserProfile: (patch: Partial<UserProfile>) =>
+    jsonFetch<{ profile: UserProfile }>("/api/user", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
     }),
   generateReport: (month: string, company: string | null, currency: string | null) =>
     jsonFetch<{

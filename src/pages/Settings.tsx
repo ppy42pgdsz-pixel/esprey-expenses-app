@@ -11,11 +11,32 @@ export default function Settings() {
         <h1>Settings</h1>
         <span />
       </header>
+      <UserSection />
       <CompaniesSection />
       <PeopleSection />
       <CategoriesSection />
       <CurrenciesSection />
     </div>
+  );
+}
+
+/* ------------ User profile (link) ------------ */
+function UserSection() {
+  return (
+    <section className="settings-section">
+      <h2>My profile</h2>
+      <div className="manage-list">
+        <div className="manage-row">
+          <Link to="/settings/user" className="manage-name manage-link">
+            <strong>Personal details</strong>
+            <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
+              · Name, address, bank details (used on invoices)
+            </span>
+          </Link>
+          <Link to="/settings/user" className="primary-btn small">Edit</Link>
+        </div>
+      </div>
+    </section>
   );
 }
 

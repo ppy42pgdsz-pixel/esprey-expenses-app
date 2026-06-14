@@ -11,6 +11,7 @@ import { sendReportEmail } from "../../_lib/resend";
 import { fetchLatestRates, type FxRates } from "../../_lib/fx";
 import { htmlToPdf } from "../../_lib/pdfshift";
 import { buildReceiptZip } from "../../_lib/zip";
+import type { UserProfileRow } from "../user";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   let body: { month?: string; company?: string | null; currency?: string | null };
@@ -74,6 +75,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     ).bind(company).first<CompanyRow>();
   }
 
+  // Personal user profile (drives the BILL FROM block + payment details).
+  const profile = await env.DB.prepare(
+    `SELECT * FROM user_profile WHERE id = 1`
+  ).first<UserProfileRow>();
+
   // Shared fetcher used by both the PDF appendix and the receipts ZIP.
   // For email-body HTML receipts it goes through PDFShift (cached in R2) so the
   // second consumer doesn't burn a credit.
@@ -136,15 +142,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     fxError,
     receipts,
     billFrom: {
-      name:    env.BILL_FROM_NAME    ?? "",
-      line1:   env.BILL_FROM_LINE1   ?? "",
-      line2:   env.BILL_FROM_LINE2   ?? "",
-      country: env.BILL_FROM_COUNTRY ?? "",
+      name:    profile?.name              || env.BILL_FROM_NAME    || "",
+      line1:   profile?.address_line1     || env.BILL_FROM_LINE1   || "",
+      line2:   profile?.address_line2     || env.BILL_FROM_LINE2   || "",
+      country: profile?.address_country   || env.BILL_FROM_COUNTRY || "",
     },
     bank: {
-      name:  env.BANK_NAME  ?? "",
-      iban:  env.BANK_IBAN  ?? "",
-      swift: env.BANK_SWIFT ?? "",
+      name:  profile?.bank_name  || env.BANK_NAME  || "",
+      iban:  profile?.bank_iban  || env.BANK_IBAN  || "",
+      swift: profile?.bank_swift || env.BANK_SWIFT || "",
     },
     fetchOriginal,
     generatedAt: new Date(),

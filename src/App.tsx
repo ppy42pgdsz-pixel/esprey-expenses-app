@@ -7,6 +7,7 @@ import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import CompanyDetail from "./pages/CompanyDetail";
 import PdfView from "./pages/PdfView";
+import UserSettings from "./pages/UserSettings";
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/capture-manual" element={<CaptureManual />} />
         <Route path="/receipt/:id" element={<ReceiptDetail />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/settings/user" element={<UserSettings />} />
         <Route path="/companies/:name" element={<CompanyDetail />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/pdf" element={<PdfView />} />

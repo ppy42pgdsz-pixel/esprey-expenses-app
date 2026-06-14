@@ -23,6 +23,22 @@ export interface Person {
   is_favorite: number; // 0 or 1
 }
 
+export interface UserProfile {
+  id: number;
+  name: string | null;
+  business_name: string | null;
+  email: string | null;
+  phone: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  address_country: string | null;
+  vat_number: string | null;
+  bank_name: string | null;
+  bank_iban: string | null;
+  bank_swift: string | null;
+  updated_at: number;
+}
+
 export interface Company {
   name: string;                        // short name (PK, used in receipts)
   full_name: string | null;            // full legal/billing name (used in invoices)
