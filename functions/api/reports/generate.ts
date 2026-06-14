@@ -148,9 +148,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       country: profile?.address_country   || env.BILL_FROM_COUNTRY || "",
     },
     bank: {
-      name:  profile?.bank_name  || env.BANK_NAME  || "",
-      iban:  profile?.bank_iban  || env.BANK_IBAN  || "",
-      swift: profile?.bank_swift || env.BANK_SWIFT || "",
+      // Free-form payment details. Prefer the new bank_details column;
+      // fall back to legacy structured columns; finally to env vars.
+      details: profile?.bank_details
+        || composeLegacyDetails(profile?.bank_name, profile?.bank_iban, profile?.bank_swift)
+        || composeLegacyDetails(env.BANK_NAME, env.BANK_IBAN, env.BANK_SWIFT)
+        || "",
     },
     fetchOriginal,
     generatedAt: new Date(),
@@ -245,4 +248,15 @@ function slugify(s: string): string {
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "untitled";
+}
+function composeLegacyDetails(
+  name: string | null | undefined,
+  iban: string | null | undefined,
+  swift: string | null | undefined
+): string | null {
+  const lines: string[] = [];
+  if (name)  lines.push(`Bank: ${name}`);
+  if (iban)  lines.push(`IBAN: ${iban}`);
+  if (swift) lines.push(`SWIFT: ${swift}`);
+  return lines.length ? lines.join("\n") : null;
 }

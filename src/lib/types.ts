@@ -33,9 +33,10 @@ export interface UserProfile {
   address_line2: string | null;
   address_country: string | null;
   vat_number: string | null;
-  bank_name: string | null;
-  bank_iban: string | null;
-  bank_swift: string | null;
+  bank_name: string | null;   // legacy
+  bank_iban: string | null;   // legacy
+  bank_swift: string | null;  // legacy
+  bank_details: string | null;
   updated_at: number;
 }
 

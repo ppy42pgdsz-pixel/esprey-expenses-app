@@ -18,9 +18,7 @@ export default function UserSettings() {
   const [addr2, setAddr2] = useState("");
   const [country, setCountry] = useState("");
   const [vat, setVat] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [iban, setIban] = useState("");
-  const [swift, setSwift] = useState("");
+  const [bankDetails, setBankDetails] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -34,9 +32,14 @@ export default function UserSettings() {
         setAddr2(p.address_line2 ?? "");
         setCountry(p.address_country ?? "");
         setVat(p.vat_number ?? "");
-        setBankName(p.bank_name ?? "");
-        setIban(p.bank_iban ?? "");
-        setSwift(p.bank_swift ?? "");
+        // bank_details is the new canonical field; if it's empty fall back to
+        // the legacy structured fields so existing data isn't lost.
+        const composedLegacy = [
+          p.bank_name  ? `Bank: ${p.bank_name}`  : null,
+          p.bank_iban  ? `IBAN: ${p.bank_iban}`  : null,
+          p.bank_swift ? `SWIFT: ${p.bank_swift}` : null,
+        ].filter(Boolean).join("\n");
+        setBankDetails(p.bank_details ?? composedLegacy ?? "");
       } catch (e) {
         setErr((e as Error).message);
       } finally {
@@ -57,9 +60,7 @@ export default function UserSettings() {
         address_line2: addr2 || null,
         address_country: country || null,
         vat_number: vat || null,
-        bank_name: bankName || null,
-        bank_iban: iban || null,
-        bank_swift: swift || null,
+        bank_details: bankDetails || null,
       };
       await api.updateUserProfile(patch);
       navigate("/settings");
@@ -107,10 +108,20 @@ export default function UserSettings() {
           </section>
 
           <section className="settings-section">
-            <h2>Bank details</h2>
-            <Field label="Bank name" value={bankName} onChange={setBankName} placeholder="e.g. Millennium BCP" />
-            <Field label="IBAN" value={iban} onChange={setIban} placeholder="PT50 0033 0000 …" />
-            <Field label="SWIFT / BIC" value={swift} onChange={setSwift} placeholder="BCOMPTPL" />
+            <h2>Payment details</h2>
+            <div className="hint small" style={{ marginBottom: 8 }}>
+              Free-form text — printed verbatim in the <strong>PAYMENT DETAILS</strong> block of every invoice. Format it however your bank/country requires. Examples: IBAN + SWIFT for EU; sort code + account for UK; routing + account + correspondent bank for US wires.
+            </div>
+            <label className="field">
+              <span className="label">Payment instructions</span>
+              <textarea
+                value={bankDetails}
+                onChange={(e) => setBankDetails(e.target.value)}
+                rows={8}
+                placeholder={"Bank: Millennium BCP\nIBAN: PT50 0033 0000 45669096226 05\nSWIFT: BCOMPTPL\n\n(optional) Correspondent bank:\nBank: ...\nSWIFT: ..."}
+                style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13 }}
+              />
+            </label>
           </section>
 
           <button className="primary-btn full" onClick={save} disabled={saving}>

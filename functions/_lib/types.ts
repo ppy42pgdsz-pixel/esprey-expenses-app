@@ -30,9 +30,8 @@ export interface BillFrom {
 }
 
 export interface BankDetails {
-  name: string;
-  iban: string;
-  swift: string;
+  /** Free-form payment instructions, rendered verbatim in the invoice footer. */
+  details: string;
 }
 
 export interface ReceiptRow {

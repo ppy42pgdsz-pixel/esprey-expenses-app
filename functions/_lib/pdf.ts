@@ -511,18 +511,24 @@ function drawPaymentDetailsAndFooter(
     x: MARGIN, y: bottomBlockY + 14, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45),
   });
 
+  // Free-form payment instructions: one line per row, monospace-ish font,
+  // verbatim what the user typed.
   let yy = bottomBlockY - 2;
-  const labelX = MARGIN;
-  const valueX = MARGIN + 60;
-  const rows: Array<[string, string]> = [
-    ["Bank",  opts.bank.name  || "—"],
-    ["IBAN",  opts.bank.iban  || "—"],
-    ["SWIFT", opts.bank.swift || "—"],
-  ];
-  for (const [label, val] of rows) {
-    page.drawText(label, { x: labelX, y: yy, size: 9, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
-    page.drawText(val,   { x: valueX, y: yy, size: 9, font: fonts.reg });
-    yy -= 12;
+  const text = (opts.bank.details ?? "").trim();
+  if (!text) {
+    page.drawText("—", { x: MARGIN, y: yy, size: 9, font: fonts.reg, color: rgb(0.6, 0.6, 0.6) });
+  } else {
+    const lines: string[] = [];
+    for (const para of text.split(/\r?\n/)) {
+      for (const wrapped of wrapText(para, fonts.reg, 9, PAGE_W - 2 * MARGIN)) {
+        lines.push(wrapped);
+      }
+    }
+    for (const line of lines) {
+      if (yy < MARGIN - 4) break; // ran out of room
+      page.drawText(line, { x: MARGIN, y: yy, size: 9, font: fonts.reg });
+      yy -= 12;
+    }
   }
 
   // Centered footer

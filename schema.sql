@@ -62,9 +62,12 @@ CREATE TABLE IF NOT EXISTS user_profile (
   address_line2   TEXT,
   address_country TEXT,
   vat_number      TEXT,
+  -- Legacy structured columns (kept for back-compat; new code uses bank_details).
   bank_name       TEXT,
   bank_iban       TEXT,
   bank_swift      TEXT,
+  -- Free-form payment instructions block, printed verbatim in the invoice footer.
+  bank_details    TEXT,
   updated_at      INTEGER NOT NULL
 );
 

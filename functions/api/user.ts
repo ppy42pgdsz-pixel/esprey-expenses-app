@@ -14,16 +14,17 @@ export interface UserProfileRow {
   address_line2: string | null;
   address_country: string | null;
   vat_number: string | null;
-  bank_name: string | null;
-  bank_iban: string | null;
-  bank_swift: string | null;
+  bank_name: string | null;   // legacy
+  bank_iban: string | null;   // legacy
+  bank_swift: string | null;  // legacy
+  bank_details: string | null;
   updated_at: number;
 }
 
 const EDITABLE = [
   "name", "business_name", "email", "phone",
   "address_line1", "address_line2", "address_country", "vat_number",
-  "bank_name", "bank_iban", "bank_swift",
+  "bank_details",
 ] as const;
 
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
@@ -45,9 +46,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
       address_line2: env.BILL_FROM_LINE2 ?? null,
       address_country: env.BILL_FROM_COUNTRY ?? null,
       vat_number: null,
-      bank_name: env.BANK_NAME ?? null,
-      bank_iban: env.BANK_IBAN ?? null,
-      bank_swift: env.BANK_SWIFT ?? null,
+      bank_name: null,
+      bank_iban: null,
+      bank_swift: null,
+      bank_details: composeLegacyBankDetails(env),
       updated_at: 0,
     },
   });
@@ -88,3 +90,11 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
   ).first<UserProfileRow>();
   return Response.json({ profile: row });
 };
+
+function composeLegacyBankDetails(env: Env): string | null {
+  const lines: string[] = [];
+  if (env.BANK_NAME)  lines.push(`Bank: ${env.BANK_NAME}`);
+  if (env.BANK_IBAN)  lines.push(`IBAN: ${env.BANK_IBAN}`);
+  if (env.BANK_SWIFT) lines.push(`SWIFT: ${env.BANK_SWIFT}`);
+  return lines.length ? lines.join("\n") : null;
+}
