@@ -126,6 +126,12 @@ export default function ReceiptDetail() {
             <ManualPlaceholder />
           ) : isImageReceipt(receipt) ? (
             <img src={imageUrl(id)} alt="receipt" />
+          ) : isPdfLikeReceipt(receipt) ? (
+            <iframe
+              src={imageUrl(id) + "#toolbar=1&view=FitH"}
+              title="receipt PDF"
+              className="receipt-pdf-frame"
+            />
           ) : (
             <EmailBodyView id={id} />
           )}
@@ -199,7 +205,15 @@ export default function ReceiptDetail() {
 
 function isImageReceipt(r: Receipt): boolean {
   const key = (r.r2_key || "").toLowerCase();
-  return !key.endsWith(".txt") && !key.endsWith(".pdf");
+  if (key.endsWith(".txt") || key.endsWith(".pdf") || key.endsWith(".html")) return false;
+  if (key.startsWith("manual:")) return false;
+  return true;
+}
+
+function isPdfLikeReceipt(r: Receipt): boolean {
+  const key = (r.r2_key || "").toLowerCase();
+  // .pdf attachments OR .html email bodies (which are served as a cached PDF rendering).
+  return key.endsWith(".pdf") || key.endsWith(".html");
 }
 
 function ManualPlaceholder() {
