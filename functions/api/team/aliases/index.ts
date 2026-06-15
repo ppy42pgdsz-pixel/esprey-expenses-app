@@ -4,10 +4,10 @@
 // immediately. The middleware then maps the alias back to the primary so the
 // user sees the same data they would signing in with their primary email.
 
-import type { Env, TeamMemberRow } from "../../_lib/types";
-import { jsonError } from "../../_lib/types";
-import { requireAdmin } from "../../_lib/auth";
-import { grantAccess } from "../../_lib/cloudflare";
+import type { Env, TeamMemberRow } from "../../../_lib/types";
+import { jsonError } from "../../../_lib/types";
+import { requireAdmin } from "../../../_lib/auth";
+import { grantAccess } from "../../../_lib/cloudflare";
 
 const APP_DOMAIN = "expenses.esprey.net";
 
