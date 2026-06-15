@@ -4,9 +4,10 @@
 
 export const onRequestGet: PagesFunction<Record<string, unknown>> = async ({ env }) => {
   try {
-    const token = (env as Record<string, unknown>).CLOUDFLARE_API_TOKEN;
+    const rawToken = (env as Record<string, unknown>).CLOUDFLARE_API_TOKEN;
+    const token = typeof rawToken === "string" ? rawToken.trim() : "";
 
-    if (typeof token !== "string" || !token) {
+    if (!token) {
       return Response.json({
         ok: false,
         stage: "secret",
