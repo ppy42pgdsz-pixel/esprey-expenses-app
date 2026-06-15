@@ -10,7 +10,9 @@ export const onRequestGet: PagesFunction<Record<string, unknown>> = async ({ env
     if (typeof token !== "string" || !token.trim()) {
       return Response.json({ ok: false, message: "CLOUDFLARE_API_TOKEN not set" });
     }
-    const info = await listAllowedEmails(token, "expenses.esprey.net");
+    const explicitAccountId = (env as Record<string, unknown>).CLOUDFLARE_ACCOUNT_ID;
+    const accountId = typeof explicitAccountId === "string" ? explicitAccountId : null;
+    const info = await listAllowedEmails(token, "expenses.esprey.net", accountId);
     return Response.json({ ok: true, ...info });
   } catch (e) {
     return Response.json({

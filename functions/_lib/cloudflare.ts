@@ -68,11 +68,24 @@ interface AccessPolicyListResponse {
   result: AccessPolicy[];
 }
 
-/** Look up the first account this token has access to. */
-export async function getAccountId(token: string): Promise<string> {
+/**
+ * Resolve the account ID for API calls.
+ *
+ * Prefers the CLOUDFLARE_ACCOUNT_ID env var (cheaper, no extra permissions
+ * needed). Falls back to listing /accounts, which requires the token to have
+ * either User:Memberships:Read or at least one account-scope permission
+ * surfaced via /accounts (Cloudflare's behaviour here varies).
+ */
+export async function getAccountId(token: string, explicit?: string | null): Promise<string> {
+  if (explicit && explicit.trim()) return explicit.trim();
   const body = await cfFetch<AccountListResponse>(token, "/accounts");
   const acct = body.result?.[0];
-  if (!acct) throw new Error("No Cloudflare accounts visible to this token");
+  if (!acct) {
+    throw new Error(
+      "No Cloudflare accounts visible to this token, and CLOUDFLARE_ACCOUNT_ID is not set. " +
+      "Set CLOUDFLARE_ACCOUNT_ID as a Plaintext variable in Pages → Settings → Variables and Secrets."
+    );
+  }
   return acct.id;
 }
 
@@ -147,8 +160,8 @@ export async function setPolicyEmails(
  * High-level: ensure `email` is on the allow list for the app at `domain`.
  * Discovers the account, app, and policy automatically. Idempotent.
  */
-export async function grantAccess(token: string, domain: string, email: string): Promise<{ added: boolean; emails: string[] }> {
-  const accountId = await getAccountId(token);
+export async function grantAccess(token: string, domain: string, email: string, explicitAccountId?: string | null): Promise<{ added: boolean; emails: string[] }> {
+  const accountId = await getAccountId(token, explicitAccountId);
   const app = await findAccessApp(token, accountId, domain);
   const policies = await getAccessPolicies(token, accountId, app.id);
   const policy = policies.find((p) => p.decision === "allow") ?? policies[0];
@@ -167,8 +180,8 @@ export async function grantAccess(token: string, domain: string, email: string):
 /**
  * High-level: ensure `email` is NOT on the allow list. Idempotent.
  */
-export async function revokeAccess(token: string, domain: string, email: string): Promise<{ removed: boolean; emails: string[] }> {
-  const accountId = await getAccountId(token);
+export async function revokeAccess(token: string, domain: string, email: string, explicitAccountId?: string | null): Promise<{ removed: boolean; emails: string[] }> {
+  const accountId = await getAccountId(token, explicitAccountId);
   const app = await findAccessApp(token, accountId, domain);
   const policies = await getAccessPolicies(token, accountId, app.id);
   const policy = policies.find((p) => p.decision === "allow") ?? policies[0];
@@ -185,11 +198,11 @@ export async function revokeAccess(token: string, domain: string, email: string)
 }
 
 /** Diagnostic: report the current allow list as Cloudflare sees it. */
-export async function listAllowedEmails(token: string, domain: string): Promise<{
+export async function listAllowedEmails(token: string, domain: string, explicitAccountId?: string | null): Promise<{
   accountId: string; appId: string; appName: string; policyId: string; policyName: string;
   emails: string[];
 }> {
-  const accountId = await getAccountId(token);
+  const accountId = await getAccountId(token, explicitAccountId);
   const app = await findAccessApp(token, accountId, domain);
   const policies = await getAccessPolicies(token, accountId, app.id);
   const policy = policies.find((p) => p.decision === "allow") ?? policies[0];

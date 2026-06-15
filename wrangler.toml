@@ -18,6 +18,11 @@ BANK_NAME  = "Millennium BCP"
 BANK_IBAN  = "PT50 0033 0000 45669096226 05"
 BANK_SWIFT = "BCOMPTPL"
 
+# Cloudflare account ID — used by /api/team to update the Access policy when
+# adding or removing team members. Not sensitive (visible in every dashboard
+# URL); kept here rather than as a secret so plain code can read it.
+CLOUDFLARE_ACCOUNT_ID = "85687e97532d7c76f98ac1a576162840"
+
 # D1 database binding (SQLite)
 [[d1_databases]]
 binding = "DB"
