@@ -6,13 +6,56 @@ import type { AuthContext, Env, TeamMemberRow } from "./types";
 import { jsonError } from "./types";
 
 /**
- * Extract the user's email from the Cloudflare Access JWT header. Returns null
- * if the request didn't come through Access (which shouldn't happen in
- * production but might during local dev).
+ * Extract the user's email from Cloudflare Access. Tries the convenience
+ * header first; falls back to decoding the JWT in cf-access-jwt-assertion
+ * (some Access configs only inject the JWT, not the email header).
+ *
+ * NOTE: we trust the JWT because it's added by Cloudflare's edge before the
+ * request reaches our worker — there's no way to hit a Pages function without
+ * going through Cloudflare. We still check `exp` so an expired token doesn't
+ * grant access. Signature verification can be added later if we want defense
+ * in depth.
  */
 export function readUserEmail(request: Request): string | null {
-  const h = request.headers.get("cf-access-authenticated-user-email");
-  return h ? h.trim().toLowerCase() : null;
+  const direct = request.headers.get("cf-access-authenticated-user-email");
+  if (direct) return direct.trim().toLowerCase();
+
+  const jwt = request.headers.get("cf-access-jwt-assertion");
+  if (!jwt) return null;
+  const claims = decodeJwtPayload(jwt);
+  if (!claims) return null;
+
+  // Honour expiry (in seconds since epoch per JWT spec).
+  if (typeof claims.exp === "number" && claims.exp * 1000 < Date.now()) return null;
+
+  const email =
+    (typeof claims.email === "string" && claims.email) ||
+    (typeof (claims as any).identity?.email === "string" && (claims as any).identity.email) ||
+    null;
+  return email ? email.trim().toLowerCase() : null;
+}
+
+interface JwtClaims {
+  email?: string;
+  sub?: string;
+  aud?: string | string[];
+  iss?: string;
+  exp?: number;
+  iat?: number;
+  [k: string]: unknown;
+}
+
+function decodeJwtPayload(jwt: string): JwtClaims | null {
+  try {
+    const parts = jwt.split(".");
+    if (parts.length !== 3) return null;
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const json = atob(padded);
+    return JSON.parse(json) as JwtClaims;
+  } catch {
+    return null;
+  }
 }
 
 /**
