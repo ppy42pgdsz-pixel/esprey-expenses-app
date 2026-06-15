@@ -20,6 +20,27 @@ export interface Env {
   BANK_NAME?: string;
   BANK_IBAN?: string;
   BANK_SWIFT?: string;
+
+  // Multi-user: token for managing the Cloudflare Access policy, plus the
+  // account ID it should operate on.
+  CLOUDFLARE_API_TOKEN?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+}
+
+export interface TeamMemberRow {
+  id: number;
+  email: string;
+  display_name: string | null;
+  role: string;
+  is_admin: number;
+  added_at: number;
+  added_by: string | null;
+}
+
+/** Data injected by the auth middleware into PagesFunction context.data. */
+export interface AuthContext {
+  userEmail: string | null;
+  isAdmin: boolean;
 }
 
 export interface BillFrom {

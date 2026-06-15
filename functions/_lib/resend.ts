@@ -42,6 +42,47 @@ export async function sendReportEmail(opts: {
   return (await res.json()) as { id: string };
 }
 
+/** Welcome email sent to a newly-added team member. */
+export async function sendWelcomeEmail(opts: {
+  apiKey: string;
+  fromAddress: string;
+  toAddress: string;
+  displayName?: string | null;
+  addedByName?: string | null;
+  appUrl: string;
+}): Promise<{ id: string }> {
+  const greeting = opts.displayName ? `Hi ${opts.displayName.split(" ")[0]},` : "Hi,";
+  const inviter = opts.addedByName ? ` by ${opts.addedByName}` : "";
+  const body = {
+    from: `Esprey Expenses <${opts.fromAddress}>`,
+    to: [opts.toAddress],
+    subject: "You've been added to Esprey Expenses",
+    text:
+      `${greeting}\n\n` +
+      `You've been added${inviter} to Esprey Expenses — the app we use to track and report business expenses.\n\n` +
+      `Open the app: ${opts.appUrl}\n\n` +
+      `First time signing in: enter your email when prompted. Cloudflare will email you a one-time code. Once you're in, save the page to your phone's home screen (Share → Add to Home Screen on iPhone) so it works like a native app.\n\n` +
+      `Quick start:\n` +
+      `1. Tap the camera button on the home screen to capture a receipt.\n` +
+      `2. Or email any receipt (PDF, image, or forwarded confirmation) to receipts@esprey.net from this address — it'll show up automatically.\n` +
+      `3. Fill in Settings → My Profile with your name, address, and bank details so they appear on your monthly invoice.\n\n` +
+      `Any issues, reply to this email.`,
+  };
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${opts.apiKey}`,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Resend ${res.status}: ${txt.slice(0, 500)}`);
+  }
+  return (await res.json()) as { id: string };
+}
+
 function uint8ToBase64(bytes: Uint8Array): string {
   let binary = "";
   const chunk = 0x8000;
