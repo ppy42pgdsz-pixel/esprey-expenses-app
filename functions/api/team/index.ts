@@ -64,6 +64,19 @@ export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, en
 };
 
 export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
+  try {
+    return await addMember({ request, env, data });
+  } catch (e) {
+    return Response.json({
+      error: "add member crashed",
+      stage: "exception",
+      message: (e as Error)?.message ?? String(e),
+      stack: (e as Error)?.stack ?? null,
+    }, { status: 500 });
+  }
+};
+
+async function addMember({ request, env, data }: { request: Request; env: Env; data: any }): Promise<Response> {
   const guard = await requireAdmin(request, env, data);
   if (!guard.ok) return guard.response;
 
@@ -146,7 +159,7 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
     emailedTo,
     emailError,
   });
-};
+}
 
 function isPlausibleEmail(s: string): boolean {
   // Deliberately permissive — Cloudflare Access does the real validation.
