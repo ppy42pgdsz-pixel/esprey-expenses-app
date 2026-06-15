@@ -4,6 +4,18 @@ import { api } from "../lib/api";
 import type { Person } from "../lib/types";
 
 export default function Settings() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        const me = await api.whoAmI();
+        setIsAdmin(!!me.middlewareSaw.isAdmin);
+      } catch {
+        // ignore — if /api/diag/whoami fails the Team link just stays hidden
+      }
+    })();
+  }, []);
+
   return (
     <div className="page settings">
       <header className="topbar">
@@ -12,11 +24,32 @@ export default function Settings() {
         <span />
       </header>
       <UserSection />
+      {isAdmin && <TeamSection />}
       <CompaniesSection />
       <PeopleSection />
       <CategoriesSection />
       <CurrenciesSection />
     </div>
+  );
+}
+
+/* ------------ Team (admins only) ------------ */
+function TeamSection() {
+  return (
+    <section className="settings-section">
+      <h2>Team</h2>
+      <div className="manage-list">
+        <div className="manage-row">
+          <Link to="/settings/team" className="manage-name manage-link">
+            <strong>Manage team members</strong>
+            <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
+              · Add or remove people who can sign in
+            </span>
+          </Link>
+          <Link to="/settings/team" className="primary-btn small">Open</Link>
+        </div>
+      </div>
+    </section>
   );
 }
 

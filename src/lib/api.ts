@@ -125,6 +125,45 @@ export const api = {
       body: JSON.stringify({ file }),
     }),
 
+  whoAmI: () =>
+    jsonFetch<{
+      middlewareSaw: { userEmail: string | null; isAdmin: boolean };
+    }>("/api/diag/whoami"),
+
+  listTeam: () =>
+    jsonFetch<{
+      members: Array<{
+        id: number;
+        email: string;
+        display_name: string | null;
+        role: string;
+        is_admin: number;
+        added_at: number;
+        added_by: string | null;
+      }>;
+      cloudflareEmails: string[];
+      cloudflareError: string | null;
+    }>("/api/team"),
+  addTeamMember: (email: string, display_name?: string | null) =>
+    jsonFetch<{
+      member: { email: string; display_name: string | null };
+      cloudflareAdded: boolean;
+      cloudflareEmails: string[];
+      emailedTo: string | null;
+      emailError: string | null;
+    }>("/api/team", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, display_name: display_name ?? null }),
+    }),
+  removeTeamMember: (email: string) =>
+    jsonFetch<{
+      removed: boolean;
+      email: string;
+      cloudflareRemoved: boolean;
+      cloudflareEmails: string[];
+    }>(`/api/team/${encodeURIComponent(email)}`, { method: "DELETE" }),
+
   getUserProfile: () => jsonFetch<{ profile: UserProfile }>("/api/user"),
   updateUserProfile: (patch: Partial<UserProfile>) =>
     jsonFetch<{ profile: UserProfile }>("/api/user", {
