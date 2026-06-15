@@ -11,7 +11,7 @@ A personal expense-tracking PWA. Phone-camera or email-forwarded receipts get OC
 - **Vision OCR**: Anthropic Claude API
 - **Email ingest**: Cloudflare Email Routing → Email Worker (Stage 3)
 
-## Status
+## Status 
 
 v0.1 — scaffold only. Deploys a "hello world" page that pings the backend health endpoint. Used to verify the deploy pipeline works before adding features.
 
