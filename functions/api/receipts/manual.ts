@@ -4,6 +4,7 @@
 import type { Env } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
 import { newId } from "../../_lib/util";
+import { requireUser, isAdminEmail } from "../../_lib/auth";
 
 interface ManualBody {
   vendor?: string | null;
@@ -16,7 +17,10 @@ interface ManualBody {
   attendees?: string[] | null;
 }
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
+  const guard = await requireUser(request, env, data);
+  if (!guard.ok) return guard.response;
+
   let body: ManualBody;
   try {
     body = (await request.json()) as ManualBody;
@@ -34,9 +38,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   await env.DB.prepare(
     `INSERT INTO receipts (
        id, r2_key, source, vendor, amount, currency, receipt_date,
-       company, category, notes, attendees, ocr_status, uploaded_at
+       company, category, notes, attendees, ocr_status, uploaded_at, user_email
      )
-     VALUES (?, ?, 'manual', ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?)`
+     VALUES (?, ?, 'manual', ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?, ?)`
   )
     .bind(
       id,
@@ -51,33 +55,40 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       Array.isArray(body.attendees) && body.attendees.length
         ? JSON.stringify(body.attendees.map(String).filter(Boolean))
         : null,
-      uploadedAt
+      uploadedAt,
+      guard.userEmail
     )
     .run();
 
-  // Upsert company / category / people so the dropdowns grow.
-  if (body.company && body.company.trim()) {
+  const isAdmin = await isAdminEmail(env, guard.userEmail);
+
+  // Companies + categories are admin-only — only auto-add if the current user
+  // is an admin. Non-admins can still tag their receipts with a custom string;
+  // it just won't appear in the shared dropdown.
+  if (isAdmin && body.company && body.company.trim()) {
     await env.DB.prepare(
       `INSERT OR IGNORE INTO companies (name, created_at) VALUES (?, ?)`
     )
       .bind(body.company.trim(), uploadedAt)
       .run();
   }
-  if (body.category && body.category.trim()) {
+  if (isAdmin && body.category && body.category.trim()) {
     await env.DB.prepare(
       `INSERT OR IGNORE INTO categories (name, created_at) VALUES (?, ?)`
     )
       .bind(body.category.trim(), uploadedAt)
       .run();
   }
+
+  // People is per-user — always auto-add into the user's own list.
   if (Array.isArray(body.attendees)) {
     for (const raw of body.attendees) {
       const n = String(raw ?? "").trim();
       if (!n) continue;
       await env.DB.prepare(
-        `INSERT OR IGNORE INTO people (name, is_favorite, created_at) VALUES (?, 0, ?)`
+        `INSERT OR IGNORE INTO people (user_email, name, is_favorite, created_at) VALUES (?, ?, 0, ?)`
       )
-        .bind(n, uploadedAt)
+        .bind(guard.userEmail, n, uploadedAt)
         .run();
     }
   }

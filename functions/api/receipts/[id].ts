@@ -1,13 +1,21 @@
-// GET  /api/receipts/:id  — fetch one receipt's row
+// GET  /api/receipts/:id  — fetch one receipt's row (owned by signed-in user only)
 // PATCH /api/receipts/:id  — update editable fields (vendor, amount, currency, date, company, notes)
 // DELETE /api/receipts/:id — delete (also removes the R2 object)
+//
+// All operations scoped by user_email — users can't read or modify each
+// others' receipts even if they know the ID.
 
 import type { Env, ReceiptRow } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
+import { requireUser, isAdminEmail } from "../../_lib/auth";
 
-export const onRequestGet: PagesFunction<Env, "id"> = async ({ env, params }) => {
+export const onRequestGet: PagesFunction<Env, "id", any> = async ({ request, env, data, params }) => {
+  const guard = await requireUser(request, env, data);
+  if (!guard.ok) return guard.response;
   const id = params.id as string;
-  const row = await env.DB.prepare(`SELECT * FROM receipts WHERE id = ?`).bind(id).first<ReceiptRow>();
+  const row = await env.DB.prepare(
+    `SELECT * FROM receipts WHERE id = ? AND user_email = ?`
+  ).bind(id, guard.userEmail).first<ReceiptRow>();
   if (!row) return jsonError(404, "not found");
   return Response.json({ receipt: row });
 };
@@ -15,8 +23,17 @@ export const onRequestGet: PagesFunction<Env, "id"> = async ({ env, params }) =>
 const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category"] as const;
 type EditableField = (typeof EDITABLE)[number];
 
-export const onRequestPatch: PagesFunction<Env, "id"> = async ({ request, env, params }) => {
+export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, env, data, params }) => {
+  const guard = await requireUser(request, env, data);
+  if (!guard.ok) return guard.response;
   const id = params.id as string;
+
+  // Confirm the receipt actually belongs to this user before touching anything.
+  const existing = await env.DB.prepare(
+    `SELECT id FROM receipts WHERE id = ? AND user_email = ?`
+  ).bind(id, guard.userEmail).first<{ id: string }>();
+  if (!existing) return jsonError(404, "not found");
+
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -31,13 +48,11 @@ export const onRequestPatch: PagesFunction<Env, "id"> = async ({ request, env, p
       sets.push(`${k} = ?`);
       const v = body[k as EditableField];
       if (k === "attendees") {
-        // Accept either an array of names from the client or null.
         if (Array.isArray(v)) {
           args.push(JSON.stringify(v.map(String).filter(Boolean)));
         } else if (v === null || v === "") {
           args.push(null);
         } else if (typeof v === "string") {
-          // tolerate already-JSON or comma-separated input
           args.push(v);
         } else {
           args.push(null);
@@ -47,24 +62,27 @@ export const onRequestPatch: PagesFunction<Env, "id"> = async ({ request, env, p
       }
     }
   }
-  // If the user edited fields by hand, mark ocr_status='manual' so we don't pretend it's pristine OCR.
   if (sets.length > 0) {
     sets.push(`ocr_status = ?`);
     args.push("manual");
   }
   if (!sets.length) return jsonError(400, "no editable fields supplied");
 
-  args.push(id);
+  args.push(id, guard.userEmail);
   const { success } = await env.DB.prepare(
-    `UPDATE receipts SET ${sets.join(", ")} WHERE id = ?`
+    `UPDATE receipts SET ${sets.join(", ")} WHERE id = ? AND user_email = ?`
   )
     .bind(...args)
     .run();
 
   if (!success) return jsonError(500, "update failed");
 
-  // If a company was set, upsert it into the companies table so the dropdown grows.
-  if (typeof body.company === "string" && body.company.trim()) {
+  const isAdmin = await isAdminEmail(env, guard.userEmail);
+
+  // Auto-add company to shared dropdown (admin-only). Non-admins can still
+  // type a custom company name on a receipt; it just won't appear in the
+  // shared dropdown until an admin adds it officially.
+  if (isAdmin && typeof body.company === "string" && body.company.trim()) {
     const name = body.company.trim();
     await env.DB.prepare(
       `INSERT OR IGNORE INTO companies (name, created_at) VALUES (?, ?)`
@@ -73,8 +91,8 @@ export const onRequestPatch: PagesFunction<Env, "id"> = async ({ request, env, p
       .run();
   }
 
-  // Same for category.
-  if (typeof body.category === "string" && body.category.trim()) {
+  // Same for category — admin-only auto-add.
+  if (isAdmin && typeof body.category === "string" && body.category.trim()) {
     const name = body.category.trim();
     await env.DB.prepare(
       `INSERT OR IGNORE INTO categories (name, created_at) VALUES (?, ?)`
@@ -83,34 +101,41 @@ export const onRequestPatch: PagesFunction<Env, "id"> = async ({ request, env, p
       .run();
   }
 
-  // If attendees were set as an array, make sure each name is in the people table
-  // (as a non-favourite by default). The frontend should normally call POST /api/people
-  // for new names, but this is a safety net.
+  // Attendees are per-user, so any user can auto-add their own people.
   if (Array.isArray(body.attendees)) {
     for (const raw of body.attendees) {
       const n = String(raw ?? "").trim();
       if (!n) continue;
       await env.DB.prepare(
-        `INSERT OR IGNORE INTO people (name, is_favorite, created_at) VALUES (?, 0, ?)`
+        `INSERT OR IGNORE INTO people (user_email, name, is_favorite, created_at)
+         VALUES (?, ?, 0, ?)`
       )
-        .bind(n, Date.now())
+        .bind(guard.userEmail, n, Date.now())
         .run();
     }
   }
 
-  const row = await env.DB.prepare(`SELECT * FROM receipts WHERE id = ?`).bind(id).first<ReceiptRow>();
+  const row = await env.DB.prepare(
+    `SELECT * FROM receipts WHERE id = ? AND user_email = ?`
+  ).bind(id, guard.userEmail).first<ReceiptRow>();
   return Response.json({ receipt: row });
 };
 
-export const onRequestDelete: PagesFunction<Env, "id"> = async ({ env, params }) => {
+export const onRequestDelete: PagesFunction<Env, "id", any> = async ({ request, env, data, params }) => {
+  const guard = await requireUser(request, env, data);
+  if (!guard.ok) return guard.response;
   const id = params.id as string;
-  const row = await env.DB.prepare(`SELECT r2_key, thumb_r2_key FROM receipts WHERE id = ?`)
-    .bind(id)
+  const row = await env.DB.prepare(
+    `SELECT r2_key, thumb_r2_key FROM receipts WHERE id = ? AND user_email = ?`
+  )
+    .bind(id, guard.userEmail)
     .first<{ r2_key: string; thumb_r2_key: string | null }>();
   if (!row) return jsonError(404, "not found");
 
   await env.RECEIPTS.delete(row.r2_key);
   if (row.thumb_r2_key) await env.RECEIPTS.delete(row.thumb_r2_key);
-  await env.DB.prepare(`DELETE FROM receipts WHERE id = ?`).bind(id).run();
+  await env.DB.prepare(
+    `DELETE FROM receipts WHERE id = ? AND user_email = ?`
+  ).bind(id, guard.userEmail).run();
   return Response.json({ deleted: id });
 };

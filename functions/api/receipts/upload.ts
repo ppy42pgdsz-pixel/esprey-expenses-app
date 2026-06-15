@@ -6,8 +6,12 @@ import type { Env } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
 import { extractReceipt } from "../../_lib/anthropic";
 import { arrayBufferToBase64, extFromMime, newId, r2KeyForReceipt } from "../../_lib/util";
+import { requireUser } from "../../_lib/auth";
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
+  const guard = await requireUser(request, env, data);
+  if (!guard.ok) return guard.response;
+
   let form: FormData;
   try {
     form = await request.formData();
@@ -37,10 +41,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // Insert a 'pending' row so the receipt shows up immediately even if OCR is slow.
   const uploadedAt = Date.now();
   await env.DB.prepare(
-    `INSERT INTO receipts (id, r2_key, source, company, ocr_status, uploaded_at)
-     VALUES (?, ?, 'camera', ?, 'pending', ?)`
+    `INSERT INTO receipts (id, r2_key, source, company, ocr_status, uploaded_at, user_email)
+     VALUES (?, ?, 'camera', ?, 'pending', ?, ?)`
   )
-    .bind(id, r2Key, company, uploadedAt)
+    .bind(id, r2Key, company, uploadedAt, guard.userEmail)
     .run();
 
   // Try to OCR with Claude vision. Failures don't fail the upload — the row stays

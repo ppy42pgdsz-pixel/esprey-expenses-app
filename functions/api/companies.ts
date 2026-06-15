@@ -3,6 +3,7 @@
 
 import type { Env } from "../_lib/types";
 import { jsonError } from "../_lib/types";
+import { requireAdmin, requireUser } from "../_lib/auth";
 
 export interface CompanyRow {
   name: string;
@@ -14,7 +15,9 @@ export interface CompanyRow {
   created_at: number;
 }
 
-export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
+export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
+  const guard = await requireUser(request, env, data);
+  if (!guard.ok) return guard.response;
   const { results } = await env.DB.prepare(
     `SELECT name, full_name, address_line1, address_line2, address_country, vat_number, created_at
        FROM companies ORDER BY name`
@@ -22,7 +25,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   return Response.json({ companies: results ?? [] });
 };
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
+  const guard = await requireAdmin(request, env, data);
+  if (!guard.ok) return guard.response;
   let body: Partial<CompanyRow>;
   try {
     body = (await request.json()) as Partial<CompanyRow>;

@@ -12,8 +12,13 @@ import { fetchLatestRates, type FxRates } from "../../_lib/fx";
 import { htmlToPdf } from "../../_lib/pdfshift";
 import { buildReceiptZip } from "../../_lib/zip";
 import type { UserProfileRow } from "../user";
+import { requireUser } from "../../_lib/auth";
+import { reportR2Key } from "../../_lib/util";
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
+  const guard = await requireUser(request, env, data);
+  if (!guard.ok) return guard.response;
+
   let body: { month?: string; company?: string | null; currency?: string | null };
   try { body = (await request.json()) as typeof body; }
   catch { return jsonError(400, "invalid JSON body"); }
@@ -33,21 +38,22 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // NOTE: we do NOT filter by currency here — when a target currency is set, we
   // include receipts of every currency and convert them in the PDF.
   const where: string[] = [
+    `user_email = ?`,
     `((receipt_date IS NOT NULL AND receipt_date >= ? AND receipt_date < ?)
       OR (receipt_date IS NULL AND uploaded_at >= ? AND uploaded_at < ?))`,
   ];
-  const args: unknown[] = [startISO, endISO, startMs, endMs];
+  const args: unknown[] = [guard.userEmail, startISO, endISO, startMs, endMs];
   if (company) { where.push(`company = ?`); args.push(company); }
   const sql = `SELECT * FROM receipts WHERE ${where.join(" AND ")} ORDER BY receipt_date, uploaded_at`;
   const { results } = await env.DB.prepare(sql).bind(...args).all<ReceiptRow>();
   const receipts = results ?? [];
 
-  // Filename + R2 key.
+  // Filename + R2 key (namespaced by user — reports/<user_slug>/<month>__<slug>.pdf).
   const segs = [company ? slugify(company) : "all"];
   if (currency) segs.push(currency.toLowerCase());
   const slug = segs.join("__");
   const file = `${month}__${slug}.pdf`;
-  const r2Key = `reports/${file}`;
+  const r2Key = reportR2Key(guard.userEmail, file);
 
   const parts = [monthLabel];
   if (company) parts.push(company);
@@ -76,9 +82,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   // Personal user profile (drives the BILL FROM block + payment details).
+  // Falls back to the env-var defaults (Carl's setup) for first-time users
+  // before they've saved a profile.
   const profile = await env.DB.prepare(
-    `SELECT * FROM user_profile WHERE id = 1`
-  ).first<UserProfileRow>();
+    `SELECT * FROM user_profile WHERE user_email = ?`
+  ).bind(guard.userEmail).first<UserProfileRow>();
 
   // Shared fetcher used by both the PDF appendix and the receipts ZIP.
   // For email-body HTML receipts it goes through PDFShift (cached in R2) so the
@@ -185,7 +193,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     zipBytes = result.bytes;
     zipFilesIncluded = result.filesIncluded;
     zipFile = file.replace(/\.pdf$/i, ".zip");
-    await env.RECEIPTS.put(`reports/${zipFile}`, zipBytes, {
+    await env.RECEIPTS.put(reportR2Key(guard.userEmail, zipFile), zipBytes, {
       httpMetadata: { contentType: "application/zip" },
       customMetadata: { kind: "monthly-report-zip", month, company: company ?? "" },
     });
@@ -194,8 +202,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     console.error("ZIP build failed", e);
   }
 
-  // Email the PDF only — ZIP is sent separately via /api/reports/email-zip when
-  // the user explicitly asks for it.
+  // Email the PDF to the signed-in user. ZIP is sent separately via
+  // /api/reports/email-zip when the user explicitly asks for it.
   let emailedTo: string | null = null;
   let emailError: string | null = null;
   if (env.RESEND_API_KEY && env.REPORT_FROM_ADDRESS) {
@@ -203,11 +211,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       await sendReportEmail({
         apiKey: env.RESEND_API_KEY,
         fromAddress: env.REPORT_FROM_ADDRESS,
-        toAddress: env.CARL_EMAIL,
+        toAddress: guard.userEmail,
         monthLabel: reportLabel,
         attachments: [{ filename, bytes: pdfBytes }],
       });
-      emailedTo = env.CARL_EMAIL;
+      emailedTo = guard.userEmail;
     } catch (e) {
       emailError = (e as Error).message;
     }

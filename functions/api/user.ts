@@ -1,11 +1,16 @@
-// GET /api/user — load the (single-row) user profile.
-// PUT /api/user — upsert the user profile (id=1 hardcoded for now).
+// GET /api/user — load the signed-in user's profile.
+// PUT /api/user — upsert the signed-in user's profile.
+//
+// Profile is keyed by user_email (the Cloudflare Access identity). One row
+// per team member.
 
 import type { Env } from "../_lib/types";
 import { jsonError } from "../_lib/types";
+import { requireUser } from "../_lib/auth";
 
 export interface UserProfileRow {
   id: number;
+  user_email: string | null;
   name: string | null;
   business_name: string | null;
   email: string | null;
@@ -27,35 +32,44 @@ const EDITABLE = [
   "bank_details",
 ] as const;
 
-export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
+export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
+  const guard = await requireUser(request, env, data);
+  if (!guard.ok) return guard.response;
+
   const row = await env.DB.prepare(
-    `SELECT * FROM user_profile WHERE id = 1`
-  ).first<UserProfileRow>();
+    `SELECT * FROM user_profile WHERE user_email = ?`
+  ).bind(guard.userEmail).first<UserProfileRow>();
   if (row) {
     return Response.json({ profile: row });
   }
-  // No row yet — return env-var defaults so the form pre-fills sensibly.
+  // No row yet — return sensible defaults so the form pre-fills.
+  // The signed-in user's email is the only thing we know for sure.
+  const isCarl = env.CARL_EMAIL && guard.userEmail === env.CARL_EMAIL.toLowerCase();
   return Response.json({
     profile: {
-      id: 1,
-      name: env.BILL_FROM_NAME ?? null,
+      id: 0,
+      user_email: guard.userEmail,
+      name: isCarl ? (env.BILL_FROM_NAME ?? null) : null,
       business_name: null,
-      email: env.CARL_EMAIL ?? null,
+      email: guard.userEmail,
       phone: null,
-      address_line1: env.BILL_FROM_LINE1 ?? null,
-      address_line2: env.BILL_FROM_LINE2 ?? null,
-      address_country: env.BILL_FROM_COUNTRY ?? null,
+      address_line1: isCarl ? (env.BILL_FROM_LINE1 ?? null) : null,
+      address_line2: isCarl ? (env.BILL_FROM_LINE2 ?? null) : null,
+      address_country: isCarl ? (env.BILL_FROM_COUNTRY ?? null) : null,
       vat_number: null,
       bank_name: null,
       bank_iban: null,
       bank_swift: null,
-      bank_details: composeLegacyBankDetails(env),
+      bank_details: isCarl ? composeLegacyBankDetails(env) : null,
       updated_at: 0,
     },
   });
 };
 
-export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestPut: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
+  const guard = await requireUser(request, env, data);
+  if (!guard.ok) return guard.response;
+
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -74,20 +88,36 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
   }
   const now = Date.now();
 
-  // UPSERT into id=1.
-  const colList = cols.join(", ");
-  const placeholders = cols.map(() => "?").join(", ");
-  const updateSets = cols.map((c) => `${c} = excluded.${c}`).join(", ");
+  // Check if a row already exists for this user.
+  const existing = await env.DB.prepare(
+    `SELECT id FROM user_profile WHERE user_email = ?`
+  ).bind(guard.userEmail).first<{ id: number }>();
 
-  await env.DB.prepare(
-    `INSERT INTO user_profile (id, ${colList}, updated_at)
-       VALUES (1, ${placeholders}, ?)
-     ON CONFLICT(id) DO UPDATE SET ${updateSets}, updated_at = excluded.updated_at`
-  ).bind(...vals, now).run();
+  if (existing) {
+    // UPDATE existing row.
+    if (cols.length === 0) {
+      // No editable fields supplied — just bump updated_at.
+      await env.DB.prepare(
+        `UPDATE user_profile SET updated_at = ? WHERE user_email = ?`
+      ).bind(now, guard.userEmail).run();
+    } else {
+      const setList = cols.map((c) => `${c} = ?`).join(", ");
+      await env.DB.prepare(
+        `UPDATE user_profile SET ${setList}, updated_at = ? WHERE user_email = ?`
+      ).bind(...vals, now, guard.userEmail).run();
+    }
+  } else {
+    // INSERT new row.
+    const colList = ["user_email", ...cols, "updated_at"].join(", ");
+    const placeholders = ["?", ...cols.map(() => "?"), "?"].join(", ");
+    await env.DB.prepare(
+      `INSERT INTO user_profile (${colList}) VALUES (${placeholders})`
+    ).bind(guard.userEmail, ...vals, now).run();
+  }
 
   const row = await env.DB.prepare(
-    `SELECT * FROM user_profile WHERE id = 1`
-  ).first<UserProfileRow>();
+    `SELECT * FROM user_profile WHERE user_email = ?`
+  ).bind(guard.userEmail).first<UserProfileRow>();
   return Response.json({ profile: row });
 };
 

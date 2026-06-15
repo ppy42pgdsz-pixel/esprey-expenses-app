@@ -3,20 +3,25 @@
 
 import type { Env } from "../_lib/types";
 import { jsonError } from "../_lib/types";
+import { requireAdmin, requireUser } from "../_lib/auth";
 
 export interface CurrencyRow {
   code: string;
   name: string;
 }
 
-export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
+export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
+  const guard = await requireUser(request, env, data);
+  if (!guard.ok) return guard.response;
   const { results } = await env.DB.prepare(
     `SELECT code, name FROM currencies ORDER BY code`
   ).all<CurrencyRow>();
   return Response.json({ currencies: results ?? [] });
 };
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
+  const guard = await requireAdmin(request, env, data);
+  if (!guard.ok) return guard.response;
   let body: { code?: string; name?: string };
   try {
     body = (await request.json()) as { code?: string; name?: string };

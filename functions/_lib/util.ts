@@ -26,6 +26,20 @@ export function r2KeyForReceipt(id: string, ext: string): string {
   return `${y}/${m}/${id}.${ext}`;
 }
 
+/**
+ * Convert an email address into a safe R2 key segment.
+ * `cesprey@gmail.com` → `cesprey_gmail_com`.
+ * Used to namespace per-user files in R2 (reports/, etc).
+ */
+export function userSlug(email: string): string {
+  return (email || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+/** Full R2 key for a per-user monthly report. */
+export function reportR2Key(email: string, file: string): string {
+  return `reports/${userSlug(email)}/${file}`;
+}
+
 export function extFromMime(mime: string): string {
   switch (mime) {
     case "image/jpeg":

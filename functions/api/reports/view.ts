@@ -1,18 +1,23 @@
 // GET /api/reports/view?file=<filename>
-// Streams the PDF from R2 with Content-Disposition: inline so iOS Safari
-// renders it inside our in-app iframe viewer instead of triggering the
-// native iOS preview/save dialog.
+// Streams the signed-in user's PDF from R2 with Content-Disposition: inline
+// so iOS Safari renders it inside our in-app iframe viewer instead of
+// triggering the native iOS preview/save dialog.
 
 import type { Env } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
+import { requireUser } from "../../_lib/auth";
+import { reportR2Key } from "../../_lib/util";
 
-export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
+export const onRequestGet: PagesFunction<Env, never, any> = async ({ env, request, data }) => {
+  const guard = await requireUser(request, env, data);
+  if (!guard.ok) return guard.response;
+
   const url = new URL(request.url);
   const file = url.searchParams.get("file") ?? "";
   if (!file || !/^[\w\-.]+\.pdf$/i.test(file)) {
     return jsonError(400, "invalid 'file' parameter");
   }
-  const obj = await env.RECEIPTS.get(`reports/${file}`);
+  const obj = await env.RECEIPTS.get(reportR2Key(guard.userEmail, file));
   if (!obj) return jsonError(404, "report not found — generate it first");
 
   const headers = new Headers();

@@ -4,11 +4,14 @@
 
 import type { Env } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
+import { requireAdmin, requireUser } from "../../_lib/auth";
 import type { CompanyRow } from "../companies";
 
 const EDITABLE = ["full_name", "address_line1", "address_line2", "address_country", "vat_number"] as const;
 
-export const onRequestGet: PagesFunction<Env, "name"> = async ({ env, params }) => {
+export const onRequestGet: PagesFunction<Env, "name", any> = async ({ request, env, data, params }) => {
+  const guard = await requireUser(request, env, data);
+  if (!guard.ok) return guard.response;
   const name = decodeURIComponent(params.name as string);
   const row = await env.DB.prepare(
     `SELECT name, full_name, address_line1, address_line2, address_country, vat_number, created_at
@@ -18,7 +21,9 @@ export const onRequestGet: PagesFunction<Env, "name"> = async ({ env, params }) 
   return Response.json({ company: row });
 };
 
-export const onRequestPatch: PagesFunction<Env, "name"> = async ({ request, env, params }) => {
+export const onRequestPatch: PagesFunction<Env, "name", any> = async ({ request, env, data, params }) => {
+  const guard = await requireAdmin(request, env, data);
+  if (!guard.ok) return guard.response;
   const name = decodeURIComponent(params.name as string);
   let body: Record<string, unknown>;
   try {
@@ -45,7 +50,9 @@ export const onRequestPatch: PagesFunction<Env, "name"> = async ({ request, env,
   return Response.json({ company: row });
 };
 
-export const onRequestDelete: PagesFunction<Env, "name"> = async ({ env, params }) => {
+export const onRequestDelete: PagesFunction<Env, "name", any> = async ({ request, env, data, params }) => {
+  const guard = await requireAdmin(request, env, data);
+  if (!guard.ok) return guard.response;
   const name = decodeURIComponent(params.name as string);
   await env.DB.prepare(`DELETE FROM companies WHERE name = ?`).bind(name).run();
   return Response.json({ deleted: name });
