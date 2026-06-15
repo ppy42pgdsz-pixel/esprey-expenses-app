@@ -369,3 +369,46 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
   font-size: 13px;
   margin-top: 8px;
 }
+
+/* Team member cards with aliases */
+.team-members { display: flex; flex-direction: column; gap: 12px; }
+.team-member-card {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.team-member-card .manage-row { padding: 0; border: none; }
+.alias-list {
+  list-style: none;
+  margin: 8px 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.alias-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4b5563;
+  padding: 4px 0;
+}
+.alias-email { flex: 1; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace; }
+.alias-add {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.alias-add input {
+  flex: 1;
+  min-width: 200px;
+  padding: 6px 8px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.alias-add-toggle { margin-top: 8px; }

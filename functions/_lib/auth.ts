@@ -59,6 +59,25 @@ function decodeJwtPayload(jwt: string): JwtClaims | null {
 }
 
 /**
+ * Resolve a signed-in email to its canonical (primary) team_members email.
+ * If `signedIn` is an alias of some primary email, returns the primary.
+ * Otherwise returns `signedIn` unchanged. All downstream data lookups use
+ * the canonical email so signing in with any alias shows the same data.
+ */
+export async function resolveCanonicalEmail(env: Env, signedIn: string | null): Promise<string | null> {
+  if (!signedIn) return null;
+  try {
+    const row = await env.DB.prepare(
+      `SELECT primary_email FROM team_member_aliases WHERE lower(alias_email) = ?`
+    ).bind(signedIn).first<{ primary_email: string }>();
+    if (row?.primary_email) return row.primary_email.toLowerCase();
+  } catch {
+    // team_member_aliases table may not exist yet during the migration window.
+  }
+  return signedIn;
+}
+
+/**
  * Check whether `email` is an admin in the team_members table. Defaults to
  * env.CARL_EMAIL being admin even if the row hasn't been seeded yet (this
  * keeps the first deploy from locking everyone out).
@@ -90,7 +109,8 @@ export async function getAuthContext(
   if (typeof data.userEmail === "string" && typeof data.isAdmin === "boolean") {
     return { userEmail: data.userEmail, isAdmin: data.isAdmin };
   }
-  const userEmail = readUserEmail(request);
+  const signedIn = readUserEmail(request);
+  const userEmail = await resolveCanonicalEmail(env, signedIn);
   const isAdmin = await isAdminEmail(env, userEmail);
   return { userEmail, isAdmin };
 }

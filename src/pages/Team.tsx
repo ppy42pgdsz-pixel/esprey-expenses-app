@@ -2,6 +2,13 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 
+interface Alias {
+  alias_email: string;
+  primary_email: string;
+  added_at: number;
+  added_by: string | null;
+}
+
 interface Member {
   id: number;
   email: string;
@@ -10,6 +17,7 @@ interface Member {
   is_admin: number;
   added_at: number;
   added_by: string | null;
+  aliases: Alias[];
 }
 
 export default function Team() {
@@ -120,8 +128,10 @@ export default function Team() {
         <h2>Add a team member</h2>
         <p className="hint">
           Adding someone here lets them sign in at <code>expenses.esprey.net</code> with their email
-          (Cloudflare will send them a one-time code on first login). They'll get their own private
-          set of receipts, companies, and reports.
+          (Cloudflare will send them a one-time code on first login). They get their own private
+          receipts, reports, profile (for invoicing), and people-attended list. The companies,
+          categories, and currencies dropdowns are shared across the team — only admins can edit
+          those.
         </p>
         <div className="report-form" style={{ marginTop: 12 }}>
           <label className="field">
@@ -162,40 +172,20 @@ export default function Team() {
         {loading ? (
           <div className="empty small">Loading…</div>
         ) : (
-          <div className="manage-list">
+          <div className="team-members">
             {members.length === 0 && <div className="empty small">No members yet.</div>}
-            {members.map((m) => {
-              const isMe = meEmail && m.email.toLowerCase() === meEmail.toLowerCase();
-              const inCf = cfSet.has(m.email.toLowerCase());
-              return (
-                <div key={m.id} className="manage-row">
-                  <span className="manage-name">
-                    <strong>{m.display_name || m.email}</strong>
-                    {m.display_name && (
-                      <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>· {m.email}</span>
-                    )}
-                    {m.is_admin === 1 && (
-                      <span className="role-badge admin">admin</span>
-                    )}
-                    {isMe && <span className="role-badge me">you</span>}
-                    {!inCf && (
-                      <span className="role-badge warn" title="In the database but not in Cloudflare Access — they can't sign in until re-synced">
-                        not in CF
-                      </span>
-                    )}
-                  </span>
-                  {m.is_admin === 1 || isMe ? (
-                    <span className="hint small">—</span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="danger-btn small"
-                      onClick={() => removeMember(m.email)}
-                    >Remove</button>
-                  )}
-                </div>
-              );
-            })}
+            {members.map((m) => (
+              <MemberCard
+                key={m.id}
+                member={m}
+                isMe={!!meEmail && m.email.toLowerCase() === meEmail.toLowerCase()}
+                inCloudflare={cfSet.has(m.email.toLowerCase())}
+                cfSet={cfSet}
+                onRemove={() => removeMember(m.email)}
+                onChanged={reload}
+                setErr={setErr}
+              />
+            ))}
           </div>
         )}
       </section>
@@ -234,6 +224,126 @@ export default function Team() {
             </>
           )}
         </section>
+      )}
+    </div>
+  );
+}
+
+/* ------------ Member card with inline alias management ------------ */
+function MemberCard({
+  member, isMe, inCloudflare, cfSet, onRemove, onChanged, setErr,
+}: {
+  member: Member;
+  isMe: boolean;
+  inCloudflare: boolean;
+  cfSet: Set<string>;
+  onRemove: () => void;
+  onChanged: () => Promise<void> | void;
+  setErr: (s: string | null) => void;
+}) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [aliasInput, setAliasInput] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  async function addAlias() {
+    const a = aliasInput.trim().toLowerCase();
+    if (!a) return;
+    setAdding(true);
+    setErr(null);
+    try {
+      await api.addTeamAlias(member.email, a);
+      setAliasInput("");
+      setShowAdd(false);
+      await onChanged();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  async function removeAlias(alias: string) {
+    if (!confirm(`Remove the alias ${alias}? They'll no longer be able to sign in with this address.`)) return;
+    setErr(null);
+    try {
+      await api.removeTeamAlias(alias);
+      await onChanged();
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  }
+
+  return (
+    <div className="team-member-card">
+      <div className="manage-row">
+        <span className="manage-name">
+          <strong>{member.display_name || member.email}</strong>
+          {member.display_name && (
+            <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>· {member.email}</span>
+          )}
+          {member.is_admin === 1 && <span className="role-badge admin">admin</span>}
+          {isMe && <span className="role-badge me">you</span>}
+          {!inCloudflare && (
+            <span className="role-badge warn" title="In the database but not in Cloudflare Access — they can't sign in until re-synced">
+              not in CF
+            </span>
+          )}
+        </span>
+        {member.is_admin === 1 || isMe ? (
+          <span className="hint small">—</span>
+        ) : (
+          <button type="button" className="danger-btn small" onClick={onRemove}>Remove</button>
+        )}
+      </div>
+
+      {member.aliases.length > 0 && (
+        <ul className="alias-list">
+          {member.aliases.map((a) => {
+            const inCf = cfSet.has(a.alias_email.toLowerCase());
+            return (
+              <li key={a.alias_email} className="alias-row">
+                <span className="alias-email">↳ {a.alias_email}</span>
+                {!inCf && <span className="role-badge warn">not in CF</span>}
+                <button
+                  type="button"
+                  className="ghost-btn small"
+                  onClick={() => removeAlias(a.alias_email)}
+                >Remove alias</button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {showAdd ? (
+        <div className="alias-add">
+          <input
+            type="email"
+            value={aliasInput}
+            onChange={(e) => setAliasInput(e.target.value)}
+            placeholder="another-email@example.com"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            onKeyDown={(e) => { if (e.key === "Enter") addAlias(); }}
+            disabled={adding}
+          />
+          <button type="button" className="primary-btn small" onClick={addAlias} disabled={adding || !aliasInput.trim()}>
+            {adding ? "Adding…" : "Add alias"}
+          </button>
+          <button
+            type="button"
+            className="ghost-btn small"
+            onClick={() => { setShowAdd(false); setAliasInput(""); }}
+            disabled={adding}
+          >Cancel</button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="ghost-btn small alias-add-toggle"
+          onClick={() => setShowAdd(true)}
+        >+ Add another email for this person</button>
       )}
     </div>
   );

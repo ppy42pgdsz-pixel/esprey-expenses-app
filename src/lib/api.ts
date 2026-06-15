@@ -140,10 +140,32 @@ export const api = {
         is_admin: number;
         added_at: number;
         added_by: string | null;
+        aliases: Array<{ alias_email: string; primary_email: string; added_at: number; added_by: string | null }>;
       }>;
       cloudflareEmails: string[];
       cloudflareError: string | null;
     }>("/api/team"),
+  addTeamAlias: (primary: string, alias: string) =>
+    jsonFetch<{
+      added: boolean;
+      primary: string;
+      alias: string;
+      cloudflareAdded?: boolean;
+      cloudflareEmails?: string[];
+      note?: string;
+    }>("/api/team/aliases", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ primary, alias }),
+    }),
+  removeTeamAlias: (alias: string) =>
+    jsonFetch<{
+      removed: boolean;
+      alias: string;
+      primary: string;
+      cloudflareRemoved: boolean;
+      cloudflareEmails: string[];
+    }>(`/api/team/aliases/${encodeURIComponent(alias)}`, { method: "DELETE" }),
   addTeamMember: (email: string, display_name?: string | null) =>
     jsonFetch<{
       member: { email: string; display_name: string | null };

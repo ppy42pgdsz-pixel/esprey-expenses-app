@@ -14,6 +14,8 @@ import { sendWelcomeEmail } from "../../_lib/resend";
 const APP_DOMAIN = "expenses.esprey.net";
 const APP_URL = `https://${APP_DOMAIN}/`;
 
+interface AliasRow { alias_email: string; primary_email: string; added_at: number; added_by: string | null; }
+
 export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
   const guard = await requireAdmin(request, env, data);
   if (!guard.ok) return guard.response;
@@ -22,6 +24,24 @@ export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, en
     .prepare(`SELECT * FROM team_members ORDER BY added_at`)
     .all<TeamMemberRow>();
   const members = results ?? [];
+
+  // Fetch all aliases in one query, group by primary_email.
+  let aliasesByPrimary: Record<string, AliasRow[]> = {};
+  try {
+    const { results: aliasResults } = await env.DB
+      .prepare(`SELECT alias_email, primary_email, added_at, added_by FROM team_member_aliases ORDER BY added_at`)
+      .all<AliasRow>();
+    for (const a of aliasResults ?? []) {
+      const key = a.primary_email.toLowerCase();
+      (aliasesByPrimary[key] ??= []).push(a);
+    }
+  } catch {
+    // table may not exist yet
+  }
+  const membersWithAliases = members.map((m) => ({
+    ...m,
+    aliases: aliasesByPrimary[m.email.toLowerCase()] ?? [],
+  }));
 
   // Best-effort: also fetch the current Cloudflare allow list so the UI can
   // surface any drift between D1 and Cloudflare.
@@ -40,7 +60,7 @@ export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, en
     cloudflareError = (e as Error).message;
   }
 
-  return Response.json({ members, cloudflareEmails, cloudflareError });
+  return Response.json({ members: membersWithAliases, cloudflareEmails, cloudflareError });
 };
 
 export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {

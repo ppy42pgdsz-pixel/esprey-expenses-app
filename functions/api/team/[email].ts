@@ -48,7 +48,27 @@ export const onRequestDelete: PagesFunction<Env, "email", any> = async ({ reques
     return jsonError(502, `Cloudflare Access update failed: ${(e as Error).message}`);
   }
 
-  // 2. D1.
+  // 2. D1. Also remove all aliases for this primary AND revoke them from
+  //    Cloudflare Access — otherwise the user could still sign in using an
+  //    alias and the middleware would map back to a non-existent canonical row.
+  const aliases = await env.DB
+    .prepare(`SELECT alias_email FROM team_member_aliases WHERE lower(primary_email) = ?`)
+    .bind(email)
+    .all<{ alias_email: string }>();
+  const aliasErrors: string[] = [];
+  for (const a of aliases.results ?? []) {
+    try {
+      await revokeAccess(
+        env.CLOUDFLARE_API_TOKEN,
+        APP_DOMAIN,
+        a.alias_email,
+        env.CLOUDFLARE_ACCOUNT_ID ?? null,
+      );
+    } catch (e) {
+      aliasErrors.push(`${a.alias_email}: ${(e as Error).message}`);
+    }
+  }
+  await env.DB.prepare(`DELETE FROM team_member_aliases WHERE lower(primary_email) = ?`).bind(email).run();
   await env.DB.prepare(`DELETE FROM team_members WHERE lower(email) = ?`).bind(email).run();
 
   return Response.json({
@@ -56,5 +76,7 @@ export const onRequestDelete: PagesFunction<Env, "email", any> = async ({ reques
     email,
     cloudflareRemoved: cloudflareResult.removed,
     cloudflareEmails: cloudflareResult.emails,
+    aliasesRemoved: (aliases.results ?? []).map((a) => a.alias_email),
+    aliasErrors: aliasErrors.length ? aliasErrors : null,
   });
 };
