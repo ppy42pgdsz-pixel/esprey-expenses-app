@@ -14,5 +14,14 @@ database_id = "a36389a8-49d4-4101-b7c0-fb0a17299e62"
 binding = "RECEIPTS"
 bucket_name = "esprey-expenses-app-receipts"
 
-# ANTHROPIC_API_KEY is set as a secret via the Cloudflare dashboard
-# (Workers & Pages -> esprey-expenses-email -> Settings -> Variables and Secrets).
+[vars]
+# When an email arrives from an unregistered address, the worker emails the
+# sender back telling them to contact the admin. These vars drive that copy.
+APP_DOMAIN = "expenses.esprey.net"
+ADMIN_EMAIL = "cesprey@gmail.com"
+ADMIN_NAME = "Carl Esprey"
+BOUNCE_FROM_ADDRESS = "receipts@esprey.net"
+
+# Secrets (ANTHROPIC_API_KEY, RESEND_API_KEY) are set via the Cloudflare
+# dashboard: Workers & Pages -> esprey-expenses-email -> Settings ->
+# Variables and Secrets.
