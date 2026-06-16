@@ -127,11 +127,19 @@ export function emailsFromPolicy(policy: AccessPolicy): string[] {
  * Replace the policy's include rules with the given list of emails (one
  * `{email:{email:"..."}}` rule per address). Preserves the policy's existing
  * decision/exclude/require fields.
+ *
+ * Cloudflare distinguishes "reusable" policies (defined standalone and shared
+ * across multiple apps) from app-scoped policies. Reusable policies must be
+ * updated via the standalone /access/policies endpoint, not the
+ * /access/apps/<id>/policies one — that's the endpoint we use here.
+ *
+ * The app-scoped `appId` parameter is kept in the signature for API
+ * compatibility but is no longer used.
  */
 export async function setPolicyEmails(
   token: string,
   accountId: string,
-  appId: string,
+  _appId: string,
   policy: AccessPolicy,
   emails: string[],
 ): Promise<void> {
@@ -142,7 +150,7 @@ export async function setPolicyEmails(
 
   await cfFetch(
     token,
-    `/accounts/${accountId}/access/apps/${appId}/policies/${policy.id}`,
+    `/accounts/${accountId}/access/policies/${policy.id}`,
     {
       method: "PUT",
       body: JSON.stringify({
