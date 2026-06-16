@@ -151,8 +151,8 @@ async function sendBounce(env: Env, toAddr: string, originalSubject: string): Pr
     `Hi,\n\n` +
     `Thanks for sending this${subjectRef} — but the email address you sent it from ` +
     `(${toAddr}) isn't registered with ${appDomain}, so your receipt couldn't be saved.\n\n` +
-    `To get added, please contact ${adminName}${adminEmail ? ` <${adminEmail}>` : ""} and ask them to ` +
-    `add your address. If you already have an account with a different address, ask them to ` +
+    `To get added, please contact ${adminName}${adminEmail ? ` <${adminEmail}>` : ""} and ask him to ` +
+    `add your address. If you already have an account with a different address, ask him to ` +
     `register this one as an alias on your existing account so receipts you forward from either address ` +
     `land in the same place.\n\n` +
     `— Esprey Expenses`;
