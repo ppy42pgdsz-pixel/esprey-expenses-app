@@ -125,7 +125,9 @@ async function addMember({ request, env, data }: { request: Request; env: Env; d
     if (!existing) {
       await env.DB.prepare(`DELETE FROM team_members WHERE lower(email) = ?`).bind(email).run();
     }
-    return jsonError(502, `Cloudflare Access update failed: ${(e as Error).message}`);
+    // Using 500 (not 502) so Cloudflare's edge doesn't replace our JSON
+    // body with its branded "Bad gateway" HTML error page.
+    return jsonError(500, `Cloudflare Access update failed: ${(e as Error).message}`);
   }
 
   // 3. Welcome email (non-fatal if Resend not set up).

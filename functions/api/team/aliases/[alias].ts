@@ -40,7 +40,7 @@ export const onRequestDelete: PagesFunction<Env, "alias", any> = async ({ reques
       env.CLOUDFLARE_ACCOUNT_ID ?? null,
     );
   } catch (e) {
-    return jsonError(502, `Cloudflare Access update failed: ${(e as Error).message}`);
+    return jsonError(500, `Cloudflare Access update failed: ${(e as Error).message}`);
   }
 
   await env.DB.prepare(`DELETE FROM team_member_aliases WHERE lower(alias_email) = ?`).bind(alias).run();

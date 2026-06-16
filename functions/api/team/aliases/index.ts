@@ -78,7 +78,9 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
       );
     } catch (e) {
       await env.DB.prepare(`DELETE FROM team_member_aliases WHERE lower(alias_email) = ?`).bind(alias).run();
-      return jsonError(502, `Cloudflare Access update failed: ${(e as Error).message}`);
+      // NOTE: using 500 (not 502) so Cloudflare's edge doesn't replace our
+      // JSON body with its branded "Bad gateway" HTML error page.
+      return jsonError(500, `Cloudflare Access update failed: ${(e as Error).message}`);
     }
 
     return Response.json({
