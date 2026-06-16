@@ -109,7 +109,13 @@ export default function Team() {
   }
 
   // Drift = email present in CF Access but not in our DB, or vice versa.
-  const dbSet = new Set(members.map((m) => m.email.toLowerCase()));
+  // The DB set includes both primary emails AND aliases.
+  const dbSet = new Set(
+    members.flatMap((m) => [
+      m.email.toLowerCase(),
+      ...m.aliases.map((a) => a.alias_email.toLowerCase()),
+    ])
+  );
   const cfSet = new Set(cloudflareEmails.map((e) => e.toLowerCase()));
   const onlyInCloudflare = cloudflareEmails.filter((e) => !dbSet.has(e.toLowerCase()));
   const onlyInDb = members.filter((m) => !cfSet.has(m.email.toLowerCase()));
