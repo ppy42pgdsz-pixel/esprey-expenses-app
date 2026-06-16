@@ -412,3 +412,40 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
   font-size: 13px;
 }
 .alias-add-toggle { margin-top: 8px; }
+
+/* Instructions page */
+.instructions-body {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+  line-height: 1.55;
+  color: #1f2937;
+}
+.instructions-body section {
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eef0f3;
+}
+.instructions-body section:last-child { border-bottom: none; }
+.instructions-body h2 {
+  font-size: 18px;
+  margin: 0 0 12px 0;
+  color: #111827;
+}
+.instructions-body h3 {
+  font-size: 15px;
+  margin: 18px 0 6px 0;
+  color: #111827;
+}
+.instructions-body p { margin: 6px 0 10px 0; }
+.instructions-body ul { margin: 6px 0 12px 0; padding-left: 22px; }
+.instructions-body li { margin: 4px 0; }
+.instructions-body code {
+  background: #f3f4f6;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12.5px;
+  font-family: -apple-system, "SF Mono", Menlo, monospace;
+}
+.instructions-body a { color: #1d4ed8; text-decoration: underline; }
+.instructions-body a:hover { color: #1e40af; }

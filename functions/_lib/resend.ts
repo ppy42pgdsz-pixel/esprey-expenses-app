@@ -53,19 +53,24 @@ export async function sendWelcomeEmail(opts: {
 }): Promise<{ id: string }> {
   const greeting = opts.displayName ? `Hi ${opts.displayName.split(" ")[0]},` : "Hi,";
   const inviter = opts.addedByName ? ` by ${opts.addedByName}` : "";
+  const instructionsUrl = opts.appUrl.replace(/\/$/, "") + "/instructions";
   const body = {
     from: `Esprey Expenses <${opts.fromAddress}>`,
     to: [opts.toAddress],
     subject: "You've been added to Esprey Expenses",
     text:
       `${greeting}\n\n` +
-      `You've been added${inviter} to Esprey Expenses — the app we use to track and report business expenses.\n\n` +
-      `Open the app: ${opts.appUrl}\n\n` +
-      `First time signing in: enter your email when prompted. Cloudflare will email you a one-time code. Once you're in, save the page to your phone's home screen (Share → Add to Home Screen on iPhone) so it works like a native app.\n\n` +
-      `Quick start:\n` +
-      `1. Tap the camera button on the home screen to capture a receipt.\n` +
-      `2. Or email any receipt (PDF, image, or forwarded confirmation) to receipts@esprey.net from this address — it'll show up automatically.\n` +
-      `3. Fill in Settings → My Profile with your name, address, and bank details so they appear on your monthly invoice.\n\n` +
+      `You've been added${inviter} to Esprey Expenses — the app we use to track business expenses and produce monthly invoices.\n\n` +
+      `Sign in: ${opts.appUrl}\n` +
+      `Cloudflare will email you a one-time code at this address the first time. After that, save the app to your phone's home screen (Share → Add to Home Screen on iPhone) so it works like a regular app.\n\n` +
+      `Once you're in, the full instructions are on this page:\n` +
+      `${instructionsUrl}\n\n` +
+      `That page covers (very briefly):\n` +
+      `  • What's private to you (your receipts, reports, profile, the people you tag — admins don't see these) vs. what's shared across the team (companies, categories, currencies).\n` +
+      `  • The three ways to add a receipt: phone camera, manual entry, or forwarding an email to receipts@esprey.net from this address.\n` +
+      `  • Setting up your profile + bank details so they appear on every monthly invoice.\n` +
+      `  • Generating a monthly report (PDF invoice + ZIP of original receipts).\n\n` +
+      `Have multiple email addresses you might forward from? Reply to this and I'll register them as aliases on your account so they all land in the same place.\n\n` +
       `Any issues, reply to this email.`,
   };
   const res = await fetch("https://api.resend.com/emails", {

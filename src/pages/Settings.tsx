@@ -25,11 +25,32 @@ export default function Settings() {
       </header>
       <UserSection />
       {isAdmin && <TeamSection />}
+      <HelpSection />
       <CompaniesSection />
       <PeopleSection />
       <CategoriesSection />
       <CurrenciesSection />
     </div>
+  );
+}
+
+/* ------------ Help (everyone) ------------ */
+function HelpSection() {
+  return (
+    <section className="settings-section">
+      <h2>How this works</h2>
+      <div className="manage-list">
+        <div className="manage-row">
+          <Link to="/instructions" className="manage-name manage-link">
+            <strong>Instructions</strong>
+            <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
+              · Privacy, the three ways to add a receipt, monthly reports, and more
+            </span>
+          </Link>
+          <Link to="/instructions" className="primary-btn small">Open</Link>
+        </div>
+      </div>
+    </section>
   );
 }
 

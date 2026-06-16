@@ -9,6 +9,7 @@ import CompanyDetail from "./pages/CompanyDetail";
 import PdfView from "./pages/PdfView";
 import UserSettings from "./pages/UserSettings";
 import Team from "./pages/Team";
+import Instructions from "./pages/Instructions";
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/user" element={<UserSettings />} />
         <Route path="/settings/team" element={<Team />} />
+        <Route path="/instructions" element={<Instructions />} />
         <Route path="/companies/:name" element={<CompanyDetail />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/pdf" element={<PdfView />} />
