@@ -10,32 +10,51 @@ interface Props {
 }
 
 export default function PeoplePicker({ people, selected, onChange, onPeopleAdded }: Props) {
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState("");
   const [filter, setFilter] = useState("");
+  const [busyAdding, setBusyAdding] = useState(false);
 
-  const set = new Set(selected);
-  const filtered = filter
-    ? people.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()))
+  const set = new Set(selected.map((s) => s.toLowerCase()));
+  const filterTrim = filter.trim();
+  const filterLower = filterTrim.toLowerCase();
+  const filtered = filterTrim
+    ? people.filter(p => p.name.toLowerCase().includes(filterLower))
     : people;
   const favorites = filtered.filter(p => p.is_favorite);
   const others = filtered.filter(p => !p.is_favorite);
 
+  // If the user has typed something that doesn't exactly match any existing
+  // person, offer an inline "+ Add" button. This addresses the common
+  // "I typed a name but it didn't save" trap where users expected the search
+  // box to also create new entries.
+  const exactExisting = filterTrim
+    ? people.some((p) => p.name.toLowerCase() === filterLower)
+    : false;
+  const exactSelected = filterTrim ? set.has(filterLower) : false;
+  const canAddInline = filterTrim.length > 0 && !exactExisting && !exactSelected;
+
   function toggle(name: string) {
-    if (set.has(name)) onChange(selected.filter(n => n !== name));
+    const lower = name.toLowerCase();
+    if (set.has(lower)) onChange(selected.filter(n => n.toLowerCase() !== lower));
     else onChange([...selected, name]);
   }
 
-  async function commitNew() {
-    const n = draft.trim();
-    if (!n) { setAdding(false); setDraft(""); return; }
-    onChange(set.has(n) ? selected : [...selected, n]);
+  async function addFromSearch() {
+    const n = filterTrim;
+    if (!n) return;
+    setBusyAdding(true);
+    // Optimistically add to selected so the user sees feedback immediately.
+    if (!set.has(n.toLowerCase())) {
+      onChange([...selected, n]);
+    }
     try {
       const res = await api.addPerson(n, false);
       onPeopleAdded?.(res.person);
-    } catch { /* network error — still keep them in the receipt */ }
-    setAdding(false);
-    setDraft("");
+    } catch {
+      // network error — still keep them in the receipt
+    } finally {
+      setFilter("");
+      setBusyAdding(false);
+    }
   }
 
   return (
@@ -54,17 +73,36 @@ export default function PeoplePicker({ people, selected, onChange, onPeopleAdded
       <input
         className="picker-search"
         type="text"
-        placeholder="Search people…"
+        placeholder="Type a name — pick from the list, or hit Add to create"
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && canAddInline) {
+            e.preventDefault();
+            addFromSearch();
+          }
+        }}
       />
+
+      {canAddInline && (
+        <div className="people-inline-add">
+          <button
+            type="button"
+            className="primary-btn small"
+            disabled={busyAdding}
+            onClick={addFromSearch}
+          >
+            {busyAdding ? "Adding…" : `+ Add "${filterTrim}"`}
+          </button>
+        </div>
+      )}
 
       {favorites.length > 0 && (
         <div className="people-section">
           <div className="people-section-label">Favourites</div>
           <div className="people-grid">
             {favorites.map(p => (
-              <PersonButton key={p.name} p={p} selected={set.has(p.name)} onClick={() => toggle(p.name)} />
+              <PersonButton key={p.name} p={p} selected={set.has(p.name.toLowerCase())} onClick={() => toggle(p.name)} />
             ))}
           </div>
         </div>
@@ -74,29 +112,14 @@ export default function PeoplePicker({ people, selected, onChange, onPeopleAdded
           <div className="people-section-label">Others</div>
           <div className="people-grid">
             {others.map(p => (
-              <PersonButton key={p.name} p={p} selected={set.has(p.name)} onClick={() => toggle(p.name)} />
+              <PersonButton key={p.name} p={p} selected={set.has(p.name.toLowerCase())} onClick={() => toggle(p.name)} />
             ))}
           </div>
         </div>
       )}
 
-      {adding ? (
-        <div className="picker-add">
-          <input
-            autoFocus
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commitNew();
-              if (e.key === "Escape") { setAdding(false); setDraft(""); }
-            }}
-            placeholder="New person's name"
-          />
-          <button type="button" className="primary-btn" onClick={commitNew}>Add</button>
-          <button type="button" className="ghost-btn" onClick={() => { setAdding(false); setDraft(""); }}>Cancel</button>
-        </div>
-      ) : (
-        <button type="button" className="ghost-btn add-new" onClick={() => setAdding(true)}>+ Add new person</button>
+      {filtered.length === 0 && !canAddInline && (
+        <div className="empty small">No people yet — type a name above to add.</div>
       )}
     </div>
   );

@@ -41,6 +41,14 @@ export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, e
     return jsonError(400, "invalid JSON body");
   }
 
+  // Reject obviously-bogus future dates.
+  if (typeof body.receipt_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.receipt_date)) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (body.receipt_date > today) {
+      return jsonError(400, "receipt_date is in the future");
+    }
+  }
+
   const sets: string[] = [];
   const args: unknown[] = [];
   for (const k of EDITABLE) {

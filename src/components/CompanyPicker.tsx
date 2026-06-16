@@ -6,9 +6,14 @@ interface Props {
   onChange: (next: string) => void;
   /** Singular noun shown in the placeholder and "add new" option. Defaults to "company". */
   noun?: string;
+  /**
+   * If false, hides the "+ Add new <noun>…" option. Use for shared lookups
+   * (companies, categories) when the current user is not an admin.
+   */
+  allowAdd?: boolean;
 }
 
-export default function CompanyPicker({ companies, value, onChange, noun = "company" }: Props) {
+export default function CompanyPicker({ companies, value, onChange, noun = "company", allowAdd = true }: Props) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
 
@@ -31,6 +36,14 @@ export default function CompanyPicker({ companies, value, onChange, noun = "comp
     );
   }
 
+  // Make sure the currently-selected value appears in the dropdown options
+  // even if it isn't (or no longer is) in the shared list — otherwise the
+  // <select> displays the placeholder instead of the saved value when
+  // re-opening a receipt that has a stale company/category.
+  const options = value && !companies.includes(value)
+    ? [...companies, value].sort()
+    : companies;
+
   return (
     <select
       className="picker-select"
@@ -42,10 +55,10 @@ export default function CompanyPicker({ companies, value, onChange, noun = "comp
       }}
     >
       <option value="">— pick a {noun} —</option>
-      {companies.map((c) => (
+      {options.map((c) => (
         <option key={c} value={c}>{c}</option>
       ))}
-      <option value="__new__">+ Add new {noun}…</option>
+      {allowAdd && <option value="__new__">+ Add new {noun}…</option>}
     </select>
   );
 

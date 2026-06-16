@@ -139,6 +139,11 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
       return { mime, bytes };
   };
 
+  // Env-var defaults only apply to the admin (Carl). Other users get blank
+  // billing details until they fill in their own profile — otherwise their
+  // invoices would show up with Carl's name and bank details.
+  const isCarl = !!env.CARL_EMAIL && guard.userEmail === env.CARL_EMAIL.toLowerCase();
+
   // Build PDF.
   const pdfBytes = await buildMonthlyReport({
     monthLabel,
@@ -150,21 +155,22 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
     fxError,
     receipts,
     billFrom: {
-      name:          profile?.name              || env.BILL_FROM_NAME    || "",
+      name:          profile?.name              || (isCarl ? env.BILL_FROM_NAME    : "") || "",
       business_name: profile?.business_name     || "",
-      line1:         profile?.address_line1     || env.BILL_FROM_LINE1   || "",
-      line2:         profile?.address_line2     || env.BILL_FROM_LINE2   || "",
-      country:       profile?.address_country   || env.BILL_FROM_COUNTRY || "",
+      line1:         profile?.address_line1     || (isCarl ? env.BILL_FROM_LINE1   : "") || "",
+      line2:         profile?.address_line2     || (isCarl ? env.BILL_FROM_LINE2   : "") || "",
+      country:       profile?.address_country   || (isCarl ? env.BILL_FROM_COUNTRY : "") || "",
       vat_number:    profile?.vat_number        || "",
-      email:         profile?.email             || env.CARL_EMAIL        || "",
+      email:         profile?.email             || guard.userEmail,
       phone:         profile?.phone             || "",
     },
     bank: {
       // Free-form payment details. Prefer the new bank_details column;
-      // fall back to legacy structured columns; finally to env vars.
+      // fall back to legacy structured columns; finally to env vars (but
+      // env vars are Carl's — only apply for him).
       details: profile?.bank_details
         || composeLegacyDetails(profile?.bank_name, profile?.bank_iban, profile?.bank_swift)
-        || composeLegacyDetails(env.BANK_NAME, env.BANK_IBAN, env.BANK_SWIFT)
+        || (isCarl ? composeLegacyDetails(env.BANK_NAME, env.BANK_IBAN, env.BANK_SWIFT) : null)
         || "",
     },
     fetchOriginal,

@@ -31,6 +31,14 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
   const amount = (body.amount ?? "").toString().trim();
   if (!amount) return jsonError(400, "'amount' is required for a manual entry");
 
+  // Reject obviously-bogus future dates. We allow today but nothing beyond.
+  if (typeof body.receipt_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.receipt_date)) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (body.receipt_date > today) {
+      return jsonError(400, "receipt_date is in the future");
+    }
+  }
+
   const id = newId();
   const uploadedAt = Date.now();
   const r2Key = "manual:none"; // sentinel — no actual R2 object exists

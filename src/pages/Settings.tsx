@@ -26,10 +26,10 @@ export default function Settings() {
       <UserSection />
       {isAdmin && <TeamSection />}
       <HelpSection />
-      <CompaniesSection />
+      <CompaniesSection isAdmin={isAdmin} />
       <PeopleSection />
-      <CategoriesSection />
-      <CurrenciesSection />
+      <CategoriesSection isAdmin={isAdmin} />
+      <CurrenciesSection isAdmin={isAdmin} />
     </div>
   );
 }
@@ -95,7 +95,7 @@ function UserSection() {
 }
 
 /* ------------ Companies ------------ */
-function CompaniesSection() {
+function CompaniesSection({ isAdmin }: { isAdmin: boolean }) {
   const [items, setItems] = useState<Array<{ name: string; full_name: string | null }>>([]);
   const [err, setErr] = useState<string | null>(null);
 
@@ -114,32 +114,49 @@ function CompaniesSection() {
         {items.length === 0 && <div className="empty small">No entries yet.</div>}
         {items.map((c) => (
           <div key={c.name} className="manage-row">
-            <Link to={`/companies/${encodeURIComponent(c.name)}`} className="manage-name manage-link">
-              <strong>{c.name}</strong>
-              {c.full_name && c.full_name !== c.name && (
-                <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>· {c.full_name}</span>
-              )}
-            </Link>
-            <button
-              type="button"
-              className="danger-btn small"
-              onClick={async () => {
-                if (!confirm(`Delete "${c.name}" from the company list?`)) return;
-                await api.deleteCompany(c.name);
-                reload();
-              }}
-            >Delete</button>
+            {isAdmin ? (
+              <Link to={`/companies/${encodeURIComponent(c.name)}`} className="manage-name manage-link">
+                <strong>{c.name}</strong>
+                {c.full_name && c.full_name !== c.name && (
+                  <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>· {c.full_name}</span>
+                )}
+              </Link>
+            ) : (
+              <span className="manage-name">
+                <strong>{c.name}</strong>
+                {c.full_name && c.full_name !== c.name && (
+                  <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>· {c.full_name}</span>
+                )}
+              </span>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                className="danger-btn small"
+                onClick={async () => {
+                  if (!confirm(`Delete "${c.name}" from the company list?`)) return;
+                  await api.deleteCompany(c.name);
+                  reload();
+                }}
+              >Delete</button>
+            )}
           </div>
         ))}
       </div>
-      <AddInput
-        placeholder="+ Add company"
-        onAdd={async (name) => {
-          await api.addCompany(name);
-          reload();
-        }}
-      />
-      <div className="hint small">Tap a company name to edit address &amp; full legal name (used in invoices).</div>
+      {isAdmin ? (
+        <>
+          <AddInput
+            placeholder="+ Add company"
+            onAdd={async (name) => {
+              await api.addCompany(name);
+              reload();
+            }}
+          />
+          <div className="hint small">Tap a company name to edit address &amp; full legal name (used in invoices).</div>
+        </>
+      ) : (
+        <div className="hint small">Companies are managed by the admin. Ask Carl to add a new one if you need it.</div>
+      )}
     </Section>
   );
 }
@@ -195,7 +212,7 @@ function PeopleSection() {
 }
 
 /* ------------ Categories ------------ */
-function CategoriesSection() {
+function CategoriesSection({ isAdmin }: { isAdmin: boolean }) {
   const [items, setItems] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
@@ -211,23 +228,32 @@ function CategoriesSection() {
       <ManagedList
         items={items}
         renderItem={(name) => name}
-        onDelete={async (name) => {
-          if (!confirm(`Delete "${name}" from the category list?`)) return;
-          await api.deleteCategory(name);
-          reload();
-        }}
-        onAdd={async (name) => {
-          await api.addCategory(name);
-          reload();
-        }}
+        onDelete={
+          isAdmin
+            ? async (name) => {
+                if (!confirm(`Delete "${name}" from the category list?`)) return;
+                await api.deleteCategory(name);
+                reload();
+              }
+            : undefined
+        }
+        onAdd={
+          isAdmin
+            ? async (name) => {
+                await api.addCategory(name);
+                reload();
+              }
+            : undefined
+        }
         addLabel="+ Add category"
+        addNote={isAdmin ? undefined : "Categories are managed by the admin. Ask Carl to add a new one if you need it."}
       />
     </Section>
   );
 }
 
 /* ------------ Currencies ------------ */
-function CurrenciesSection() {
+function CurrenciesSection({ isAdmin }: { isAdmin: boolean }) {
   const [items, setItems] = useState<Array<{ code: string; name: string }>>([]);
   const [err, setErr] = useState<string | null>(null);
   const [addCode, setAddCode] = useState("");
@@ -262,37 +288,43 @@ function CurrenciesSection() {
         {items.map((it) => (
           <div key={it.code} className="manage-row">
             <span className="manage-name"><strong>{it.code}</strong> — {it.name}</span>
-            <button
-              type="button"
-              className="danger-btn small"
-              onClick={async () => {
-                if (!confirm(`Delete "${it.code} — ${it.name}" from the currency list?`)) return;
-                await api.deleteCurrency(it.code);
-                reload();
-              }}
-            >Delete</button>
+            {isAdmin && (
+              <button
+                type="button"
+                className="danger-btn small"
+                onClick={async () => {
+                  if (!confirm(`Delete "${it.code} — ${it.name}" from the currency list?`)) return;
+                  await api.deleteCurrency(it.code);
+                  reload();
+                }}
+              >Delete</button>
+            )}
           </div>
         ))}
       </div>
-      <div className="picker-add picker-add-currency">
-        <input
-          value={addCode}
-          onChange={(e) => setAddCode(e.target.value.toUpperCase())}
-          onKeyDown={(e) => { if (e.key === "Enter") add(); }}
-          placeholder="CODE"
-          maxLength={4}
-          style={{ width: 70 }}
-        />
-        <input
-          value={addName}
-          onChange={(e) => setAddName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") add(); }}
-          placeholder="Currency name"
-        />
-        <button type="button" className="primary-btn" disabled={busy || !addCode.trim() || !addName.trim()} onClick={add}>
-          Add
-        </button>
-      </div>
+      {isAdmin ? (
+        <div className="picker-add picker-add-currency">
+          <input
+            value={addCode}
+            onChange={(e) => setAddCode(e.target.value.toUpperCase())}
+            onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+            placeholder="CODE"
+            maxLength={4}
+            style={{ width: 70 }}
+          />
+          <input
+            value={addName}
+            onChange={(e) => setAddName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+            placeholder="Currency name"
+          />
+          <button type="button" className="primary-btn" disabled={busy || !addCode.trim() || !addName.trim()} onClick={add}>
+            Add
+          </button>
+        </div>
+      ) : (
+        <div className="hint small">Currencies are managed by the admin. Ask Carl to add a new one (e.g. GHS for Ghanaian Cedis) if you need it.</div>
+      )}
     </Section>
   );
 }
@@ -313,7 +345,7 @@ function ManagedList<T>({
 }: {
   items: T[];
   renderItem: (t: T) => React.ReactNode;
-  onDelete: (t: T) => Promise<void> | void;
+  onDelete?: (t: T) => Promise<void> | void;
   onAdd?: (name: string) => Promise<void> | void;
   addLabel?: string;
   addNote?: string;
@@ -325,7 +357,9 @@ function ManagedList<T>({
         {items.map((it, i) => (
           <div key={i} className="manage-row">
             <span className="manage-name">{renderItem(it)}</span>
-            <button type="button" className="danger-btn small" onClick={() => onDelete(it)}>Delete</button>
+            {onDelete && (
+              <button type="button" className="danger-btn small" onClick={() => onDelete(it)}>Delete</button>
+            )}
           </div>
         ))}
       </div>

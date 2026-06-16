@@ -15,6 +15,7 @@ export default function ReceiptDetail() {
   const [categories, setCategories] = useState<string[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -31,13 +32,15 @@ export default function ReceiptDetail() {
   async function load() {
     setErr(null);
     try {
-      const [r, c, p, cat, cur] = await Promise.all([
+      const [r, c, p, cat, cur, me] = await Promise.all([
         api.getReceipt(id),
         api.listCompanies(),
         api.listPeople(),
         api.listCategories(),
         api.listCurrencies(),
+        api.whoAmI().catch(() => ({ middlewareSaw: { userEmail: null, isAdmin: false } })),
       ]);
+      setIsAdmin(!!me.middlewareSaw.isAdmin);
       const rec = r.receipt;
       setReceipt(rec);
       setVendor(rec.vendor ?? "");
@@ -152,7 +155,7 @@ export default function ReceiptDetail() {
               />
             </div>
           </div>
-          <Field label="Date" value={receiptDate} onChange={setReceiptDate} type="date" />
+          <Field label="Date" value={receiptDate} onChange={setReceiptDate} type="date" max={todayISO()} />
 
           <div className="field">
             <span className="label">Company</span>
@@ -163,6 +166,7 @@ export default function ReceiptDetail() {
                 setCompany(v);
                 if (v && !companies.includes(v)) setCompanies([...companies, v].sort());
               }}
+              allowAdd={isAdmin}
             />
           </div>
 
@@ -176,6 +180,7 @@ export default function ReceiptDetail() {
                 if (v && !categories.includes(v)) setCategories([...categories, v].sort());
               }}
               noun="category"
+              allowAdd={isAdmin}
             />
           </div>
 
@@ -244,7 +249,7 @@ function EmailBodyView({ id }: { id: string }) {
 }
 
 function Field({
-  label, value, onChange, type = "text", placeholder, inputMode,
+  label, value, onChange, type = "text", placeholder, inputMode, max,
 }: {
   label: string;
   value: string;
@@ -252,6 +257,7 @@ function Field({
   type?: string;
   placeholder?: string;
   inputMode?: "decimal" | "text" | "numeric";
+  max?: string;
 }) {
   return (
     <label className="field">
@@ -262,7 +268,16 @@ function Field({
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         inputMode={inputMode}
+        max={max}
       />
     </label>
   );
+}
+
+function todayISO(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }

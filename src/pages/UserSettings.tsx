@@ -91,8 +91,8 @@ export default function UserSettings() {
 
           <section className="settings-section">
             <h2>Identity</h2>
-            <Field label="Full name" value={name} onChange={setName} placeholder="e.g. Carl Esprey" />
-            <Field label="Business name" value={businessName} onChange={setBusinessName} placeholder="Optional — e.g. Esprey Consulting Ltd" />
+            <Field label="Full name" value={name} onChange={setName} placeholder="Your full name" />
+            <Field label="Business name" value={businessName} onChange={setBusinessName} placeholder="Optional — if you invoice through a company" />
             <div className="row">
               <Field label="Email" value={email} onChange={setEmail} placeholder="contact email shown on invoice" />
               <Field label="Phone" value={phone} onChange={setPhone} placeholder="Optional" />
@@ -103,7 +103,7 @@ export default function UserSettings() {
             <h2>Address</h2>
             <Field label="Address line 1" value={addr1} onChange={setAddr1} placeholder="Street address" />
             <Field label="Address line 2" value={addr2} onChange={setAddr2} placeholder="City, region, postcode" />
-            <Field label="Country" value={country} onChange={setCountry} placeholder="e.g. Portugal" />
+            <Field label="Country" value={country} onChange={setCountry} placeholder="Your country" />
             <Field label="VAT / Tax number" value={vat} onChange={setVat} placeholder="Optional — for tax-registered users" />
           </section>
 
@@ -118,7 +118,7 @@ export default function UserSettings() {
                 value={bankDetails}
                 onChange={(e) => setBankDetails(e.target.value)}
                 rows={8}
-                placeholder={"Bank: Millennium BCP\nIBAN: PT50 0033 0000 45669096226 05\nSWIFT: BCOMPTPL\n\n(optional) Correspondent bank:\nBank: ...\nSWIFT: ..."}
+                placeholder={"Bank name:\nIBAN / Account number:\nSWIFT / BIC / Sort code / Routing:\nAccount holder:\n\n(Optional)\nCorrespondent bank:\nReference / memo:"}
                 style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13 }}
               />
             </label>

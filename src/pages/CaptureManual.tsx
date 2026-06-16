@@ -20,6 +20,7 @@ export default function CaptureManual() {
   const [categories, setCategories] = useState<string[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -35,16 +36,18 @@ export default function CaptureManual() {
   useEffect(() => {
     (async () => {
       try {
-        const [c, cat, p, cur] = await Promise.all([
+        const [c, cat, p, cur, me] = await Promise.all([
           api.listCompanies(),
           api.listCategories(),
           api.listPeople(),
           api.listCurrencies(),
+          api.whoAmI().catch(() => ({ middlewareSaw: { userEmail: null, isAdmin: false } })),
         ]);
         setCompanies(c.companies.map((co) => co.name));
         setCategories(cat.categories);
         setPeople(p.people);
         setCurrencies(cur.currencies);
+        setIsAdmin(!!me.middlewareSaw.isAdmin);
       } catch (e) {
         setErr((e as Error).message);
       }
@@ -109,7 +112,7 @@ export default function CaptureManual() {
         </div>
         <label className="field">
           <span className="label">Date</span>
-          <input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} />
+          <input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} max={todayISO()} />
         </label>
 
         <div className="field">
@@ -121,6 +124,7 @@ export default function CaptureManual() {
               setCompany(v);
               if (v && !companies.includes(v)) setCompanies([...companies, v].sort());
             }}
+            allowAdd={isAdmin}
           />
         </div>
 
@@ -134,6 +138,7 @@ export default function CaptureManual() {
               if (v && !categories.includes(v)) setCategories([...categories, v].sort());
             }}
             noun="category"
+            allowAdd={isAdmin}
           />
         </div>
 
