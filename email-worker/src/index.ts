@@ -62,9 +62,22 @@ export default {
     }
 
     // 4. Find usable attachments (images / PDFs).
+    //    Skip inline content — those are typically email-signature logos,
+    //    embedded company icons, and tracking pixels that get pulled in
+    //    automatically when an HTML email is forwarded. We want only
+    //    "real" attachments the sender explicitly attached.
     const attachments = (parsed.attachments ?? []).filter((att) => {
       const mt = (att.mimeType ?? "").toLowerCase();
-      return mt.startsWith("image/") || mt === "application/pdf";
+      if (!mt.startsWith("image/") && mt !== "application/pdf") return false;
+
+      const disposition = ((att as any).disposition ?? "").toString().toLowerCase();
+      const contentId = (att as any).contentId;
+      // Inline images carry either disposition=inline or a Content-ID
+      // (referenced from the HTML body via cid:…). Treat both as inline.
+      if (disposition === "inline") return false;
+      if (contentId) return false;
+
+      return true;
     });
 
     let createdAny = false;
