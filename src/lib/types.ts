@@ -16,6 +16,7 @@ export interface Receipt {
   ocr_raw: string | null;
   ocr_status: "pending" | "success" | "failed" | "manual";
   uploaded_at: number;
+  rotation: number; // 0, 90, 180, or 270 — applied to the receipt image in-app
 }
 
 export interface Person {

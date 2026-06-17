@@ -20,7 +20,7 @@ export const onRequestGet: PagesFunction<Env, "id", any> = async ({ request, env
   return Response.json({ receipt: row });
 };
 
-const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category"] as const;
+const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category", "rotation"] as const;
 type EditableField = (typeof EDITABLE)[number];
 
 export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, env, data, params }) => {
@@ -51,6 +51,9 @@ export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, e
 
   const sets: string[] = [];
   const args: unknown[] = [];
+  // Track whether the user changed something *content-y* (not just viewer
+  // state like rotation). We only stamp ocr_status='manual' for content edits.
+  let contentEdited = false;
   for (const k of EDITABLE) {
     if (Object.prototype.hasOwnProperty.call(body, k)) {
       sets.push(`${k} = ?`);
@@ -65,12 +68,20 @@ export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, e
         } else {
           args.push(null);
         }
+        contentEdited = true;
+      } else if (k === "rotation") {
+        // Coerce to a clean multiple of 90 in [0, 270].
+        const n = typeof v === "number" ? v : parseInt(String(v ?? 0), 10);
+        const norm = ((Math.round(n / 90) * 90) % 360 + 360) % 360;
+        args.push(norm);
+        // rotation is viewer-only metadata — don't flag the receipt as manually edited
       } else {
         args.push(typeof v === "string" || v === null ? v : String(v));
+        contentEdited = true;
       }
     }
   }
-  if (sets.length > 0) {
+  if (contentEdited) {
     sets.push(`ocr_status = ?`);
     args.push("manual");
   }

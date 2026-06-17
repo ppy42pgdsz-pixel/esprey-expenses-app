@@ -13,6 +13,7 @@ import {
   PDFFont,
   PDFImage,
   PDFPage,
+  degrees,
 } from "pdf-lib";
 import type { BankDetails, BillFrom, ReceiptRow } from "./types";
 import { convert, type FxRates } from "./fx";
@@ -654,10 +655,10 @@ async function drawAppendix(
         }
       } else if (baseMime === "image/jpeg" || baseMime === "image/jpg") {
         const img = await pdf.embedJpg(obj.bytes);
-        addImagePage(pdf, fonts, header, img);
+        addImagePage(pdf, fonts, header, img, r.rotation ?? 0);
       } else if (baseMime === "image/png") {
         const img = await pdf.embedPng(obj.bytes);
-        addImagePage(pdf, fonts, header, img);
+        addImagePage(pdf, fonts, header, img, r.rotation ?? 0);
       } else if (baseMime === "text/html") {
         // High-fidelity rendering of email-body receipts via PDFShift.
         // The caller (generate.ts) takes care of fetching/caching the rendered PDF
@@ -689,18 +690,40 @@ async function drawAppendix(
   }
 }
 
-function addImagePage(pdf: PDFDocument, fonts: Fonts, header: string, img: PDFImage) {
+function addImagePage(pdf: PDFDocument, fonts: Fonts, header: string, img: PDFImage, rotation: number = 0) {
   const page = pdf.addPage(PageSizes.A4);
   drawHeader(page, fonts, header);
   const maxW = PAGE_W - 2 * MARGIN;
   const maxH = PAGE_H - 2 * MARGIN - 24;
-  const ratio = Math.min(maxW / img.width, maxH / img.height, 1);
-  const w = img.width * ratio;
+  const rot = (((Math.round(rotation / 90) * 90) % 360) + 360) % 360;
+
+  // After rotation, the image's bounding box dimensions swap for 90°/270°.
+  // Fit the *rotated* bounding box inside the page.
+  const isSideways = rot === 90 || rot === 270;
+  const fitW = isSideways ? img.height : img.width;
+  const fitH = isSideways ? img.width : img.height;
+  const ratio = Math.min(maxW / fitW, maxH / fitH, 1);
+  const w = img.width * ratio;  // drawn dimensions (pre-rotation)
   const h = img.height * ratio;
+
+  // pdf-lib rotates counterclockwise around the image's (x, y) anchor (its
+  // bottom-left corner before rotation). Pick (x, y) so the rotated image
+  // is centred on the page.
+  const cx = PAGE_W / 2;
+  const cy = (PAGE_H - 24) / 2; // small offset to leave room for the header bar
+  let x = cx - w / 2;
+  let y = cy - h / 2;
+  switch (rot) {
+    case 0:   x = cx - w / 2; y = cy - h / 2; break;
+    case 90:  x = cx + h / 2; y = cy - w / 2; break;
+    case 180: x = cx + w / 2; y = cy + h / 2; break;
+    case 270: x = cx - h / 2; y = cy + w / 2; break;
+  }
+
   page.drawImage(img, {
-    x: (PAGE_W - w) / 2,
-    y: (PAGE_H - h) / 2 - 10,
+    x, y,
     width: w, height: h,
+    rotate: degrees(rot),
   });
 }
 

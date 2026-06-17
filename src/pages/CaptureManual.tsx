@@ -112,7 +112,17 @@ export default function CaptureManual() {
         </div>
         <label className="field">
           <span className="label">Date</span>
-          <input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} max={todayISO()} />
+          <input
+            type="date"
+            value={receiptDate}
+            max={todayISO()}
+            onChange={(e) => {
+              // iOS Safari sometimes ignores max= — clamp here too.
+              const v = e.target.value;
+              const today = todayISO();
+              setReceiptDate(v && /^\d{4}-\d{2}-\d{2}$/.test(v) && v > today ? today : v);
+            }}
+          />
         </label>
 
         <div className="field">

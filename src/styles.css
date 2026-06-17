@@ -424,6 +424,26 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
   justify-content: flex-end;
 }
 
+/* Receipt image rotation */
+.receipt-image-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.receipt-image-rotatable {
+  transition: transform 0.2s ease;
+  max-width: 100%;
+  max-height: 100%;
+}
+.receipt-image-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
 /* Instructions page */
 .instructions-body {
   max-width: 720px;

@@ -28,6 +28,7 @@ export default function ReceiptDetail() {
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
   const [attendees, setAttendees] = useState<string[]>([]);
+  const [rotation, setRotation] = useState(0);
 
   async function load() {
     setErr(null);
@@ -51,6 +52,7 @@ export default function ReceiptDetail() {
       setCategory(rec.category ?? "");
       setNotes(rec.notes ?? "");
       setAttendees(parseAttendees(rec.attendees));
+      setRotation(((rec.rotation ?? 0) % 360 + 360) % 360);
       setCompanies(c.companies.map((co) => co.name));
       setPeople(p.people);
       setCategories(cat.categories);
@@ -64,6 +66,13 @@ export default function ReceiptDetail() {
 
   async function save() {
     setSaving(true); setErr(null);
+    // Defensive client-side check — iOS Safari's date picker doesn't always
+    // honour `max`, so we also catch future dates here before sending.
+    if (receiptDate && /^\d{4}-\d{2}-\d{2}$/.test(receiptDate) && receiptDate > todayISO()) {
+      setErr("Receipt date is in the future — please pick today or earlier.");
+      setSaving(false);
+      return;
+    }
     try {
       const res = await api.patchReceipt(id, {
         vendor: vendor || null,
@@ -74,6 +83,7 @@ export default function ReceiptDetail() {
         category: category || null,
         notes: notes || null,
         attendees: attendees as unknown as string, // server accepts array via PATCH
+        rotation: rotation as unknown as number,
       });
       setReceipt(res.receipt);
       if (company && !companies.includes(company)) {
@@ -128,7 +138,14 @@ export default function ReceiptDetail() {
           {receipt.source === "manual" ? (
             <ManualPlaceholder />
           ) : isImageReceipt(receipt) ? (
-            <img src={imageUrl(id)} alt="receipt" />
+            <div className="receipt-image-wrap">
+              <img
+                src={imageUrl(id)}
+                alt="receipt"
+                style={{ transform: `rotate(${rotation}deg)` }}
+                className="receipt-image-rotatable"
+              />
+            </div>
           ) : isPdfLikeReceipt(receipt) ? (
             <iframe
               src={imageUrl(id) + "#toolbar=1&view=FitH"}
@@ -138,7 +155,19 @@ export default function ReceiptDetail() {
           ) : (
             <EmailBodyView id={id} />
           )}
-          <small>Uploaded {formatDate(receipt.uploaded_at)} · OCR: {receipt.ocr_status}</small>
+          <div className="receipt-image-controls">
+            <small>Uploaded {formatDate(receipt.uploaded_at)} · OCR: {receipt.ocr_status}</small>
+            {isImageReceipt(receipt) && (
+              <button
+                type="button"
+                className="ghost-btn small"
+                title="Rotate 90° (click again to keep rotating)"
+                onClick={() => setRotation((r) => (r + 90) % 360)}
+              >
+                ⟳ Rotate
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="detail-form">
@@ -155,7 +184,17 @@ export default function ReceiptDetail() {
               />
             </div>
           </div>
-          <Field label="Date" value={receiptDate} onChange={setReceiptDate} type="date" max={todayISO()} />
+          <Field
+            label="Date"
+            value={receiptDate}
+            onChange={(v) => {
+              // Defensive clamp for iOS Safari, which doesn't always respect max=.
+              const today = todayISO();
+              setReceiptDate(v && /^\d{4}-\d{2}-\d{2}$/.test(v) && v > today ? today : v);
+            }}
+            type="date"
+            max={todayISO()}
+          />
 
           <div className="field">
             <span className="label">Company</span>
