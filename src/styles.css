@@ -417,6 +417,13 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
   margin: 6px 0 8px 0;
 }
 
+.member-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 /* Instructions page */
 .instructions-body {
   max-width: 720px;

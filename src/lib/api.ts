@@ -185,6 +185,16 @@ export const api = {
       cloudflareRemoved: boolean;
       cloudflareEmails: string[];
     }>(`/api/team/${encodeURIComponent(email)}`, { method: "DELETE" }),
+  wipeTeamMember: (email: string) =>
+    jsonFetch<{
+      wiped: boolean;
+      email: string;
+      aliasesRemoved: string[];
+      receiptsDeleted: number;
+      r2ObjectsDeleted: number;
+      r2Errors: string[] | null;
+      cloudflareErrors: string[] | null;
+    }>(`/api/team/wipe/${encodeURIComponent(email)}`, { method: "POST" }),
 
   getUserProfile: () => jsonFetch<{ profile: UserProfile }>("/api/user"),
   updateUserProfile: (patch: Partial<UserProfile>) =>

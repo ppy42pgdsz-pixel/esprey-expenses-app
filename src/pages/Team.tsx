@@ -96,12 +96,42 @@ export default function Team() {
   async function removeMember(email: string) {
     if (!confirm(
       `Remove ${email}?\n\n` +
-      `They will be removed from Cloudflare Access immediately and will no longer be able to sign in.\n` +
-      `Their existing receipts will be kept (so reports stay reconstructible) but they won't see them.`
+      `They will be removed from Cloudflare Access immediately and will no longer be able to sign in.\n\n` +
+      `Their receipts, profile, and reports will be KEPT (so reports stay reconstructible). If you re-add them later with the same email, all their data comes back.\n\n` +
+      `For a permanent wipe (e.g. employee leaving for good, GDPR), use the "Wipe & remove" button instead.`
     )) return;
     setErr(null);
     try {
       await api.removeTeamMember(email);
+      await reload();
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  }
+
+  async function wipeMember(email: string) {
+    const typed = prompt(
+      `PERMANENT WIPE.\n\n` +
+      `This will delete every receipt, every report, the profile, and the people list for ${email}.\n` +
+      `Original receipt files in storage will be removed too. NOT REVERSIBLE.\n\n` +
+      `To confirm, type the email address exactly:`
+    );
+    if (typed === null) return; // cancelled
+    if (typed.trim().toLowerCase() !== email.toLowerCase()) {
+      alert("Typed email didn't match — wipe cancelled.");
+      return;
+    }
+    setErr(null);
+    try {
+      const res = await api.wipeTeamMember(email);
+      alert(
+        `Wipe complete.\n\n` +
+        `Receipts deleted: ${res.receiptsDeleted}\n` +
+        `Storage objects deleted: ${res.r2ObjectsDeleted}\n` +
+        `Aliases removed: ${res.aliasesRemoved.length}` +
+        (res.r2Errors ? `\n\nStorage errors (orphaned blobs may remain):\n${res.r2Errors.join("\n")}` : "") +
+        (res.cloudflareErrors ? `\n\nCloudflare Access errors:\n${res.cloudflareErrors.join("\n")}` : "")
+      );
       await reload();
     } catch (e) {
       setErr((e as Error).message);
@@ -188,6 +218,7 @@ export default function Team() {
                 inCloudflare={cfSet.has(m.email.toLowerCase())}
                 cfSet={cfSet}
                 onRemove={() => removeMember(m.email)}
+                onWipe={() => wipeMember(m.email)}
                 onChanged={reload}
                 setErr={setErr}
               />
@@ -237,13 +268,14 @@ export default function Team() {
 
 /* ------------ Member card with inline alias management ------------ */
 function MemberCard({
-  member, isMe, inCloudflare, cfSet, onRemove, onChanged, setErr,
+  member, isMe, inCloudflare, cfSet, onRemove, onWipe, onChanged, setErr,
 }: {
   member: Member;
   isMe: boolean;
   inCloudflare: boolean;
   cfSet: Set<string>;
   onRemove: () => void;
+  onWipe: () => void;
   onChanged: () => Promise<void> | void;
   setErr: (s: string | null) => void;
 }) {
@@ -298,7 +330,12 @@ function MemberCard({
         {member.is_admin === 1 || isMe ? (
           <span className="hint small">—</span>
         ) : (
-          <button type="button" className="danger-btn small" onClick={onRemove}>Remove</button>
+          <div className="member-actions">
+            <button type="button" className="ghost-btn small" onClick={onRemove}>Remove</button>
+            <button type="button" className="danger-btn small" onClick={onWipe} title="Permanent — deletes all receipts, reports, profile, and people for this user">
+              Wipe &amp; remove
+            </button>
+          </div>
         )}
       </div>
 
