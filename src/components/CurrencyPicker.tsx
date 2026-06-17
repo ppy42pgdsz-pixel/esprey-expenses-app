@@ -12,9 +12,15 @@ interface Props {
   onChange: (code: string) => void;
   /** Called when a new currency is registered via the inline "add new" flow. */
   onCurrencyAdded?: (c: Currency) => void;
+  /**
+   * If false, hides the "+ Add new currency" option. Currencies are an
+   * admin-curated shared list — non-admins should see only the existing
+   * options plus whatever's already on this receipt.
+   */
+  allowAdd?: boolean;
 }
 
-export default function CurrencyPicker({ currencies, value, onChange, onCurrencyAdded }: Props) {
+export default function CurrencyPicker({ currencies, value, onChange, onCurrencyAdded, allowAdd = true }: Props) {
   const [adding, setAdding] = useState(false);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -46,10 +52,20 @@ export default function CurrencyPicker({ currencies, value, onChange, onCurrency
     );
   }
 
+  // Make sure the currently-selected currency appears in the dropdown even
+  // if it isn't in the shared list — otherwise the <select> falls back to
+  // "— pick a currency —" instead of showing the value that's already
+  // saved on the receipt (e.g. GHS that OCR pulled off a Ghanaian invoice
+  // before the admin added it to the shared list).
+  const valueUpper = (value || "").toUpperCase();
+  const options = valueUpper && !currencies.some((c) => c.code === valueUpper)
+    ? [...currencies, { code: valueUpper, name: "(not in shared list)" }]
+    : currencies;
+
   return (
     <select
       className="picker-select"
-      value={value || ""}
+      value={valueUpper}
       onChange={(e) => {
         const v = e.target.value;
         if (v === "__new__") { setAdding(true); return; }
@@ -57,10 +73,10 @@ export default function CurrencyPicker({ currencies, value, onChange, onCurrency
       }}
     >
       <option value="">— pick a currency —</option>
-      {currencies.map((c) => (
+      {options.map((c) => (
         <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
       ))}
-      <option value="__new__">+ Add new currency…</option>
+      {allowAdd && <option value="__new__">+ Add new currency…</option>}
     </select>
   );
 

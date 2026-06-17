@@ -107,6 +107,7 @@ export default function CaptureManual() {
               value={currency}
               onChange={setCurrency}
               onCurrencyAdded={(c) => setCurrencies((cur) => [...cur, c].sort((a, b) => a.code.localeCompare(b.code)))}
+              allowAdd={isAdmin}
             />
           </div>
         </div>
