@@ -444,6 +444,19 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
   margin-top: 6px;
 }
 
+.pdf-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  background: #fafaf9;
+}
+.pdf-preview-icon { font-size: 40px; line-height: 1; }
+.pdf-preview-meta { display: flex; flex-direction: column; gap: 2px; }
+.pdf-preview-meta small { color: #6b7280; font-size: 12px; }
+
 /* Instructions page */
 .instructions-body {
   max-width: 720px;

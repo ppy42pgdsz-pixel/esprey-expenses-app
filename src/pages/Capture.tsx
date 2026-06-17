@@ -28,9 +28,8 @@ export default function Capture() {
     const f = e.target.files?.[0] ?? null;
     setFile(f);
     setErr(null);
-    if (f) {
-      const url = URL.createObjectURL(f);
-      setPreviewUrl(url);
+    if (f && f.type.startsWith("image/")) {
+      setPreviewUrl(URL.createObjectURL(f));
     } else {
       setPreviewUrl(null);
     }
@@ -49,6 +48,8 @@ export default function Capture() {
       setUploading(false);
     }
   }
+
+  const isPdf = !!file && file.type === "application/pdf";
 
   return (
     <div className="page capture">
@@ -71,7 +72,7 @@ export default function Capture() {
         </div>
       )}
 
-      {!previewUrl ? (
+      {!file ? (
         <div className="capture-cta">
           <p>Snap a photo of your receipt — Claude will read it.</p>
           <button
@@ -94,12 +95,17 @@ export default function Capture() {
               const el = inputRef.current;
               if (!el) return;
               el.removeAttribute("capture");
+              // Widen accept while picking from library so PDFs are also offered.
+              el.setAttribute("accept", "image/*,application/pdf");
               el.click();
               // restore for next time
-              setTimeout(() => el.setAttribute("capture", "environment"), 1000);
+              setTimeout(() => {
+                el.setAttribute("capture", "environment");
+                el.setAttribute("accept", "image/*");
+              }, 1000);
             }}
           >
-            Pick from photo library
+            Pick photo or PDF from files
           </button>
           <div className="capture-tip">
             No signal? Use your <strong>Camera app</strong> and email the photo to{" "}
@@ -108,10 +114,23 @@ export default function Capture() {
         </div>
       ) : (
         <div className="capture-preview">
-          <img src={previewUrl} alt="preview" />
+          {isPdf ? (
+            <div className="pdf-preview">
+              <div className="pdf-preview-icon">📄</div>
+              <div className="pdf-preview-meta">
+                <strong>{file.name || "PDF file"}</strong>
+                <small>{(file.size / 1024).toFixed(0)} KB · application/pdf</small>
+                <small>Claude will read the PDF contents.</small>
+              </div>
+            </div>
+          ) : previewUrl ? (
+            <img src={previewUrl} alt="preview" />
+          ) : (
+            <div className="empty">No preview available.</div>
+          )}
           <div className="capture-actions">
             <button className="ghost-btn" onClick={() => { setFile(null); setPreviewUrl(null); }} disabled={uploading}>
-              Retake
+              {isPdf ? "Pick another" : "Retake"}
             </button>
             <button className="primary-btn" onClick={onUpload} disabled={uploading}>
               {uploading ? "Uploading & reading…" : "Save"}

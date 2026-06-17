@@ -54,10 +54,17 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
   let extracted = null as null | Awaited<ReturnType<typeof extractReceipt>>["extracted"];
   try {
     const base64 = arrayBufferToBase64(bytes);
-    const result = await extractReceipt(env.ANTHROPIC_API_KEY, {
-      imageBase64: base64,
-      imageMimeType: mime,
-    });
+    let result;
+    if (mime === "application/pdf") {
+      result = await extractReceipt(env.ANTHROPIC_API_KEY, { pdfBase64: base64 });
+    } else if (mime.startsWith("image/")) {
+      result = await extractReceipt(env.ANTHROPIC_API_KEY, {
+        imageBase64: base64,
+        imageMimeType: mime,
+      });
+    } else {
+      throw new Error("unsupported file type: " + mime);
+    }
     ocrStatus = "success";
     ocrRaw = result.raw;
     extracted = result.extracted;
