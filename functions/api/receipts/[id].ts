@@ -20,7 +20,7 @@ export const onRequestGet: PagesFunction<Env, "id", any> = async ({ request, env
   return Response.json({ receipt: row });
 };
 
-const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category", "rotation"] as const;
+const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category", "rotation", "tip_pct"] as const;
 type EditableField = (typeof EDITABLE)[number];
 
 export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, env, data, params }) => {
@@ -75,6 +75,14 @@ export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, e
         const norm = ((Math.round(n / 90) * 90) % 360 + 360) % 360;
         args.push(norm);
         // rotation is viewer-only metadata — don't flag the receipt as manually edited
+      } else if (k === "tip_pct") {
+        // Tip changes the saved `amount` too (via the client), so this is
+        // a real edit — but we don't mark ocr_status=manual for the tip
+        // selector alone since the *bill* OCR is still accurate.
+        const n = typeof v === "number" ? v : parseInt(String(v ?? 0), 10);
+        const allowed = [0, 5, 10, 15, 20];
+        const clean = allowed.includes(n) ? n : 0;
+        args.push(clean);
       } else {
         args.push(typeof v === "string" || v === null ? v : String(v));
         contentEdited = true;

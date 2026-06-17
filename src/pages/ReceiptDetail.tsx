@@ -29,6 +29,11 @@ export default function ReceiptDetail() {
   const [notes, setNotes] = useState("");
   const [attendees, setAttendees] = useState<string[]>([]);
   const [rotation, setRotation] = useState(0);
+  // Tip handling — only visible for meal/taxi categories. The `amount` field
+  // shows the FINAL total (what we save); the bill (pre-tip) is derived from
+  // amount / (1 + tipPct/100) so when the user toggles the tip dropdown we
+  // can recompute amount keeping the same underlying bill.
+  const [tipPct, setTipPct] = useState(0);
 
   async function load() {
     setErr(null);
@@ -53,6 +58,7 @@ export default function ReceiptDetail() {
       setNotes(rec.notes ?? "");
       setAttendees(parseAttendees(rec.attendees));
       setRotation(((rec.rotation ?? 0) % 360 + 360) % 360);
+      setTipPct(normalizeTipPct(rec.tip_pct ?? 0));
       setCompanies(c.companies.map((co) => co.name));
       setPeople(p.people);
       setCategories(cat.categories);
@@ -84,6 +90,7 @@ export default function ReceiptDetail() {
         notes: notes || null,
         attendees: attendees as unknown as string, // server accepts array via PATCH
         rotation: rotation as unknown as number,
+        tip_pct: tipPct as unknown as number,
       });
       setReceipt(res.receipt);
       if (company && !companies.includes(company)) {
@@ -224,6 +231,39 @@ export default function ReceiptDetail() {
             />
           </div>
 
+          {categoryTriggersTip(category) && (
+            <div className="field">
+              <span className="label">Tip</span>
+              <select
+                className="picker-select"
+                value={String(tipPct)}
+                onChange={(e) => {
+                  const newPct = normalizeTipPct(parseInt(e.target.value, 10));
+                  // Re-base the amount: take the bill (current amount stripped of
+                  // the previous tip), then apply the new tip on top.
+                  const billRaw = parseFloat(amount);
+                  if (!isNaN(billRaw) && billRaw > 0) {
+                    const bill = tipPct > 0 ? billRaw / (1 + tipPct / 100) : billRaw;
+                    const total = bill * (1 + newPct / 100);
+                    setAmount(total.toFixed(2));
+                  }
+                  setTipPct(newPct);
+                }}
+              >
+                <option value="0">No tip</option>
+                <option value="5">5%</option>
+                <option value="10">10%</option>
+                <option value="15">15%</option>
+                <option value="20">20%</option>
+              </select>
+              {tipPct > 0 && amount && !isNaN(parseFloat(amount)) && (
+                <div className="hint small" style={{ marginTop: 4 }}>
+                  Bill {(parseFloat(amount) / (1 + tipPct / 100)).toFixed(2)} + {tipPct}% tip = {parseFloat(amount).toFixed(2)} (saved as total)
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="field">
             <span className="label">People present</span>
             <PeoplePicker
@@ -320,4 +360,20 @@ function todayISO(): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function normalizeTipPct(n: unknown): number {
+  const v = typeof n === "number" ? n : parseInt(String(n ?? 0), 10);
+  return [0, 5, 10, 15, 20].includes(v) ? v : 0;
+}
+
+// Heuristic — show the tip selector for any category that looks like food,
+// drinks, or ground transport. Matches against common category names admins
+// might use ("Meals", "Restaurant", "Travel - Taxi", "Uber", etc.).
+function categoryTriggersTip(category: string): boolean {
+  const c = (category || "").toLowerCase();
+  if (!c) return false;
+  const triggers = ["meal", "restaurant", "food", "dining", "dine", "drinks", "bar",
+                    "taxi", "uber", "lyft", "cab", "rideshare", "ride-share", "ride share"];
+  return triggers.some((t) => c.includes(t));
 }

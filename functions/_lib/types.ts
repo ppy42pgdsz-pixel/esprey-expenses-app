@@ -75,6 +75,7 @@ export interface ReceiptRow {
   ocr_status: "pending" | "success" | "failed" | "manual";
   uploaded_at: number;
   rotation: number;
+  tip_pct: number;
 }
 
 export interface ExtractedReceipt {

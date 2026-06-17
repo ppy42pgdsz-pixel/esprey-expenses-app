@@ -17,6 +17,7 @@ export interface Receipt {
   ocr_status: "pending" | "success" | "failed" | "manual";
   uploaded_at: number;
   rotation: number; // 0, 90, 180, or 270 — applied to the receipt image in-app
+  tip_pct: number;  // 0, 5, 10, 15, or 20 — only set for meal/taxi categories; amount already includes the tip
 }
 
 export interface Person {
