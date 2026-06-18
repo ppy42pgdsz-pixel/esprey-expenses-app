@@ -474,12 +474,17 @@ function CompanyAccess({
       </div>
       {allowed === null ? (
         <div className="empty small">Loading…</div>
-      ) : allCompanies.length === 0 ? (
-        <div className="hint small">No companies created yet. Add one via Settings → Companies first.</div>
-      ) : (
+      ) : (() => {
+        // Hide "Personal" from the checkbox list — every user has it by
+        // default, so making it toggleable is just noise.
+        const realCompanies = allCompanies.filter((n) => n.trim().toLowerCase() !== "personal");
+        if (realCompanies.length === 0) {
+          return <div className="hint small">No companies created yet. Add one via Settings → Companies first.</div>;
+        }
+        return (
         <>
           <div className="company-access-grid">
-            {allCompanies.map((name) => (
+            {realCompanies.map((name) => (
               <label key={name} className="company-access-cb">
                 <input
                   type="checkbox"
@@ -505,7 +510,8 @@ function CompanyAccess({
           )}
           {!dirty && savedMsg && <div className="hint small">{savedMsg}</div>}
         </>
-      )}
+        );
+      })()}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import type { Env } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
 import { newId } from "../../_lib/util";
 import { requireUser, isAdminEmail } from "../../_lib/auth";
+import { isPersonalCompany } from "../../_lib/const";
 
 interface ManualBody {
   vendor?: string | null;
@@ -72,8 +73,9 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
 
   // Companies + categories are admin-only — only auto-add if the current user
   // is an admin. Non-admins can still tag their receipts with a custom string;
-  // it just won't appear in the shared dropdown.
-  if (isAdmin && body.company && body.company.trim()) {
+  // it just won't appear in the shared dropdown. "Personal" is a reserved
+  // UI sentinel, never auto-added to the companies table.
+  if (isAdmin && body.company && body.company.trim() && !isPersonalCompany(body.company)) {
     await env.DB.prepare(
       `INSERT OR IGNORE INTO companies (name, created_at) VALUES (?, ?)`
     )

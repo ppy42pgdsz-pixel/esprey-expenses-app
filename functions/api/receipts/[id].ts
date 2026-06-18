@@ -8,6 +8,7 @@
 import type { Env, ReceiptRow } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
 import { requireUser, isAdminEmail } from "../../_lib/auth";
+import { isPersonalCompany } from "../../_lib/const";
 
 export const onRequestGet: PagesFunction<Env, "id", any> = async ({ request, env, data, params }) => {
   const guard = await requireUser(request, env, data);
@@ -108,8 +109,9 @@ export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, e
 
   // Auto-add company to shared dropdown (admin-only). Non-admins can still
   // type a custom company name on a receipt; it just won't appear in the
-  // shared dropdown until an admin adds it officially.
-  if (isAdmin && typeof body.company === "string" && body.company.trim()) {
+  // shared dropdown until an admin adds it officially. "Personal" is
+  // reserved — never auto-add it (it's a UI sentinel, not a real company).
+  if (isAdmin && typeof body.company === "string" && body.company.trim() && !isPersonalCompany(body.company)) {
     const name = body.company.trim();
     await env.DB.prepare(
       `INSERT OR IGNORE INTO companies (name, created_at) VALUES (?, ?)`
