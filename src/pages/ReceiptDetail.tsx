@@ -71,7 +71,17 @@ export default function ReceiptDetail() {
   useEffect(() => { load(); }, [id]);
 
   async function save() {
-    setSaving(true); setErr(null);
+    setErr(null);
+    // Amount must be a positive number — letters or empty are rejected before
+    // hitting the server (the server saves "0" otherwise, which fouls reports).
+    if (amount) {
+      const n = parseFloat(amount);
+      if (isNaN(n) || n <= 0) {
+        setErr("Amount must be a positive number (e.g. 12.50). Letters aren't allowed.");
+        return;
+      }
+    }
+    setSaving(true);
     // Defensive client-side check — iOS Safari's date picker doesn't always
     // honour `max`, so we also catch future dates here before sending.
     if (receiptDate && /^\d{4}-\d{2}-\d{2}$/.test(receiptDate) && receiptDate > todayISO()) {
@@ -180,7 +190,7 @@ export default function ReceiptDetail() {
         <div className="detail-form">
           <Field label="Vendor"   value={vendor}      onChange={setVendor} />
           <div className="row">
-            <Field label="Amount" value={amount} onChange={setAmount} inputMode="decimal" />
+            <Field label="Amount" value={amount} onChange={(v) => setAmount(sanitizeAmountInput(v))} inputMode="decimal" />
             <div className="field">
               <span className="label">Currency</span>
               <CurrencyPicker
@@ -360,6 +370,15 @@ function todayISO(): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+// Strip anything that isn't a digit or decimal point, normalise comma → dot
+// (common on PT/EU keyboards), and collapse multiple dots to a single one.
+function sanitizeAmountInput(raw: string): string {
+  let s = (raw ?? "").replace(/,/g, ".").replace(/[^0-9.]/g, "");
+  const parts = s.split(".");
+  if (parts.length > 2) s = parts[0] + "." + parts.slice(1).join("");
+  return s;
 }
 
 function normalizeTipPct(n: unknown): number {

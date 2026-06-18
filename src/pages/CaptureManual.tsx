@@ -14,6 +14,15 @@ function todayISO() {
   return `${y}-${m}-${day}`;
 }
 
+// Strip anything that isn't a digit or decimal point, normalise comma → dot
+// (common in PT/EU keyboards), and collapse multiple dots to one.
+export function sanitizeAmountInput(raw: string): string {
+  let s = (raw ?? "").replace(/,/g, ".").replace(/[^0-9.]/g, "");
+  const parts = s.split(".");
+  if (parts.length > 2) s = parts[0] + "." + parts.slice(1).join("");
+  return s;
+}
+
 export default function CaptureManual() {
   const navigate = useNavigate();
   const [companies, setCompanies] = useState<string[]>([]);
@@ -56,8 +65,9 @@ export default function CaptureManual() {
 
   async function save() {
     setErr(null);
-    if (!amount.trim()) {
-      setErr("Amount is required.");
+    const n = parseFloat(amount);
+    if (!amount.trim() || isNaN(n) || n <= 0) {
+      setErr("Amount must be a positive number (e.g. 12.50).");
       return;
     }
     setSaving(true);
@@ -98,7 +108,13 @@ export default function CaptureManual() {
         <div className="row">
           <label className="field">
             <span className="label">Amount *</span>
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0.00" />
+            <input
+              value={amount}
+              onChange={(e) => setAmount(sanitizeAmountInput(e.target.value))}
+              inputMode="decimal"
+              placeholder="0.00"
+              pattern="[0-9]*\.?[0-9]*"
+            />
           </label>
           <div className="field">
             <span className="label">Currency</span>
