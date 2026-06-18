@@ -500,6 +500,29 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
   color: #374151;
 }
 
+/* Issues stat (OCR fails + duplicates) and row highlights */
+.stat.issue {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.stat.issue .n { color: #991b1b; }
+.stat.clickable { cursor: pointer; }
+.stat.clickable:hover { filter: brightness(0.97); }
+
+/* Table view */
+.receipts-table tr.row-failed > td    { background: #fef2f2; }
+.receipts-table tr.row-duplicate > td { background: #fff7ed; }
+/* If both, failed wins. Selected still wins over both (uses existing style). */
+.receipts-table tr.row-failed.row-duplicate > td { background: #fef2f2; }
+
+/* Card view (mobile) */
+.receipts li.row-failed    { background: #fef2f2; border-left: 3px solid #ef4444; }
+.receipts li.row-duplicate { background: #fff7ed; border-left: 3px solid #f59e0b; }
+.receipts li.row-failed.row-duplicate {
+  background: #fef2f2;
+  border-left: 3px solid #ef4444;
+}
+
 /* Per-member company access section in Team UI */
 .company-access {
   margin-top: 12px;

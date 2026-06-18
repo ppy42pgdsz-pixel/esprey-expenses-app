@@ -41,7 +41,8 @@ export default function Dashboard() {
   async function reload() {
     setErr(null);
     try {
-      const f = filter === "all" ? undefined : filter;
+      // "issues" is computed client-side, so we still need the full list.
+      const f = filter === "all" || filter === "issues" ? undefined : filter;
       const [r, c, cat] = await Promise.all([
         api.listReceipts(f),
         api.listCompanies(),
@@ -60,9 +61,44 @@ export default function Dashboard() {
   const uncat = receipts?.filter((r) => !r.company).length ?? 0;
   const pending = receipts?.filter((r) => r.ocr_status === "pending").length ?? 0;
 
+  // Detect potential duplicate receipts: same vendor + same amount + same date.
+  // Computed client-side so re-categorization is reflected immediately.
+  const duplicateIds = useMemo(() => {
+    if (!receipts) return new Set<string>();
+    const groups = new Map<string, string[]>();
+    for (const r of receipts) {
+      const vendor = (r.vendor ?? "").trim().toLowerCase();
+      const amt = parseFloat(r.amount ?? "");
+      const date = r.receipt_date ?? "";
+      if (!vendor || !isFinite(amt) || amt <= 0 || !date) continue;
+      const key = `${vendor}|${amt.toFixed(2)}|${date}`;
+      const arr = groups.get(key) ?? [];
+      arr.push(r.id);
+      groups.set(key, arr);
+    }
+    const dupes = new Set<string>();
+    for (const ids of groups.values()) {
+      if (ids.length > 1) for (const id of ids) dupes.add(id);
+    }
+    return dupes;
+  }, [receipts]);
+
+  const failedIds = useMemo(() => {
+    if (!receipts) return new Set<string>();
+    return new Set(receipts.filter((r) => r.ocr_status === "failed").map((r) => r.id));
+  }, [receipts]);
+
+  const issuesCount = useMemo(() => {
+    const ids = new Set<string>([...failedIds, ...duplicateIds]);
+    return ids.size;
+  }, [failedIds, duplicateIds]);
+
   const sortedReceipts = useMemo(() => {
     if (!receipts) return null;
-    const arr = [...receipts];
+    let arr = [...receipts];
+    if (filter === "issues") {
+      arr = arr.filter((r) => failedIds.has(r.id) || duplicateIds.has(r.id));
+    }
     const dir = sortDir === "asc" ? 1 : -1;
     arr.sort((a, b) => {
       const cmp = (() => {
@@ -78,7 +114,7 @@ export default function Dashboard() {
       return cmp * dir;
     });
     return arr;
-  }, [receipts, sortKey, sortDir]);
+  }, [receipts, sortKey, sortDir, filter, failedIds, duplicateIds]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -156,15 +192,17 @@ export default function Dashboard() {
       {err && <div className="err">{err}</div>}
 
       <div className="stats">
-        <Stat n={total} label="receipts" />
-        <Stat n={uncat} label="uncategorized" warn={uncat > 0} />
+        <Stat n={total}            label="receipts" />
+        <Stat n={uncat}            label="uncategorized" warn={uncat > 0} onClick={() => setFilter("__uncategorized__")} />
         <Stat n={companies.length} label="companies" />
+        <Stat n={issuesCount}      label="issues" issue={issuesCount > 0} onClick={() => setFilter("issues")} />
       </div>
 
       <div className="toolbar">
         <select value={filter} onChange={(e) => setFilter(e.target.value)} className="filter">
           <option value="all">All ({total})</option>
           <option value="__uncategorized__">Uncategorized ({uncat})</option>
+          <option value="issues">Issues ({issuesCount})</option>
           {companies.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <button className="ghost-btn" onClick={reload}>Refresh</button>
@@ -247,7 +285,11 @@ export default function Dashboard() {
           </thead>
           <tbody>
             {sortedReceipts.map((r) => (
-              <tr key={r.id} className={selected.has(r.id) ? "selected" : ""}>
+              <tr key={r.id} className={
+                (selected.has(r.id) ? "selected " : "") +
+                (failedIds.has(r.id) ? "row-failed " : "") +
+                (duplicateIds.has(r.id) ? "row-duplicate " : "")
+              }>
                 <td className="col-check">
                   <input
                     type="checkbox"
@@ -285,7 +327,14 @@ export default function Dashboard() {
       ) : (
         <ul className="receipts">
           {sortedReceipts.map((r) => (
-            <li key={r.id} className={r.company ? "cat" : "uncat"}>
+            <li
+              key={r.id}
+              className={
+                (r.company ? "cat" : "uncat") +
+                (failedIds.has(r.id) ? " row-failed" : "") +
+                (duplicateIds.has(r.id) ? " row-duplicate" : "")
+              }
+            >
               <Link to={`/receipt/${r.id}`} className="receipt-link">
                 {r.source === "manual" ? (
                   <div className="thumb thumb-icon" aria-hidden>✏️</div>
@@ -346,9 +395,10 @@ function ThHeader(props: {
   );
 }
 
-function Stat({ n, label, warn }: { n: number; label: string; warn?: boolean }) {
+function Stat({ n, label, warn, issue, onClick }: { n: number; label: string; warn?: boolean; issue?: boolean; onClick?: () => void }) {
+  const cls = "stat" + (warn ? " warn" : "") + (issue ? " issue" : "") + (onClick ? " clickable" : "");
   return (
-    <div className={"stat " + (warn ? "warn" : "")}>
+    <div className={cls} onClick={onClick} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined}>
       <div className="n">{n}</div>
       <div className="l">{label}</div>
     </div>
