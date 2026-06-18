@@ -457,6 +457,49 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
 .pdf-preview-meta { display: flex; flex-direction: column; gap: 2px; }
 .pdf-preview-meta small { color: #6b7280; font-size: 12px; }
 
+/* Bulk upload preview list */
+.bulk-preview {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fafaf9;
+}
+.bulk-preview-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.bulk-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.bulk-preview-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0ee;
+  font-size: 14px;
+}
+.bulk-preview-list li:last-child { border-bottom: none; }
+.bulk-preview-icon { font-size: 18px; line-height: 1; }
+.bulk-preview-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bulk-preview-list small { color: #6b7280; font-size: 12px; }
+.bulk-progress {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+  font-size: 13px;
+  color: #374151;
+}
+
 /* Per-member company access section in Team UI */
 .company-access {
   margin-top: 12px;
