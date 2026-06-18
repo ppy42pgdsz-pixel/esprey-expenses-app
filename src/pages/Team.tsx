@@ -23,6 +23,7 @@ interface Member {
 export default function Team() {
   const navigate = useNavigate();
   const [members, setMembers] = useState<Member[]>([]);
+  const [allCompanies, setAllCompanies] = useState<string[]>([]);
   const [cloudflareEmails, setCloudflareEmails] = useState<string[]>([]);
   const [cloudflareError, setCloudflareError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,10 +38,11 @@ export default function Team() {
   async function reload() {
     setErr(null);
     try {
-      const r = await api.listTeam();
+      const [r, c] = await Promise.all([api.listTeam(), api.listCompanies()]);
       setMembers(r.members);
       setCloudflareEmails(r.cloudflareEmails);
       setCloudflareError(r.cloudflareError);
+      setAllCompanies(c.companies.map((co) => co.name).sort());
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -217,6 +219,7 @@ export default function Team() {
                 isMe={!!meEmail && m.email.toLowerCase() === meEmail.toLowerCase()}
                 inCloudflare={cfSet.has(m.email.toLowerCase())}
                 cfSet={cfSet}
+                allCompanies={allCompanies}
                 onRemove={() => removeMember(m.email)}
                 onWipe={() => wipeMember(m.email)}
                 onChanged={reload}
@@ -268,12 +271,13 @@ export default function Team() {
 
 /* ------------ Member card with inline alias management ------------ */
 function MemberCard({
-  member, isMe, inCloudflare, cfSet, onRemove, onWipe, onChanged, setErr,
+  member, isMe, inCloudflare, cfSet, allCompanies, onRemove, onWipe, onChanged, setErr,
 }: {
   member: Member;
   isMe: boolean;
   inCloudflare: boolean;
   cfSet: Set<string>;
+  allCompanies: string[];
   onRemove: () => void;
   onWipe: () => void;
   onChanged: () => Promise<void> | void;
@@ -388,6 +392,126 @@ function MemberCard({
           onClick={() => setShowAdd(true)}
         >+ Add another email for this person</button>
       )}
+
+      {/* Admins always see all companies — only show the access controls
+          for non-admin members. */}
+      {member.is_admin !== 1 && (
+        <CompanyAccess
+          email={member.email}
+          allCompanies={allCompanies}
+          setErr={setErr}
+        />
+      )}
     </div>
   );
+}
+
+/* ------------ Per-member company access controls ------------ */
+function CompanyAccess({
+  email, allCompanies, setErr,
+}: {
+  email: string;
+  allCompanies: string[];
+  setErr: (s: string | null) => void;
+}) {
+  const [allowed, setAllowed] = useState<string[] | null>(null);
+  const [draft, setDraft] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await api.getTeamMemberCompanies(email);
+        setAllowed(r.companies);
+        setDraft(new Set(r.companies));
+      } catch (e) {
+        // Surface but don't block — the alias UI still works
+        setErr((e as Error).message);
+        setAllowed([]);
+        setDraft(new Set());
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email]);
+
+  function toggle(name: string) {
+    setDraft((cur) => {
+      const next = new Set(cur);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+    setSavedMsg(null);
+  }
+
+  async function save() {
+    setSaving(true);
+    setErr(null);
+    try {
+      const res = await api.setTeamMemberCompanies(email, Array.from(draft));
+      setAllowed(res.companies);
+      setDraft(new Set(res.companies));
+      setSavedMsg(
+        res.companies.length === 0
+          ? "Saved — user can pick only Personal."
+          : `Saved — user can pick: ${res.companies.join(", ")}${res.companies.length ? ", and Personal." : ""}`
+      );
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const dirty = allowed !== null && !setEquals(draft, new Set(allowed));
+
+  return (
+    <div className="company-access">
+      <div className="company-access-title">Company access</div>
+      <div className="hint small" style={{ marginBottom: 6 }}>
+        Tick the companies this user can pick when recording an expense. "Personal" is always available.
+      </div>
+      {allowed === null ? (
+        <div className="empty small">Loading…</div>
+      ) : allCompanies.length === 0 ? (
+        <div className="hint small">No companies created yet. Add one via Settings → Companies first.</div>
+      ) : (
+        <>
+          <div className="company-access-grid">
+            {allCompanies.map((name) => (
+              <label key={name} className="company-access-cb">
+                <input
+                  type="checkbox"
+                  checked={draft.has(name)}
+                  onChange={() => toggle(name)}
+                />
+                <span>{name}</span>
+              </label>
+            ))}
+          </div>
+          {dirty && (
+            <div className="company-access-actions">
+              <button type="button" className="primary-btn small" onClick={save} disabled={saving}>
+                {saving ? "Saving…" : "Save access"}
+              </button>
+              <button
+                type="button"
+                className="ghost-btn small"
+                onClick={() => { setDraft(new Set(allowed ?? [])); setSavedMsg(null); }}
+                disabled={saving}
+              >Cancel</button>
+            </div>
+          )}
+          {!dirty && savedMsg && <div className="hint small">{savedMsg}</div>}
+        </>
+      )}
+    </div>
+  );
+}
+
+function setEquals<T>(a: Set<T>, b: Set<T>): boolean {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
 }

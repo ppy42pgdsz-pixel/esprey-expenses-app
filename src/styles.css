@@ -457,6 +457,37 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
 .pdf-preview-meta { display: flex; flex-direction: column; gap: 2px; }
 .pdf-preview-meta small { color: #6b7280; font-size: 12px; }
 
+/* Per-member company access section in Team UI */
+.company-access {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border, #e5e7eb);
+}
+.company-access-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+.company-access-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px 12px;
+  margin: 8px 0;
+}
+.company-access-cb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.company-access-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
 /* Instructions page */
 .instructions-body {
   max-width: 720px;

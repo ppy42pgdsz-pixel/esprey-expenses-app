@@ -108,7 +108,8 @@ export default function Reports() {
             <span className="label">Company</span>
             <select className="picker-select" value={company} onChange={(e) => setCompany(e.target.value)}>
               <option value="">All companies (combined PDF)</option>
-              {companies.map((c) => <option key={c} value={c}>{c}</option>)}
+              <option value="Personal">Personal</option>
+              {companies.filter((c) => c !== "Personal").map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
           <label className="field">

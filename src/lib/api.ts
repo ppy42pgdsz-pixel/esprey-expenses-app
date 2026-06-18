@@ -158,6 +158,20 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ primary, alias }),
     }),
+  getTeamMemberCompanies: (email: string) =>
+    jsonFetch<{ email: string; companies: string[] }>(
+      `/api/team/companies/${encodeURIComponent(email)}`
+    ),
+  setTeamMemberCompanies: (email: string, companies: string[]) =>
+    jsonFetch<{ email: string; companies: string[]; skipped: string[] }>(
+      `/api/team/companies/${encodeURIComponent(email)}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companies }),
+      },
+    ),
+
   removeTeamAlias: (alias: string) =>
     jsonFetch<{
       removed: boolean;

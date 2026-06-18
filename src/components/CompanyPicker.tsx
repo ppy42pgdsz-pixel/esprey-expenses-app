@@ -40,9 +40,14 @@ export default function CompanyPicker({ companies, value, onChange, noun = "comp
   // even if it isn't (or no longer is) in the shared list — otherwise the
   // <select> displays the placeholder instead of the saved value when
   // re-opening a receipt that has a stale company/category.
-  const options = value && !companies.includes(value)
+  const options = value && !companies.includes(value) && value !== "Personal"
     ? [...companies, value].sort()
-    : companies;
+    : [...companies];
+
+  // For the COMPANY picker only, prepend the "Personal" pseudo-company so it
+  // appears at the top of every user's dropdown regardless of access list.
+  // Categories share this component but shouldn't get a "Personal" option.
+  const isCompanyPicker = noun === "company";
 
   return (
     <select
@@ -55,8 +60,12 @@ export default function CompanyPicker({ companies, value, onChange, noun = "comp
       }}
     >
       <option value="">— pick a {noun} —</option>
+      {isCompanyPicker && <option value="Personal">Personal</option>}
       {options.map((c) => (
-        <option key={c} value={c}>{c}</option>
+        // Avoid duplicating Personal if it somehow ended up in the list.
+        c === "Personal" && isCompanyPicker
+          ? null
+          : <option key={c} value={c}>{c}</option>
       ))}
       {allowAdd && <option value="__new__">+ Add new {noun}…</option>}
     </select>
