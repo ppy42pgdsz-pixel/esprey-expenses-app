@@ -83,9 +83,26 @@ export default function Dashboard() {
     return dupes;
   }, [receipts]);
 
+  // A receipt is "failed" if either:
+  //   (a) the Claude API call actually errored — ocr_status === "failed", OR
+  //   (b) OCR succeeded but didn't get a usable amount. This catches things
+  //       like emails that aren't receipts at all (landing permits, meeting
+  //       notes, marketing). Without an amount we can't put a line on an
+  //       invoice — same end result as an API failure from the admin's view.
+  //   Pending rows are excluded — they're still being processed.
   const failedIds = useMemo(() => {
     if (!receipts) return new Set<string>();
-    return new Set(receipts.filter((r) => r.ocr_status === "failed").map((r) => r.id));
+    return new Set(
+      receipts
+        .filter((r) => {
+          if (r.ocr_status === "pending") return false;
+          if (r.ocr_status === "failed") return true;
+          const amt = parseFloat(r.amount ?? "");
+          if (!isFinite(amt) || amt <= 0) return true;
+          return false;
+        })
+        .map((r) => r.id)
+    );
   }, [receipts]);
 
   const issuesCount = useMemo(() => {
