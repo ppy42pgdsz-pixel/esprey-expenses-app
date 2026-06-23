@@ -76,6 +76,7 @@ export interface ReceiptRow {
   uploaded_at: number;
   rotation: number;
   tip_pct: number;
+  override_acknowledged: number; // 0/1 — user confirmed manual override of OCR-extracted values
 }
 
 export interface ExtractedReceipt {

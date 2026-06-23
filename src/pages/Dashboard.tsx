@@ -23,12 +23,25 @@ function useIsWide(minWidth = 900): boolean {
   return isWide;
 }
 
+type PillFilter = "all" | "uncategorized" | "issues";
+type DatePreset =
+  | "all" | "this_week" | "last_week" | "this_month" | "last_month"
+  | "last_30" | "last_90" | "custom";
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [receipts, setReceipts] = useState<Receipt[] | null>(null);
   const [companies, setCompanies] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [filter, setFilter] = useState<string>("all");
+
+  // Three independent filters, AND-ed together at render time.
+  const [pillFilter, setPillFilter] = useState<PillFilter>("all");
+  const [companyFilter, setCompanyFilter] = useState<string>("all"); // "all" or a company name
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [customStart, setCustomStart] = useState<string>("");
+  const [customEnd, setCustomEnd] = useState<string>("");
+  const [showCustomPopover, setShowCustomPopover] = useState(false);
+
   const [err, setErr] = useState<string | null>(null);
   const isWide = useIsWide(900);
 
@@ -41,8 +54,9 @@ export default function Dashboard() {
   async function reload() {
     setErr(null);
     try {
-      // "issues" is computed client-side, so we still need the full list.
-      const f = filter === "all" || filter === "issues" ? undefined : filter;
+      // Server-side company filter when one is selected; date + pill filters
+      // are computed client-side so the counts stay live as you toggle.
+      const f = companyFilter === "all" ? undefined : companyFilter;
       const [r, c, cat] = await Promise.all([
         api.listReceipts(f),
         api.listCompanies(),
@@ -55,14 +69,28 @@ export default function Dashboard() {
       setErr((e as Error).message);
     }
   }
-  useEffect(() => { reload(); }, [filter]);
+  useEffect(() => { reload(); }, [companyFilter]);
 
-  const total = receipts?.length ?? 0;
-  const uncat = receipts?.filter((r) => !r.company).length ?? 0;
-  const pending = receipts?.filter((r) => r.ocr_status === "pending").length ?? 0;
+  // Resolve the active date range to ISO bounds (or null = no constraint).
+  const dateBounds = useMemo<{ start: string; end: string } | null>(() => {
+    return computeDateBounds(datePreset, customStart, customEnd);
+  }, [datePreset, customStart, customEnd]);
 
-  // Detect potential duplicate receipts: same vendor + same amount + same date.
-  // Computed client-side so re-categorization is reflected immediately.
+  // Apply company filter (server already did it) + date filter (client) to
+  // get the working set. Pill filters get applied on top of THIS.
+  const scopedReceipts = useMemo(() => {
+    if (!receipts) return null;
+    if (!dateBounds) return receipts;
+    return receipts.filter((r) => {
+      const d = r.receipt_date ?? "";
+      if (!d) return false; // no date → can't fit in a date filter
+      return d >= dateBounds.start && d <= dateBounds.end;
+    });
+  }, [receipts, dateBounds]);
+
+  // Duplicate detection runs across all receipts (regardless of date filter)
+  // since duplicates share a date and are therefore always in the same
+  // window — but we only show counts/highlights for receipts in scope.
   const duplicateIds = useMemo(() => {
     if (!receipts) return new Set<string>();
     const groups = new Map<string, string[]>();
@@ -83,13 +111,24 @@ export default function Dashboard() {
     return dupes;
   }, [receipts]);
 
-  // A receipt is "failed" if either:
-  //   (a) the Claude API call actually errored — ocr_status === "failed", OR
-  //   (b) OCR succeeded but didn't get a usable amount. This catches things
-  //       like emails that aren't receipts at all (landing permits, meeting
-  //       notes, marketing). Without an amount we can't put a line on an
-  //       invoice — same end result as an API failure from the admin's view.
-  //   Pending rows are excluded — they're still being processed.
+  // OCR mismatch: amount / currency / date differs from what's in ocr_raw,
+  // and the user hasn't ticked "Acknowledge override" yet.
+  const mismatchIds = useMemo(() => {
+    if (!receipts) return new Set<string>();
+    const out = new Set<string>();
+    for (const r of receipts) {
+      if (r.ocr_status !== "success") continue;
+      if (r.override_acknowledged === 1) continue;
+      const ocr = parseOcrExtracted(r.ocr_raw);
+      if (!ocr) continue;
+      if (fieldDiffers(r.amount, ocr.amount, "amount")) { out.add(r.id); continue; }
+      if (fieldDiffers(r.currency, ocr.currency, "currency")) { out.add(r.id); continue; }
+      if (fieldDiffers(r.receipt_date, ocr.receipt_date, "date")) { out.add(r.id); continue; }
+    }
+    return out;
+  }, [receipts]);
+
+  // "Failed" = Claude API failure OR no usable amount extracted.
   const failedIds = useMemo(() => {
     if (!receipts) return new Set<string>();
     return new Set(
@@ -105,16 +144,22 @@ export default function Dashboard() {
     );
   }, [receipts]);
 
+  // Scope counts to the date-filtered subset.
+  const total      = scopedReceipts?.length ?? 0;
+  const uncatCount = scopedReceipts?.filter((r) => !r.company).length ?? 0;
   const issuesCount = useMemo(() => {
-    const ids = new Set<string>([...failedIds, ...duplicateIds]);
-    return ids.size;
-  }, [failedIds, duplicateIds]);
+    if (!scopedReceipts) return 0;
+    const ids = new Set<string>([...failedIds, ...duplicateIds, ...mismatchIds]);
+    return scopedReceipts.filter((r) => ids.has(r.id)).length;
+  }, [scopedReceipts, failedIds, duplicateIds, mismatchIds]);
 
   const sortedReceipts = useMemo(() => {
-    if (!receipts) return null;
-    let arr = [...receipts];
-    if (filter === "issues") {
-      arr = arr.filter((r) => failedIds.has(r.id) || duplicateIds.has(r.id));
+    if (!scopedReceipts) return null;
+    let arr = [...scopedReceipts];
+    if (pillFilter === "uncategorized") {
+      arr = arr.filter((r) => !r.company);
+    } else if (pillFilter === "issues") {
+      arr = arr.filter((r) => failedIds.has(r.id) || duplicateIds.has(r.id) || mismatchIds.has(r.id));
     }
     const dir = sortDir === "asc" ? 1 : -1;
     arr.sort((a, b) => {
@@ -131,7 +176,7 @@ export default function Dashboard() {
       return cmp * dir;
     });
     return arr;
-  }, [receipts, sortKey, sortDir, filter, failedIds, duplicateIds]);
+  }, [scopedReceipts, sortKey, sortDir, pillFilter, failedIds, duplicateIds, mismatchIds]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -208,22 +253,74 @@ export default function Dashboard() {
 
       {err && <div className="err">{err}</div>}
 
-      <div className="stats">
-        <Stat n={total}            label="receipts" />
-        <Stat n={uncat}            label="uncategorized" warn={uncat > 0} onClick={() => setFilter("__uncategorized__")} />
-        <Stat n={companies.length} label="companies" />
-        <Stat n={issuesCount}      label="issues" issue={issuesCount > 0} onClick={() => setFilter("issues")} />
+      <div className="dashboard-pills">
+        <Pill
+          label="Receipts"
+          count={total}
+          active={pillFilter === "all"}
+          onClick={() => setPillFilter("all")}
+        />
+        <Pill
+          label="Uncategorized"
+          count={uncatCount}
+          active={pillFilter === "uncategorized"}
+          tint={uncatCount > 0 ? "orange" : undefined}
+          onClick={() => setPillFilter((p) => (p === "uncategorized" ? "all" : "uncategorized"))}
+        />
+        <Pill
+          label="Issues"
+          count={issuesCount}
+          active={pillFilter === "issues"}
+          tint={issuesCount > 0 ? "red" : undefined}
+          onClick={() => setPillFilter((p) => (p === "issues" ? "all" : "issues"))}
+        />
       </div>
 
       <div className="toolbar">
-        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="filter">
-          <option value="all">All ({total})</option>
-          <option value="__uncategorized__">Uncategorized ({uncat})</option>
-          <option value="issues">Issues ({issuesCount})</option>
+        <select
+          value={companyFilter}
+          onChange={(e) => setCompanyFilter(e.target.value)}
+          className="filter"
+          aria-label="Filter by company"
+        >
+          <option value="all">All companies</option>
           {companies.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
+        <DateFilter
+          preset={datePreset}
+          customStart={customStart}
+          customEnd={customEnd}
+          showCustom={showCustomPopover}
+          onShowCustom={setShowCustomPopover}
+          onPresetChange={(p) => {
+            setDatePreset(p);
+            if (p === "custom") {
+              setShowCustomPopover(true);
+              // Default custom range to last 30 days if empty.
+              if (!customStart || !customEnd) {
+                const end = todayISO();
+                const start = isoMinusDays(end, 29);
+                setCustomStart(start);
+                setCustomEnd(end);
+              }
+            } else {
+              setShowCustomPopover(false);
+            }
+          }}
+          onCustomChange={(s, e) => {
+            setCustomStart(s);
+            setCustomEnd(e);
+          }}
+        />
         <button className="ghost-btn" onClick={reload}>Refresh</button>
       </div>
+
+      {dateBounds && (
+        <div className="active-range-caption">
+          Showing receipts dated <strong>{formatRange(dateBounds.start, dateBounds.end)}</strong>.
+          Counts above reflect this period.
+        </div>
+      )}
 
       {/* Bulk-action bar (desktop only, when something is selected) */}
       {isWide && selected.size > 0 && (
@@ -305,7 +402,7 @@ export default function Dashboard() {
               <tr key={r.id} className={
                 (selected.has(r.id) ? "selected " : "") +
                 (failedIds.has(r.id) ? "row-failed " : "") +
-                (duplicateIds.has(r.id) ? "row-duplicate " : "")
+                ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? "row-duplicate " : "")
               }>
                 <td className="col-check">
                   <input
@@ -349,7 +446,7 @@ export default function Dashboard() {
               className={
                 (r.company ? "cat" : "uncat") +
                 (failedIds.has(r.id) ? " row-failed" : "") +
-                (duplicateIds.has(r.id) ? " row-duplicate" : "")
+                ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? " row-duplicate" : "")
               }
             >
               <Link to={`/receipt/${r.id}`} className="receipt-link">
@@ -410,6 +507,211 @@ function ThHeader(props: {
       {props.label}{arrow}
     </th>
   );
+}
+
+function Pill({
+  label, count, active, tint, onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  tint?: "red" | "orange";
+  onClick: () => void;
+}) {
+  const cls =
+    "dashboard-pill" +
+    (active ? " is-active" : "") +
+    (tint === "red" ? " tint-red" : "") +
+    (tint === "orange" ? " tint-orange" : "");
+  return (
+    <button type="button" className={cls} onClick={onClick}>
+      {label} <span className="dashboard-pill-count">({count})</span>
+    </button>
+  );
+}
+
+function DateFilter({
+  preset, customStart, customEnd, showCustom,
+  onPresetChange, onCustomChange, onShowCustom,
+}: {
+  preset: DatePreset;
+  customStart: string;
+  customEnd: string;
+  showCustom: boolean;
+  onPresetChange: (p: DatePreset) => void;
+  onCustomChange: (s: string, e: string) => void;
+  onShowCustom: (b: boolean) => void;
+}) {
+  const today = todayISO();
+  const isActive = preset !== "all";
+  const label = isActive ? presetLabel(preset, customStart, customEnd) : "All time";
+  return (
+    <div className={"date-filter" + (isActive ? " is-active" : "")}>
+      <select
+        value={preset}
+        onChange={(e) => onPresetChange(e.target.value as DatePreset)}
+        aria-label="Filter by date range"
+        className="filter"
+      >
+        <option value="all">📅 Date: All time</option>
+        <option value="this_week">📅 This week (Mon–Sun)</option>
+        <option value="last_week">📅 Last week</option>
+        <option value="this_month">📅 This month</option>
+        <option value="last_month">📅 Last month</option>
+        <option value="last_30">📅 Last 30 days</option>
+        <option value="last_90">📅 Last 90 days</option>
+        <option value="custom">📅 Custom range…</option>
+      </select>
+      {preset === "custom" && (
+        <button
+          type="button"
+          className="ghost-btn small"
+          onClick={() => onShowCustom(!showCustom)}
+          aria-label="Edit custom date range"
+        >
+          {customStart && customEnd ? `${customStart} → ${customEnd}` : "Pick dates"}
+        </button>
+      )}
+      {preset === "custom" && showCustom && (
+        <div className="date-popover" role="dialog" aria-label="Custom date range">
+          <label className="field">
+            <span className="label">From</span>
+            <input
+              type="date"
+              value={customStart}
+              max={customEnd || today}
+              onChange={(e) => onCustomChange(e.target.value, customEnd)}
+            />
+          </label>
+          <label className="field">
+            <span className="label">To</span>
+            <input
+              type="date"
+              value={customEnd}
+              min={customStart}
+              max={today}
+              onChange={(e) => onCustomChange(customStart, e.target.value)}
+            />
+          </label>
+          <button type="button" className="primary-btn small" onClick={() => onShowCustom(false)}>
+            Done
+          </button>
+        </div>
+      )}
+      {isActive && (
+        <span className="date-active-badge" title="Active date filter">●</span>
+      )}
+    </div>
+  );
+}
+
+/* -------- date range helpers -------- */
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function isoFromDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function isoMinusDays(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() - days);
+  return isoFromDate(dt);
+}
+function computeDateBounds(
+  preset: DatePreset,
+  customStart: string,
+  customEnd: string,
+): { start: string; end: string } | null {
+  if (preset === "all") return null;
+  const now = new Date();
+  if (preset === "custom") {
+    if (!customStart || !customEnd) return null;
+    return { start: customStart, end: customEnd };
+  }
+  if (preset === "last_30") return { start: isoMinusDays(todayISO(), 29), end: todayISO() };
+  if (preset === "last_90") return { start: isoMinusDays(todayISO(), 89), end: todayISO() };
+  // Monday-anchored week. JS Date.getDay(): 0=Sun..6=Sat.
+  const dayOfWeek = (now.getDay() + 6) % 7; // 0=Mon..6=Sun
+  const mondayThisWeek = new Date(now); mondayThisWeek.setDate(now.getDate() - dayOfWeek);
+  const sundayThisWeek = new Date(mondayThisWeek); sundayThisWeek.setDate(mondayThisWeek.getDate() + 6);
+  if (preset === "this_week") return { start: isoFromDate(mondayThisWeek), end: isoFromDate(sundayThisWeek) };
+  if (preset === "last_week") {
+    const mondayLast = new Date(mondayThisWeek); mondayLast.setDate(mondayThisWeek.getDate() - 7);
+    const sundayLast = new Date(mondayLast); sundayLast.setDate(mondayLast.getDate() + 6);
+    return { start: isoFromDate(mondayLast), end: isoFromDate(sundayLast) };
+  }
+  // Calendar month.
+  if (preset === "this_month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end   = new Date(now.getFullYear(), now.getMonth() + 1, 0); // day 0 of next = last of this
+    return { start: isoFromDate(start), end: isoFromDate(end) };
+  }
+  if (preset === "last_month") {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end   = new Date(now.getFullYear(), now.getMonth(), 0);
+    return { start: isoFromDate(start), end: isoFromDate(end) };
+  }
+  return null;
+}
+function presetLabel(preset: DatePreset, customStart: string, customEnd: string): string {
+  switch (preset) {
+    case "all":        return "All time";
+    case "this_week":  return "This week";
+    case "last_week":  return "Last week";
+    case "this_month": return "This month";
+    case "last_month": return "Last month";
+    case "last_30":    return "Last 30 days";
+    case "last_90":    return "Last 90 days";
+    case "custom":     return customStart && customEnd ? `${customStart} – ${customEnd}` : "Custom (pick dates)";
+  }
+}
+function formatRange(start: string, end: string): string {
+  // Short human form: "1 Jun – 30 Jun 2026" or with year if cross-year.
+  try {
+    const [ys, ms, ds] = start.split("-").map(Number);
+    const [ye, me, de] = end.split("-").map(Number);
+    const sd = new Date(ys, ms - 1, ds);
+    const ed = new Date(ye, me - 1, de);
+    const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: ys !== ye ? "numeric" : undefined };
+    const sStr = sd.toLocaleDateString("en-GB", opts);
+    const eStr = ed.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    return `${sStr} – ${eStr}`;
+  } catch { return `${start} – ${end}`; }
+}
+
+/* -------- OCR mismatch helpers -------- */
+interface OcrExtracted { vendor: string | null; amount: string | null; currency: string | null; receipt_date: string | null; }
+function parseOcrExtracted(raw: string | null): OcrExtracted | null {
+  if (!raw) return null;
+  try {
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    const obj = JSON.parse(m[0]);
+    return {
+      vendor:        typeof obj.vendor === "string" ? obj.vendor : null,
+      amount:        typeof obj.amount === "string" ? obj.amount : null,
+      currency:      typeof obj.currency === "string" ? obj.currency : null,
+      receipt_date:  typeof obj.receipt_date === "string" ? obj.receipt_date : null,
+    };
+  } catch { return null; }
+}
+function fieldDiffers(current: string | null | undefined, ocr: string | null, kind: "amount" | "currency" | "date"): boolean {
+  // If OCR didn't extract anything for this field, no mismatch possible.
+  if (!ocr) return false;
+  const cur = (current ?? "").trim();
+  const ext = ocr.trim();
+  if (!ext) return false;
+  if (kind === "amount") {
+    const a = parseFloat(cur);
+    const b = parseFloat(ext);
+    if (!isFinite(a) || !isFinite(b)) return false;
+    return Math.abs(a - b) > 0.01;
+  }
+  if (kind === "currency") return cur.toUpperCase() !== ext.toUpperCase();
+  if (kind === "date")     return cur !== ext;
+  return false;
 }
 
 function Stat({ n, label, warn, issue, onClick }: { n: number; label: string; warn?: boolean; issue?: boolean; onClick?: () => void }) {

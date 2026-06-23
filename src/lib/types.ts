@@ -18,6 +18,7 @@ export interface Receipt {
   uploaded_at: number;
   rotation: number; // 0, 90, 180, or 270 — applied to the receipt image in-app
   tip_pct: number;  // 0, 5, 10, 15, or 20 — only set for meal/taxi categories; amount already includes the tip
+  override_acknowledged: number; // 0/1 — user confirmed their manual edits differ from OCR
 }
 
 export interface Person {

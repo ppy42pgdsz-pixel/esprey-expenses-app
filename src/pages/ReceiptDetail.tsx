@@ -150,6 +150,21 @@ export default function ReceiptDetail() {
 
       {err && <div className="err">{err}</div>}
 
+      <OcrMismatchBanner
+        receipt={receipt}
+        liveAmount={amount}
+        liveCurrency={currency}
+        liveDate={receiptDate}
+        onAcknowledged={async () => {
+          try {
+            const res = await api.patchReceipt(id, { override_acknowledged: 1 as any });
+            setReceipt(res.receipt);
+          } catch (e) {
+            setErr((e as Error).message);
+          }
+        }}
+      />
+
       <div className="detail-grid">
         <div className="detail-image">
           {receipt.source === "manual" ? (
@@ -379,6 +394,86 @@ function sanitizeAmountInput(raw: string): string {
   const parts = s.split(".");
   if (parts.length > 2) s = parts[0] + "." + parts.slice(1).join("");
   return s;
+}
+
+/* ----- OCR mismatch banner: show when current values differ from ocr_raw ----- */
+function OcrMismatchBanner({
+  receipt, liveAmount, liveCurrency, liveDate, onAcknowledged,
+}: {
+  receipt: Receipt;
+  liveAmount: string;
+  liveCurrency: string;
+  liveDate: string;
+  onAcknowledged: () => Promise<void> | void;
+}) {
+  if (receipt.ocr_status !== "success") return null;
+  if (receipt.override_acknowledged === 1) return null;
+  const ocr = parseOcrFromRaw(receipt.ocr_raw);
+  if (!ocr) return null;
+
+  const diffs: Array<{ field: string; ocr: string; current: string }> = [];
+  if (ocr.amount && fieldDiffersAmount(liveAmount, ocr.amount)) {
+    diffs.push({ field: "Amount", ocr: ocr.amount, current: liveAmount || "(empty)" });
+  }
+  if (ocr.currency && fieldDiffersText(liveCurrency, ocr.currency)) {
+    diffs.push({ field: "Currency", ocr: ocr.currency, current: liveCurrency || "(empty)" });
+  }
+  if (ocr.receipt_date && fieldDiffersText(liveDate, ocr.receipt_date)) {
+    diffs.push({ field: "Date", ocr: ocr.receipt_date, current: liveDate || "(empty)" });
+  }
+  if (diffs.length === 0) return null;
+
+  return (
+    <div className="ocr-mismatch">
+      <div className="ocr-mismatch-title">OCR vs your edits — please review</div>
+      <table className="ocr-mismatch-table">
+        <thead>
+          <tr><th></th><th>OCR extracted</th><th>You entered</th></tr>
+        </thead>
+        <tbody>
+          {diffs.map((d) => (
+            <tr key={d.field}>
+              <th>{d.field}</th>
+              <td className="ocr-val">{d.ocr}</td>
+              <td className="cur-val">{d.current}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="ocr-mismatch-actions">
+        <button type="button" className="primary-btn small" onClick={onAcknowledged}>
+          Acknowledge override
+        </button>
+        <span className="hint small">
+          Clicking confirms your values are correct. The receipt will no longer appear under Issues.
+        </span>
+      </div>
+    </div>
+  );
+}
+
+interface OcrRawExtracted { amount: string | null; currency: string | null; receipt_date: string | null; }
+function parseOcrFromRaw(raw: string | null): OcrRawExtracted | null {
+  if (!raw) return null;
+  try {
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    const obj = JSON.parse(m[0]);
+    return {
+      amount:       typeof obj.amount === "string" ? obj.amount : null,
+      currency:     typeof obj.currency === "string" ? obj.currency : null,
+      receipt_date: typeof obj.receipt_date === "string" ? obj.receipt_date : null,
+    };
+  } catch { return null; }
+}
+function fieldDiffersAmount(cur: string, ocr: string): boolean {
+  const a = parseFloat(cur);
+  const b = parseFloat(ocr);
+  if (!isFinite(a) || !isFinite(b)) return false;
+  return Math.abs(a - b) > 0.01;
+}
+function fieldDiffersText(cur: string, ocr: string): boolean {
+  return (cur ?? "").trim().toUpperCase() !== (ocr ?? "").trim().toUpperCase();
 }
 
 function normalizeTipPct(n: unknown): number {
