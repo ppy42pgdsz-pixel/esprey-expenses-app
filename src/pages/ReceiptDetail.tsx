@@ -29,11 +29,13 @@ export default function ReceiptDetail() {
   const [notes, setNotes] = useState("");
   const [attendees, setAttendees] = useState<string[]>([]);
   const [rotation, setRotation] = useState(0);
-  // Tip handling — only visible for meal/taxi categories. The `amount` field
-  // shows the FINAL total (what we save); the bill (pre-tip) is derived from
-  // amount / (1 + tipPct/100) so when the user toggles the tip dropdown we
-  // can recompute amount keeping the same underlying bill.
+  // Tip handling. amount input = the BILL (matches the printed receipt).
+  // Tip can be either a preset percentage OR a custom absolute amount.
+  // On save we compute total = bill + tip and store that as the receipt's
+  // `amount`, plus tip_pct and/or tip_amount for reconstruction on reload.
+  const [tipMode, setTipMode] = useState<"pct" | "custom">("pct");
   const [tipPct, setTipPct] = useState(0);
+  const [tipCustomAmount, setTipCustomAmount] = useState("");
 
   async function load() {
     setErr(null);
@@ -51,13 +53,26 @@ export default function ReceiptDetail() {
       setReceipt(rec);
       setVendor(rec.vendor ?? "");
       // Amount input displays the BILL (what's on the receipt). The saved
-      // `amount` column stores the TOTAL (bill + tip). Reverse it for display.
-      const savedTip = normalizeTipPct(rec.tip_pct ?? 0);
+      // `amount` column stores the TOTAL (bill + tip). Derive the bill back
+      // out depending on which kind of tip was saved.
       const savedTotal = parseFloat(rec.amount ?? "");
-      if (savedTip > 0 && isFinite(savedTotal) && savedTotal > 0) {
-        setAmount((savedTotal / (1 + savedTip / 100)).toFixed(2));
+      const customTipNum = rec.tip_amount ? parseFloat(rec.tip_amount) : NaN;
+      if (isFinite(customTipNum) && customTipNum > 0 && isFinite(savedTotal)) {
+        // Custom tip mode.
+        setAmount((savedTotal - customTipNum).toFixed(2));
+        setTipMode("custom");
+        setTipPct(0);
+        setTipCustomAmount(customTipNum.toFixed(2));
       } else {
-        setAmount(rec.amount ?? "");
+        const savedTip = normalizeTipPct(rec.tip_pct ?? 0);
+        if (savedTip > 0 && isFinite(savedTotal) && savedTotal > 0) {
+          setAmount((savedTotal / (1 + savedTip / 100)).toFixed(2));
+        } else {
+          setAmount(rec.amount ?? "");
+        }
+        setTipMode("pct");
+        setTipPct(savedTip);
+        setTipCustomAmount("");
       }
       setCurrency(rec.currency ?? "");
       setReceiptDate(rec.receipt_date ?? "");
@@ -66,7 +81,7 @@ export default function ReceiptDetail() {
       setNotes(rec.notes ?? "");
       setAttendees(parseAttendees(rec.attendees));
       setRotation(((rec.rotation ?? 0) % 360 + 360) % 360);
-      setTipPct(normalizeTipPct(rec.tip_pct ?? 0));
+      // tipPct / tipMode / tipCustomAmount are set inside the tip-load block above.
       setCompanies(c.companies.map((co) => co.name));
       setPeople(p.people);
       setCategories(cat.categories);
@@ -97,14 +112,27 @@ export default function ReceiptDetail() {
       setSaving(false);
       return;
     }
-    // Saved amount = bill (what's in the input) × (1 + tip%). The input
-    // shows the bill so it matches the printed receipt; the column stores
-    // the actual paid total so it flows correctly into invoices.
+    // Saved amount = bill + tip. The bill is in the `amount` input; the
+    // tip is either a preset % or a custom decimal.
     const billNum = parseFloat(amount);
-    const totalToSave =
-      isFinite(billNum) && billNum > 0 && tipPct > 0
-        ? (billNum * (1 + tipPct / 100)).toFixed(2)
-        : (amount || null);
+    const customTipNum = parseFloat(tipCustomAmount);
+    let totalToSave: string | null;
+    let tipPctToSave = 0;
+    let tipAmountToSave: string | null = null;
+    if (isFinite(billNum) && billNum > 0) {
+      if (tipMode === "custom" && isFinite(customTipNum) && customTipNum > 0) {
+        totalToSave = (billNum + customTipNum).toFixed(2);
+        tipAmountToSave = customTipNum.toFixed(2);
+        tipPctToSave = 0;
+      } else if (tipMode === "pct" && tipPct > 0) {
+        totalToSave = (billNum * (1 + tipPct / 100)).toFixed(2);
+        tipPctToSave = tipPct;
+      } else {
+        totalToSave = billNum.toFixed(2);
+      }
+    } else {
+      totalToSave = amount || null;
+    }
     try {
       const res = await api.patchReceipt(id, {
         vendor: vendor || null,
@@ -116,7 +144,8 @@ export default function ReceiptDetail() {
         notes: notes || null,
         attendees: attendees as unknown as string, // server accepts array via PATCH
         rotation: rotation as unknown as number,
-        tip_pct: tipPct as unknown as number,
+        tip_pct: tipPctToSave as unknown as number,
+        tip_amount: tipAmountToSave as unknown as string,
       });
       setReceipt(res.receipt);
       if (company && !companies.includes(company)) {
@@ -277,15 +306,48 @@ export default function ReceiptDetail() {
               <span className="label">Tip</span>
               <select
                 className="picker-select"
-                value={String(tipPct)}
-                onChange={(e) => setTipPct(normalizeTipPct(parseInt(e.target.value, 10)))}
+                value={tipMode === "custom" ? "custom" : String(tipPct)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "custom") {
+                    setTipMode("custom");
+                    // Seed custom input with the current % tip value if any.
+                    if (!tipCustomAmount) {
+                      const billNum = parseFloat(amount);
+                      if (isFinite(billNum) && billNum > 0 && tipPct > 0) {
+                        setTipCustomAmount((billNum * tipPct / 100).toFixed(2));
+                      }
+                    }
+                  } else {
+                    setTipMode("pct");
+                    setTipPct(normalizeTipPct(parseInt(v, 10)));
+                    setTipCustomAmount("");
+                  }
+                }}
               >
                 <option value="0">No tip</option>
                 <option value="5">5%</option>
                 <option value="10">10%</option>
                 <option value="15">15%</option>
                 <option value="20">20%</option>
+                <option value="custom">Custom amount…</option>
               </select>
+
+              {tipMode === "custom" && (
+                <div style={{ marginTop: 6 }}>
+                  <label className="field" style={{ margin: 0 }}>
+                    <span className="label">Tip amount</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={tipCustomAmount}
+                      onChange={(e) => setTipCustomAmount(sanitizeAmountInput(e.target.value))}
+                      placeholder="e.g. 5.00"
+                    />
+                  </label>
+                </div>
+              )}
+
               {(() => {
                 const bill = parseFloat(amount);
                 if (!isFinite(bill) || bill <= 0) {
@@ -295,12 +357,21 @@ export default function ReceiptDetail() {
                     </div>
                   );
                 }
-                const tipValue = bill * tipPct / 100;
+                let tipValue: number;
+                let tipLabel: string;
+                if (tipMode === "custom") {
+                  tipValue = parseFloat(tipCustomAmount);
+                  if (!isFinite(tipValue) || tipValue < 0) tipValue = 0;
+                  tipLabel = "Tip (custom)";
+                } else {
+                  tipValue = bill * tipPct / 100;
+                  tipLabel = `Tip (${tipPct}%)`;
+                }
                 const total = bill + tipValue;
                 return (
                   <div className="tip-breakdown" style={{ marginTop: 6 }}>
                     <div><span>Bill (from receipt):</span> <strong>{bill.toFixed(2)}</strong></div>
-                    <div><span>Tip ({tipPct}%):</span> <strong>{tipValue.toFixed(2)}</strong></div>
+                    <div><span>{tipLabel}:</span> <strong>{tipValue.toFixed(2)}</strong></div>
                     <div className="tip-total"><span>Total (saved to report):</span> <strong>{total.toFixed(2)}</strong></div>
                   </div>
                 );

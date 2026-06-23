@@ -21,7 +21,7 @@ export const onRequestGet: PagesFunction<Env, "id", any> = async ({ request, env
   return Response.json({ receipt: row });
 };
 
-const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category", "rotation", "tip_pct", "override_acknowledged"] as const;
+const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category", "rotation", "tip_pct", "tip_amount", "override_acknowledged"] as const;
 type EditableField = (typeof EDITABLE)[number];
 
 export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, env, data, params }) => {
@@ -89,6 +89,17 @@ export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, e
         // this as content edit — it's just a 1/0 boolean.
         const truthy = v === 1 || v === true || v === "1" || v === "true";
         args.push(truthy ? 1 : 0);
+      } else if (k === "tip_amount") {
+        // Custom tip amount (decimal string). null clears it (back to %).
+        if (v === null || v === "") {
+          args.push(null);
+        } else {
+          const n = parseFloat(String(v));
+          if (!isFinite(n) || n < 0) args.push(null);
+          else args.push(n.toFixed(2));
+        }
+        // tip_amount is viewer-only metadata + already-reflected in `amount`,
+        // so don't mark the receipt as content-edited.
       } else {
         args.push(typeof v === "string" || v === null ? v : String(v));
         contentEdited = true;

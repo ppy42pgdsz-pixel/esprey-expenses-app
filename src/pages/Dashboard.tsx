@@ -698,9 +698,14 @@ function formatRange(start: string, end: string): string {
 /* -------- OCR mismatch helpers -------- */
 // Strip the tip from a saved receipt's amount to get the bill (what's
 // printed on the receipt itself). OCR reads the bill, not the tipped total.
+// Tip can be either an absolute custom amount OR a percentage.
 function getBillAmount(r: Receipt): string {
   const total = parseFloat(r.amount ?? "");
   if (!isFinite(total)) return r.amount ?? "";
+  const customTip = parseFloat(r.tip_amount ?? "");
+  if (isFinite(customTip) && customTip > 0) {
+    return (total - customTip).toFixed(2);
+  }
   const tip = r.tip_pct ?? 0;
   if (tip > 0) return (total / (1 + tip / 100)).toFixed(2);
   return r.amount ?? "";
