@@ -113,15 +113,21 @@ export default function Dashboard() {
 
   // OCR mismatch: amount / currency / date differs from what's in ocr_raw,
   // and the user hasn't ticked "Acknowledge override" yet.
+  // Include both "success" and "manual" statuses — manual is exactly the
+  // case we want to flag (user edited a field).
   const mismatchIds = useMemo(() => {
     if (!receipts) return new Set<string>();
     const out = new Set<string>();
     for (const r of receipts) {
-      if (r.ocr_status !== "success") continue;
+      if (r.ocr_status === "pending" || r.ocr_status === "failed") continue;
       if (r.override_acknowledged === 1) continue;
       const ocr = parseOcrExtracted(r.ocr_raw);
       if (!ocr) continue;
-      if (fieldDiffers(r.amount, ocr.amount, "amount")) { out.add(r.id); continue; }
+      // For amount, compare BILL (saved total stripped of tip) to OCR.
+      // OCR reads the printed receipt — tip is applied client-side and isn't
+      // on the receipt, so the saved total includes it but the bill doesn't.
+      const billStr = getBillAmount(r);
+      if (fieldDiffers(billStr, ocr.amount, "amount")) { out.add(r.id); continue; }
       if (fieldDiffers(r.currency, ocr.currency, "currency")) { out.add(r.id); continue; }
       if (fieldDiffers(r.receipt_date, ocr.receipt_date, "date")) { out.add(r.id); continue; }
     }
@@ -690,6 +696,16 @@ function formatRange(start: string, end: string): string {
 }
 
 /* -------- OCR mismatch helpers -------- */
+// Strip the tip from a saved receipt's amount to get the bill (what's
+// printed on the receipt itself). OCR reads the bill, not the tipped total.
+function getBillAmount(r: Receipt): string {
+  const total = parseFloat(r.amount ?? "");
+  if (!isFinite(total)) return r.amount ?? "";
+  const tip = r.tip_pct ?? 0;
+  if (tip > 0) return (total / (1 + tip / 100)).toFixed(2);
+  return r.amount ?? "";
+}
+
 interface OcrExtracted { vendor: string | null; amount: string | null; currency: string | null; receipt_date: string | null; }
 function parseOcrExtracted(raw: string | null): OcrExtracted | null {
   if (!raw) return null;

@@ -50,7 +50,15 @@ export default function ReceiptDetail() {
       const rec = r.receipt;
       setReceipt(rec);
       setVendor(rec.vendor ?? "");
-      setAmount(rec.amount ?? "");
+      // Amount input displays the BILL (what's on the receipt). The saved
+      // `amount` column stores the TOTAL (bill + tip). Reverse it for display.
+      const savedTip = normalizeTipPct(rec.tip_pct ?? 0);
+      const savedTotal = parseFloat(rec.amount ?? "");
+      if (savedTip > 0 && isFinite(savedTotal) && savedTotal > 0) {
+        setAmount((savedTotal / (1 + savedTip / 100)).toFixed(2));
+      } else {
+        setAmount(rec.amount ?? "");
+      }
       setCurrency(rec.currency ?? "");
       setReceiptDate(rec.receipt_date ?? "");
       setCompany(rec.company ?? "");
@@ -89,10 +97,18 @@ export default function ReceiptDetail() {
       setSaving(false);
       return;
     }
+    // Saved amount = bill (what's in the input) × (1 + tip%). The input
+    // shows the bill so it matches the printed receipt; the column stores
+    // the actual paid total so it flows correctly into invoices.
+    const billNum = parseFloat(amount);
+    const totalToSave =
+      isFinite(billNum) && billNum > 0 && tipPct > 0
+        ? (billNum * (1 + tipPct / 100)).toFixed(2)
+        : (amount || null);
     try {
       const res = await api.patchReceipt(id, {
         vendor: vendor || null,
-        amount: amount || null,
+        amount: totalToSave,
         currency: currency || null,
         receipt_date: receiptDate || null,
         company: company || null,
@@ -262,18 +278,7 @@ export default function ReceiptDetail() {
               <select
                 className="picker-select"
                 value={String(tipPct)}
-                onChange={(e) => {
-                  const newPct = normalizeTipPct(parseInt(e.target.value, 10));
-                  // Re-base the amount: take the bill (current amount stripped of
-                  // the previous tip), then apply the new tip on top.
-                  const billRaw = parseFloat(amount);
-                  if (!isNaN(billRaw) && billRaw > 0) {
-                    const bill = tipPct > 0 ? billRaw / (1 + tipPct / 100) : billRaw;
-                    const total = bill * (1 + newPct / 100);
-                    setAmount(total.toFixed(2));
-                  }
-                  setTipPct(newPct);
-                }}
+                onChange={(e) => setTipPct(normalizeTipPct(parseInt(e.target.value, 10)))}
               >
                 <option value="0">No tip</option>
                 <option value="5">5%</option>
@@ -281,11 +286,25 @@ export default function ReceiptDetail() {
                 <option value="15">15%</option>
                 <option value="20">20%</option>
               </select>
-              {tipPct > 0 && amount && !isNaN(parseFloat(amount)) && (
-                <div className="hint small" style={{ marginTop: 4 }}>
-                  Bill {(parseFloat(amount) / (1 + tipPct / 100)).toFixed(2)} + {tipPct}% tip = {parseFloat(amount).toFixed(2)} (saved as total)
-                </div>
-              )}
+              {(() => {
+                const bill = parseFloat(amount);
+                if (!isFinite(bill) || bill <= 0) {
+                  return (
+                    <div className="hint small" style={{ marginTop: 6 }}>
+                      Bill amount goes in the Amount box above. Total saved to the report = Bill + tip.
+                    </div>
+                  );
+                }
+                const tipValue = bill * tipPct / 100;
+                const total = bill + tipValue;
+                return (
+                  <div className="tip-breakdown" style={{ marginTop: 6 }}>
+                    <div><span>Bill (from receipt):</span> <strong>{bill.toFixed(2)}</strong></div>
+                    <div><span>Tip ({tipPct}%):</span> <strong>{tipValue.toFixed(2)}</strong></div>
+                    <div className="tip-total"><span>Total (saved to report):</span> <strong>{total.toFixed(2)}</strong></div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -406,7 +425,9 @@ function OcrMismatchBanner({
   liveDate: string;
   onAcknowledged: () => Promise<void> | void;
 }) {
-  if (receipt.ocr_status !== "success") return null;
+  // Show whenever OCR ran (success OR manual after edit), unless user
+  // already acknowledged the override.
+  if (receipt.ocr_status === "pending" || receipt.ocr_status === "failed") return null;
   if (receipt.override_acknowledged === 1) return null;
   const ocr = parseOcrFromRaw(receipt.ocr_raw);
   if (!ocr) return null;

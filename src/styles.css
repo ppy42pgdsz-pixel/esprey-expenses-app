@@ -669,6 +669,32 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
   gap: 8px;
 }
 
+/* Tip breakdown — clear bill / tip / total under the tip dropdown */
+.tip-breakdown {
+  background: #f4f4f5;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tip-breakdown > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #4b5563;
+}
+.tip-breakdown .tip-total {
+  border-top: 1px solid #d4d4d8;
+  padding-top: 5px;
+  margin-top: 3px;
+  color: #1f2937;
+  font-size: 14px;
+}
+.tip-breakdown .tip-total strong { color: #1f2937; font-size: 15px; }
+
 /* Per-member company access section in Team UI */
 .company-access {
   margin-top: 12px;
