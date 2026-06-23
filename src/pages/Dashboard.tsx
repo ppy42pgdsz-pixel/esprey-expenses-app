@@ -370,10 +370,15 @@ export default function Dashboard() {
       {sortedReceipts === null ? (
         <div className="empty">Loading…</div>
       ) : sortedReceipts.length === 0 ? (
-        <div className="empty">
-          No receipts {filter !== "all" ? "in this filter" : "yet"}.<br />
-          {filter === "all" && <Link to="/capture">Capture your first one →</Link>}
-        </div>
+        (() => {
+          const anyFilterActive = pillFilter !== "all" || companyFilter !== "all" || datePreset !== "all";
+          return (
+            <div className="empty">
+              No receipts {anyFilterActive ? "match these filters" : "yet"}.<br />
+              {!anyFilterActive && <Link to="/capture">Capture your first one →</Link>}
+            </div>
+          );
+        })()
       ) : isWide ? (
         <table className="receipts-table">
           <thead>
@@ -484,9 +489,12 @@ export default function Dashboard() {
         </ul>
       )}
 
-      {pending > 0 && (
-        <div className="hint">{pending} receipt(s) still being read by Claude — refresh in a moment.</div>
-      )}
+      {(() => {
+        const pending = receipts?.filter((r) => r.ocr_status === "pending").length ?? 0;
+        return pending > 0 ? (
+          <div className="hint">{pending} receipt(s) still being read by Claude — refresh in a moment.</div>
+        ) : null;
+      })()}
     </div>
   );
 }
