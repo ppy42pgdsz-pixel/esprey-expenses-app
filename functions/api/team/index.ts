@@ -131,16 +131,30 @@ async function addMember({ request, env, data }: { request: Request; env: Env; d
   }
 
   // 3. Welcome email (non-fatal if Resend not set up).
+  //    Look up the admin's display name so the welcome email says
+  //    "added by Carl Esprey" instead of "added by cesprey@gmail.com".
   let emailedTo: string | null = null;
   let emailError: string | null = null;
   if (env.RESEND_API_KEY && env.REPORT_FROM_ADDRESS) {
+    let adminLabel: string = guard.userEmail;
+    try {
+      const adminRow = await env.DB
+        .prepare(`SELECT display_name FROM team_members WHERE lower(email) = ?`)
+        .bind(guard.userEmail.toLowerCase())
+        .first<{ display_name: string | null }>();
+      if (adminRow?.display_name && adminRow.display_name.trim()) {
+        adminLabel = adminRow.display_name.trim();
+      }
+    } catch {
+      // fall back to the email if the lookup fails
+    }
     try {
       await sendWelcomeEmail({
         apiKey: env.RESEND_API_KEY,
         fromAddress: env.REPORT_FROM_ADDRESS,
         toAddress: email,
         displayName,
-        addedByName: guard.userEmail,
+        addedByName: adminLabel,
         appUrl: APP_URL,
       });
       emailedTo = email;

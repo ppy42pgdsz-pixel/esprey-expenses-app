@@ -53,25 +53,141 @@ export async function sendWelcomeEmail(opts: {
 }): Promise<{ id: string }> {
   const greeting = opts.displayName ? `Hi ${opts.displayName.split(" ")[0]},` : "Hi,";
   const inviter = opts.addedByName ? ` by ${opts.addedByName}` : "";
+  const appUrl = opts.appUrl.replace(/\/$/, "") + "/";
   const instructionsUrl = opts.appUrl.replace(/\/$/, "") + "/instructions";
+
   const body = {
     from: `Esprey Expenses <${opts.fromAddress}>`,
     to: [opts.toAddress],
     subject: "You've been added to Esprey Expenses",
     text:
-      `${greeting}\n\n` +
-      `You've been added${inviter} to Esprey Expenses — the app we use to track business expenses and produce monthly invoices.\n\n` +
-      `Sign in: ${opts.appUrl}\n` +
-      `Cloudflare will email you a one-time code at this address the first time. After that, save the app to your phone's home screen (Share → Add to Home Screen on iPhone) so it works like a regular app.\n\n` +
-      `Once you're in, the full instructions are on this page:\n` +
-      `${instructionsUrl}\n\n` +
-      `That page covers (very briefly):\n` +
-      `  • What's private to you (your receipts, reports, profile, the people you tag — admins don't see these) vs. what's shared across the team (companies, categories, currencies).\n` +
-      `  • The three ways to add a receipt: phone camera, manual entry, or forwarding an email to receipts@esprey.net from this address.\n` +
-      `  • Setting up your profile + bank details so they appear on every monthly invoice.\n` +
-      `  • Generating a monthly report (PDF invoice + ZIP of original receipts).\n\n` +
-      `Have multiple email addresses you might forward from? Reply to this and I'll register them as aliases on your account so they all land in the same place.\n\n` +
-      `Any issues, reply to this email.`,
+`${greeting}
+
+You've been added${inviter} to Esprey Expenses, the app we use to capture business expenses and produce monthly invoices for reimbursement.
+
+This email walks you through everything — keep it as a reference. The full version of these instructions lives in the app at Settings → Instructions, and at:
+${instructionsUrl}
+
+────────────────────────────
+SIGN IN
+────────────────────────────
+
+Open this URL in any browser (phone, tablet, computer):
+${appUrl}
+
+Cloudflare will email you a 6-digit one-time code the first time. Paste it in, you're done. Sessions last 24 hours; after that you get another code.
+
+Save the app to your home screen so it opens like a native app, not a browser tab:
+  • iPhone (Safari): tap the Share button → "Add to Home Screen"
+  • Android (Chrome): tap the ⋮ menu → "Install app"
+
+────────────────────────────
+WHAT'S PRIVATE TO YOU
+────────────────────────────
+
+Your receipts, your monthly reports, your profile and bank details, and your private "people" list are YOURS alone. The admin cannot see any of them.
+
+What IS shared across the team (admins curate, you see only what's been assigned to you):
+  • Companies you can bill to
+  • Categories (Meals, Travel, etc.)
+  • Currencies
+
+────────────────────────────
+STEP 1: SET UP YOUR PROFILE FIRST
+────────────────────────────
+
+Go to Settings → My Profile and fill in:
+  • Your full name (and business name if you invoice through one)
+  • Address, VAT number (if applicable), phone
+  • Bank details — IBAN, SWIFT, account name. Free-form text block, paste whatever your bank requires.
+
+This information appears at the top of every monthly invoice you generate, so the company paying you knows who to pay and how. Skip this and your invoices will be blank in the recipient-needs-these fields.
+
+────────────────────────────
+STEP 2: THREE WAYS TO ADD A RECEIPT
+────────────────────────────
+
+1) CAMERA — Tap "+ Capture" on the home screen, snap the receipt. The app reads vendor, amount, date, and currency automatically. You confirm, tag with a company/category/attendees, save.
+
+2) FORWARD AN EMAIL — Send any receipt to receipts@esprey.net. Works with Uber confirmations, Airbnb, restaurant bookings, attached PDF invoices, image attachments, even text-only emails. IMPORTANT: send from THIS email address (the one you sign in with). Forwards from any other address get a bounce-back.
+
+3) MANUAL ENTRY — Tap "+ Manual" for cash expenses where you don't have a receipt. Fill in what you remember; amount is required.
+
+You can also bulk-upload a backlog: tap "+ Capture" → "Pick photo or PDF from files" → select multiple files at once.
+
+────────────────────────────
+ASSIGNING TO COMPANIES
+────────────────────────────
+
+Every receipt gets tagged with a Company. You'll start with "Personal" only (always available — use for your own non-business expenses).
+
+When you need to bill expenses to a specific client company, the admin will grant you access and that company will appear in your dropdown. Need access to a company you can't see? Reply to this email.
+
+────────────────────────────
+RESTAURANT / TAXI TIPS
+────────────────────────────
+
+For Meals or Taxi receipts, a Tip field appears under the amount:
+  • Put the BILL AMOUNT (what's printed on the receipt) in the Amount field
+  • Pick a tip percentage (5 / 10 / 15 / 20) OR "Custom amount" to type a specific tip
+  • The app shows you the Bill + Tip = Total breakdown and saves the total to your report
+
+This way your records match what you actually paid, with the original bill amount preserved for audit.
+
+────────────────────────────
+ROTATING RECEIPT PHOTOS
+────────────────────────────
+
+If a photo of a receipt is sideways/upside-down, open the receipt and tap the ⟳ Rotate button under the image. Rotation persists and also applies in the monthly invoice appendix.
+
+────────────────────────────
+GENERATING A MONTHLY REPORT
+────────────────────────────
+
+At month-end:
+  1. Open the Reports page
+  2. Pick the month and (optionally) a specific company
+  3. Optionally pick a target currency to convert everything into
+  4. Tap Generate
+
+You get:
+  • A polished PDF invoice with your profile + bank details at the top, every receipt itemised, and copies of the originals in an appendix
+  • A ZIP of all the original receipt files
+
+Both are emailed to you and downloadable anytime from the Reports page.
+
+────────────────────────────
+THE "ISSUES" PILL
+────────────────────────────
+
+On the dashboard you'll see three pills at the top: Receipts / Uncategorized / Issues. The Issues pill turns red when you have receipts that need attention:
+  • OCR couldn't read the amount (blurry photo, non-receipt email forwarded by mistake)
+  • Possible duplicate (same vendor + amount + date as another receipt)
+  • You manually edited the amount/date/currency from what OCR pulled — open it, confirm or fix, then tap "Acknowledge override"
+
+Tap the Issues pill to filter to just those receipts and clear them up.
+
+────────────────────────────
+DATE FILTER
+────────────────────────────
+
+The Date dropdown lets you scope the dashboard to a specific period: This week, Last month, Last 30 days, custom range, etc. The pill counts update to reflect that period.
+
+────────────────────────────
+MULTIPLE EMAIL ADDRESSES?
+────────────────────────────
+
+If you might forward receipts from more than one email (e.g. personal + work + another business), reply to this email with the other addresses. The admin will register them as aliases on your account so they all land in the same place — sign in works from any of them too.
+
+────────────────────────────
+HELP
+────────────────────────────
+
+Full instructions: ${instructionsUrl}
+Questions / problems: just reply to this email.
+
+— Esprey Expenses
+`,
   };
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
