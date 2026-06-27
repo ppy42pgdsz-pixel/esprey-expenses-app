@@ -13,12 +13,24 @@ export interface CategoryRow {
 export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
   const guard = await requireUser(request, env, data);
   if (!guard.ok) return guard.response;
-  const { results } = await env.DB.prepare(
-    `SELECT name, spending_limit FROM categories ORDER BY name`
-  ).all<CategoryRow>();
+  // Try the new schema first; fall back to the old one if migration 0009
+  // hasn't been run yet. This means the dashboard keeps working through
+  // the deploy → migration window.
+  let results: CategoryRow[] = [];
+  try {
+    const r = await env.DB.prepare(
+      `SELECT name, spending_limit FROM categories ORDER BY name`
+    ).all<CategoryRow>();
+    results = r.results ?? [];
+  } catch {
+    const r = await env.DB.prepare(
+      `SELECT name FROM categories ORDER BY name`
+    ).all<{ name: string }>();
+    results = (r.results ?? []).map((row) => ({ name: row.name, spending_limit: null }));
+  }
   return Response.json({
-    categories: (results ?? []).map((r) => r.name),
-    categoryDetails: results ?? [],
+    categories: results.map((r) => r.name),
+    categoryDetails: results,
   });
 };
 
@@ -34,13 +46,22 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
   const name = (body.name ?? "").trim();
   if (!name) return jsonError(400, "'name' is required");
   const limit = sanitiseSpendingLimit(body.spending_limit);
-  await env.DB.prepare(
-    `INSERT INTO categories (name, spending_limit, created_at)
-     VALUES (?, ?, ?)
-     ON CONFLICT(name) DO UPDATE SET spending_limit = excluded.spending_limit`
-  )
-    .bind(name, limit, Date.now())
-    .run();
+  // Try the new schema first; fall back if migration 0009 hasn't been run.
+  try {
+    await env.DB.prepare(
+      `INSERT INTO categories (name, spending_limit, created_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(name) DO UPDATE SET spending_limit = excluded.spending_limit`
+    )
+      .bind(name, limit, Date.now())
+      .run();
+  } catch {
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO categories (name, created_at) VALUES (?, ?)`
+    )
+      .bind(name, Date.now())
+      .run();
+  }
   return Response.json({ category: name, spending_limit: limit });
 };
 
