@@ -251,6 +251,36 @@ export function formatAmount(r: Receipt): string {
   return cur ? `${cur} ${r.amount}` : r.amount;
 }
 
+/**
+ * Deterministic colour for a company name — same input always yields the
+ * same palette slot. Special-cases Personal so it always looks the same.
+ */
+const COMPANY_PALETTE: Array<{ bg: string; fg: string }> = [
+  { bg: "#dcfce7", fg: "#166534" }, // green
+  { bg: "#dbeafe", fg: "#1e40af" }, // blue
+  { bg: "#fce7f3", fg: "#9f1239" }, // pink
+  { bg: "#fef3c7", fg: "#92400e" }, // amber
+  { bg: "#f3e8ff", fg: "#6b21a8" }, // purple
+  { bg: "#cffafe", fg: "#155e75" }, // cyan
+  { bg: "#fee2e2", fg: "#991b1b" }, // red
+  { bg: "#e0e7ff", fg: "#3730a3" }, // indigo
+  { bg: "#ecfccb", fg: "#3f6212" }, // lime
+  { bg: "#ffe4e6", fg: "#9f1239" }, // rose
+];
+export function companyColor(name: string | null | undefined): { bg: string; fg: string } | null {
+  if (!name) return null;
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  // Personal always gets a soft neutral slate so it visually distinguishes
+  // "no business company" from real billable companies.
+  if (trimmed.toLowerCase() === "personal") return { bg: "#e2e8f0", fg: "#334155" };
+  let hash = 0;
+  for (let i = 0; i < trimmed.length; i++) {
+    hash = (hash * 31 + trimmed.charCodeAt(i)) >>> 0;
+  }
+  return COMPANY_PALETTE[hash % COMPANY_PALETTE.length];
+}
+
 export function formatDate(iso: string | null | number): string {
   if (!iso) return "";
   const d = typeof iso === "number" ? new Date(iso) : new Date(iso);

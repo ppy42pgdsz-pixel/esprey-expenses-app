@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, formatAmount, formatDate, imageUrl } from "../lib/api";
+import { api, companyColor, formatAmount, formatDate, imageUrl } from "../lib/api";
 import type { Receipt } from "../lib/types";
 import { parseAttendees } from "../lib/types";
 
@@ -437,7 +437,7 @@ export default function Dashboard() {
                 <td className="cell-amt">{r.amount ?? "—"}</td>
                 <td>{r.currency ?? ""}</td>
                 <td>{r.category ?? ""}</td>
-                <td>{r.company ?? <span className="muted">—</span>}</td>
+                <td><CompanyChip name={r.company} /></td>
                 <td className="cell-open">
                   <button
                     type="button"
@@ -477,9 +477,7 @@ export default function Dashboard() {
                     <span>{formatDate(r.receipt_date ?? r.uploaded_at)}</span>
                     <span className="pills">
                       {r.category && <span className="pill cat-pill">{r.category}</span>}
-                      <span className={"pill " + (r.company ? "set" : "")}>
-                        {r.company ?? "Uncategorized"}
-                      </span>
+                      <CompanyChip name={r.company} />
                     </span>
                   </div>
                   {(() => {
@@ -741,6 +739,17 @@ function fieldDiffers(current: string | null | undefined, ocr: string | null, ki
   if (kind === "currency") return cur.toUpperCase() !== ext.toUpperCase();
   if (kind === "date")     return cur !== ext;
   return false;
+}
+
+function CompanyChip({ name }: { name: string | null }) {
+  if (!name) return <span className="company-chip company-chip-uncat">Uncategorized</span>;
+  const c = companyColor(name);
+  if (!c) return <span className="company-chip company-chip-uncat">{name}</span>;
+  return (
+    <span className="company-chip" style={{ background: c.bg, color: c.fg }}>
+      {name}
+    </span>
+  );
 }
 
 function Stat({ n, label, warn, issue, onClick }: { n: number; label: string; warn?: boolean; issue?: boolean; onClick?: () => void }) {
