@@ -71,6 +71,12 @@ export default function Instructions() {
             reads vendor, amount, date and currency automatically — you just confirm, tag it with a
             company/category/attendees, and save.
           </p>
+          <p>
+            <strong>Multi-page invoice?</strong> After the first photo, the preview screen shows a{" "}
+            <em>"+ Add another page"</em> button. Tap it to keep snapping. All pages get combined
+            into a single PDF receipt — OCR reads across all of them and finds the total wherever
+            it appears.
+          </p>
 
           <h3>2. Forward an email</h3>
           <p>

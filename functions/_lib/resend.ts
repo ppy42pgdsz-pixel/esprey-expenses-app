@@ -109,11 +109,13 @@ STEP 2: THREE WAYS TO ADD A RECEIPT
 
 1) CAMERA — Tap "+ Capture" on the home screen, snap the receipt. The app reads vendor, amount, date, and currency automatically. You confirm, tag with a company/category/attendees, save.
 
-2) FORWARD AN EMAIL — Send any receipt to receipts@esprey.net. Works with Uber confirmations, Airbnb, restaurant bookings, attached PDF invoices, image attachments, even text-only emails. IMPORTANT: send from THIS email address (the one you sign in with). Forwards from any other address get a bounce-back.
+   MULTI-PAGE invoice (hotel bill, long restaurant statement, anything that spans more than one page)? After the first photo, tap "+ Add another page" on the preview, take the next shot, and so on. All pages get combined into one PDF and saved as a single receipt — OCR reads across all pages and finds the total wherever it sits.
+
+2) FORWARD AN EMAIL — Send any receipt to receipts@esprey.net. Works with Uber confirmations, Airbnb, restaurant bookings, attached PDF invoices, image attachments, even text-only emails. IMPORTANT: send from THIS email address (or any of your registered aliases — see "Multiple email addresses" below). Forwards from unregistered addresses get a bounce-back.
 
 3) MANUAL ENTRY — Tap "+ Manual" for cash expenses where you don't have a receipt. Fill in what you remember; amount is required.
 
-You can also bulk-upload a backlog: tap "+ Capture" → "Pick photo or PDF from files" → select multiple files at once.
+You can also bulk-upload a backlog: tap "+ Capture" → "Pick photo or PDF from files" → select multiple files at once. Each becomes its own receipt (different from multi-page, which combines into one).
 
 ────────────────────────────
 ASSIGNING TO COMPANIES
