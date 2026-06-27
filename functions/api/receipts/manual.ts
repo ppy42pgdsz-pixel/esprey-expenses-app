@@ -32,10 +32,13 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
   const amount = (body.amount ?? "").toString().trim();
   if (!amount) return jsonError(400, "'amount' is required for a manual entry");
 
-  // Reject obviously-bogus future dates. We allow today but nothing beyond.
+  // Reject obviously-bogus future dates. We use "anywhere on Earth" today
+  // (UTC + 14h, the easternmost timezone) so a user submitting just after
+  // midnight in Paris (UTC+2) isn't blocked when the server's UTC clock
+  // still thinks it's the previous day.
   if (typeof body.receipt_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.receipt_date)) {
-    const today = new Date().toISOString().slice(0, 10);
-    if (body.receipt_date > today) {
+    const maxToday = new Date(Date.now() + 14 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    if (body.receipt_date > maxToday) {
       return jsonError(400, "receipt_date is in the future");
     }
   }

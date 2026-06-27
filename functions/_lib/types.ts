@@ -78,6 +78,7 @@ export interface ReceiptRow {
   tip_pct: number;
   tip_amount: string | null; // custom tip amount (decimal string). null = use tip_pct.
   override_acknowledged: number; // 0/1 — user confirmed manual override of OCR-extracted values
+  policy_acknowledged: number; // 0/1 — user confirmed an over-limit (category spending policy) receipt
 }
 
 export interface ExtractedReceipt {

@@ -47,6 +47,7 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
       apiKey: env.RESEND_API_KEY,
       fromAddress: env.REPORT_FROM_ADDRESS,
       toAddress: guard.userEmail,
+      replyTo: env.CARL_EMAIL,
       monthLabel: `Receipts ZIP — ${monthLabel}`,
       attachments: [{ filename: file, bytes }],
     });

@@ -21,7 +21,7 @@ export const onRequestGet: PagesFunction<Env, "id", any> = async ({ request, env
   return Response.json({ receipt: row });
 };
 
-const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category", "rotation", "tip_pct", "tip_amount", "override_acknowledged"] as const;
+const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category", "rotation", "tip_pct", "tip_amount", "override_acknowledged", "policy_acknowledged"] as const;
 type EditableField = (typeof EDITABLE)[number];
 
 export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, env, data, params }) => {
@@ -42,10 +42,11 @@ export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, e
     return jsonError(400, "invalid JSON body");
   }
 
-  // Reject obviously-bogus future dates.
+  // Reject obviously-bogus future dates — "anywhere on Earth" today (UTC+14)
+  // so submitting just-after-midnight receipts in non-UTC timezones works.
   if (typeof body.receipt_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.receipt_date)) {
-    const today = new Date().toISOString().slice(0, 10);
-    if (body.receipt_date > today) {
+    const maxToday = new Date(Date.now() + 14 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    if (body.receipt_date > maxToday) {
       return jsonError(400, "receipt_date is in the future");
     }
   }

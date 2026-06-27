@@ -153,6 +153,9 @@ async function addMember({ request, env, data }: { request: Request; env: Env; d
         apiKey: env.RESEND_API_KEY,
         fromAddress: env.REPORT_FROM_ADDRESS,
         toAddress: email,
+        // Replies to the welcome email go to the admin who added them, not
+        // to the noreply-style reports@ address.
+        replyTo: guard.userEmail,
         displayName,
         addedByName: adminLabel,
         appUrl: APP_URL,

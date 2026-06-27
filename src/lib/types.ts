@@ -20,6 +20,7 @@ export interface Receipt {
   tip_pct: number;  // 0, 5, 10, 15, or 20 — only set for meal/taxi categories; amount already includes the tip
   tip_amount: string | null; // when set, custom tip amount overrides tip_pct
   override_acknowledged: number; // 0/1 — user confirmed their manual edits differ from OCR
+  policy_acknowledged: number; // 0/1 — user confirmed an over-limit policy violation
 }
 
 export interface Person {

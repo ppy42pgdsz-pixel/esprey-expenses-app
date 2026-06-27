@@ -182,6 +182,8 @@ async function sendBounce(env: Env, toAddr: string, originalSubject: string): Pr
         to: [toAddr],
         subject: `Receipt not saved — your email address isn't registered`,
         text: body,
+        // Replies go to the admin so the sender can ask to be added.
+        ...(env.ADMIN_EMAIL ? { reply_to: env.ADMIN_EMAIL } : {}),
       }),
     });
     if (!res.ok) {

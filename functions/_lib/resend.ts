@@ -10,11 +10,12 @@ export async function sendReportEmail(opts: {
   apiKey: string;
   fromAddress: string;       // e.g. reports@esprey.net (must be on a verified domain)
   toAddress: string;
+  replyTo?: string;          // optional — replies route here instead of the from-address
   monthLabel: string;
   attachments: ResendAttachment[];
 }): Promise<{ id: string }> {
   const summary = opts.attachments.map((a) => `- ${a.filename}`).join("\n");
-  const body = {
+  const body: Record<string, unknown> = {
     from: `Esprey Expenses <${opts.fromAddress}>`,
     to: [opts.toAddress],
     subject: `Expense report — ${opts.monthLabel}`,
@@ -27,6 +28,7 @@ export async function sendReportEmail(opts: {
       content: uint8ToBase64(a.bytes),
     })),
   };
+  if (opts.replyTo) body.reply_to = opts.replyTo;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -47,6 +49,7 @@ export async function sendWelcomeEmail(opts: {
   apiKey: string;
   fromAddress: string;
   toAddress: string;
+  replyTo?: string;
   displayName?: string | null;
   addedByName?: string | null;
   appUrl: string;
@@ -56,10 +59,11 @@ export async function sendWelcomeEmail(opts: {
   const appUrl = opts.appUrl.replace(/\/$/, "") + "/";
   const instructionsUrl = opts.appUrl.replace(/\/$/, "") + "/instructions";
 
-  const body = {
+  const body: Record<string, unknown> = {
     from: `Esprey Expenses <${opts.fromAddress}>`,
     to: [opts.toAddress],
     subject: "You've been added to Esprey Expenses",
+    ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
     text:
 `${greeting}
 
@@ -152,28 +156,28 @@ At month-end:
   3. Optionally pick a target currency to convert everything into
   4. Tap Generate
 
-You get:
-  • A polished PDF invoice with your profile + bank details at the top, every receipt itemised, and copies of the originals in an appendix
-  • A ZIP of all the original receipt files
+You get TWO things, but only the PDF is emailed automatically:
+  • PDF INVOICE — your profile + bank details at the top, every receipt itemised in a table, with full-resolution copies of every original receipt in an appendix. Emailed to you the moment it's generated.
+  • ZIP of all the original receipt files — built and saved alongside the PDF, but NOT auto-emailed (some are too large for email). Available on the Reports page: tap "Download originals" to save it locally, or tap "Email ZIP" to have it sent to you.
 
-Both are emailed to you and downloadable anytime from the Reports page.
+Both files are also downloadable anytime from the Reports page.
 
 ────────────────────────────
-THE "ISSUES" PILL
+THE "ISSUES" BUTTON
 ────────────────────────────
 
-On the dashboard you'll see three pills at the top: Receipts / Uncategorized / Issues. The Issues pill turns red when you have receipts that need attention:
+On the dashboard you'll see three buttons at the top: Receipts / Uncategorized / Issues. The Issues button turns red when you have receipts that need attention:
   • OCR couldn't read the amount (blurry photo, non-receipt email forwarded by mistake)
   • Possible duplicate (same vendor + amount + date as another receipt)
   • You manually edited the amount/date/currency from what OCR pulled — open it, confirm or fix, then tap "Acknowledge override"
 
-Tap the Issues pill to filter to just those receipts and clear them up.
+Tap the Issues button to filter to just those receipts and clear them up.
 
 ────────────────────────────
 DATE FILTER
 ────────────────────────────
 
-The Date dropdown lets you scope the dashboard to a specific period: This week, Last month, Last 30 days, custom range, etc. The pill counts update to reflect that period.
+The Date dropdown lets you scope the dashboard to a specific period: This week, Last month, Last 30 days, custom range, etc. The button counts update to reflect that period.
 
 ────────────────────────────
 MULTIPLE EMAIL ADDRESSES?
