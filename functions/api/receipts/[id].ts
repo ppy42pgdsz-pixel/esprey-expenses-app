@@ -21,7 +21,7 @@ export const onRequestGet: PagesFunction<Env, "id", any> = async ({ request, env
   return Response.json({ receipt: row });
 };
 
-const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category", "rotation", "tip_pct", "tip_amount", "override_acknowledged", "policy_acknowledged"] as const;
+const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category", "rotation", "tip_pct", "tip_amount", "override_acknowledged", "policy_acknowledged", "duplicate_acknowledged"] as const;
 type EditableField = (typeof EDITABLE)[number];
 
 export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, env, data, params }) => {
@@ -85,9 +85,10 @@ export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, e
         const allowed = [0, 5, 10, 15, 20];
         const clean = allowed.includes(n) ? n : 0;
         args.push(clean);
-      } else if (k === "override_acknowledged") {
-        // User explicitly confirmed their edits differ from OCR. Don't flag
-        // this as content edit — it's just a 1/0 boolean.
+      } else if (k === "override_acknowledged" || k === "duplicate_acknowledged") {
+        // Explicit-acknowledgement flags — 1/0 booleans. Not a "content edit"
+        // since the amount/date/vendor on the receipt isn't changing; we're
+        // just recording that the user knowingly accepted a flagged issue.
         const truthy = v === 1 || v === true || v === "1" || v === "true";
         args.push(truthy ? 1 : 0);
       } else if (k === "tip_amount") {

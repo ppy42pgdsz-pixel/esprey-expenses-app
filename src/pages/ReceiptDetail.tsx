@@ -198,7 +198,18 @@ export default function ReceiptDetail() {
 
       {err && <div className="err">{err}</div>}
 
-      <IssuesBanner receipt={receipt} allReceipts={allReceipts} />
+      <IssuesBanner
+        receipt={receipt}
+        allReceipts={allReceipts}
+        onAcknowledgeDuplicate={async () => {
+          try {
+            const res = await api.patchReceipt(id, { duplicate_acknowledged: 1 as any });
+            setReceipt(res.receipt);
+          } catch (e) {
+            setErr((e as Error).message);
+          }
+        }}
+      />
 
       <OcrMismatchBanner
         receipt={receipt}
@@ -586,14 +597,18 @@ function normalizeTipPct(n: unknown): number {
 function IssuesBanner({
   receipt,
   allReceipts,
+  onAcknowledgeDuplicate,
 }: {
   receipt: Receipt | null;
   allReceipts: Receipt[];
+  onAcknowledgeDuplicate: () => Promise<void> | void;
 }) {
   if (!receipt) return null;
 
   // Duplicate detection — same vendor + amount + date as 1+ other receipt(s)
-  // belonging to the same user. Matches Dashboard.tsx exactly.
+  // belonging to the same user. Matches Dashboard.tsx exactly. Note: we
+  // include siblings even if THEY have been acknowledged, because the user
+  // viewing this receipt still needs to see the matches before deciding.
   const vendor = (receipt.vendor ?? "").trim().toLowerCase();
   const amt = parseFloat(receipt.amount ?? "");
   const date = receipt.receipt_date ?? "";
@@ -607,6 +622,10 @@ function IssuesBanner({
         return v === vendor && isFinite(a) && Math.abs(a - amt) < 0.005 && d === date;
       })
     : [];
+  // Only flag the duplicate issue on THIS receipt if the user hasn't already
+  // confirmed it's intentional. Once acknowledged, the audit-trail flag stays
+  // in the DB but the banner clears.
+  const duplicateIssue = dupeSiblings.length > 0 && receipt.duplicate_acknowledged !== 1;
 
   // No usable amount — OCR ran (not pending) but amount is missing/zero.
   // Matches the failedIds heuristic in Dashboard.
@@ -616,7 +635,7 @@ function IssuesBanner({
   // OCR call itself errored out.
   const ocrFailed = receipt.ocr_status === "failed";
 
-  if (!dupeSiblings.length && !noAmount && !ocrFailed) return null;
+  if (!duplicateIssue && !noAmount && !ocrFailed) return null;
 
   return (
     <div className="ocr-mismatch" style={{ background: "#fff7ed", borderColor: "#fdba74" }}>
@@ -632,7 +651,7 @@ function IssuesBanner({
             No amount was extracted from this receipt. Enter the amount manually in the Amount field below.
           </li>
         )}
-        {dupeSiblings.length > 0 && (
+        {duplicateIssue && (
           <li>
             Possible duplicate{dupeSiblings.length > 1 ? "s" : ""} — same vendor, amount,
             and date as {dupeSiblings.length === 1 ? "this receipt" : "these receipts"}:{" "}
@@ -645,7 +664,16 @@ function IssuesBanner({
                 </Link>
               </span>
             ))}
-            . If one of them is wrong, delete the duplicate; otherwise edit the amount or date so they differ.
+            .
+            <div className="ocr-mismatch-actions" style={{ marginTop: 8 }}>
+              <button type="button" className="primary-btn small" onClick={onAcknowledgeDuplicate}>
+                Acknowledge — this is a separate expense
+              </button>
+              <span className="hint small">
+                Clicking confirms you're intentionally claiming this even though it matches another receipt.
+                If it really is a duplicate, delete one instead.
+              </span>
+            </div>
           </li>
         )}
       </ul>

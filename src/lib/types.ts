@@ -21,6 +21,7 @@ export interface Receipt {
   tip_amount: string | null; // when set, custom tip amount overrides tip_pct
   override_acknowledged: number; // 0/1 — user confirmed their manual edits differ from OCR
   policy_acknowledged: number; // 0/1 — user confirmed an over-limit policy violation
+  duplicate_acknowledged: number; // 0/1 — user confirmed this looks-like-a-duplicate is in fact a separate expense
 }
 
 export interface Person {

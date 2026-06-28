@@ -91,10 +91,17 @@ export default function Dashboard() {
   // Duplicate detection runs across all receipts (regardless of date filter)
   // since duplicates share a date and are therefore always in the same
   // window — but we only show counts/highlights for receipts in scope.
-  const duplicateIds = useMemo(() => {
-    if (!receipts) return new Set<string>();
+  // duplicateIds = receipts that share vendor + amount + date with another
+  // receipt AND haven't been explicitly acknowledged. An acknowledged receipt
+  // is excluded from the grouping entirely — so if A is acknowledged but B
+  // and C remain unacknowledged with matching key, B and C are still flagged.
+  // We also remember the group key per receipt so the Issues view can sort
+  // duplicate siblings next to each other.
+  const { duplicateIds, duplicateGroupKey } = useMemo(() => {
+    if (!receipts) return { duplicateIds: new Set<string>(), duplicateGroupKey: new Map<string, string>() };
     const groups = new Map<string, string[]>();
     for (const r of receipts) {
+      if (r.duplicate_acknowledged === 1) continue;
       const vendor = (r.vendor ?? "").trim().toLowerCase();
       const amt = parseFloat(r.amount ?? "");
       const date = r.receipt_date ?? "";
@@ -105,10 +112,14 @@ export default function Dashboard() {
       groups.set(key, arr);
     }
     const dupes = new Set<string>();
-    for (const ids of groups.values()) {
-      if (ids.length > 1) for (const id of ids) dupes.add(id);
+    const keyByReceipt = new Map<string, string>();
+    for (const [key, ids] of groups.entries()) {
+      if (ids.length > 1) for (const id of ids) {
+        dupes.add(id);
+        keyByReceipt.set(id, key);
+      }
     }
-    return dupes;
+    return { duplicateIds: dupes, duplicateGroupKey: keyByReceipt };
   }, [receipts]);
 
   // OCR mismatch: amount / currency / date differs from what's in ocr_raw,
@@ -159,6 +170,24 @@ export default function Dashboard() {
     return scopedReceipts.filter((r) => ids.has(r.id)).length;
   }, [scopedReceipts, failedIds, duplicateIds, mismatchIds]);
 
+  // In Issues view we override the user's sort and group duplicate siblings
+  // adjacent to each other (anchored by the group's most recent date). This
+  // way three duplicate Uber receipts appear next to each other rather than
+  // scattered across the table by date. Solo issues fall into their own
+  // single-row "groups" sorted by date desc alongside the dupe groups.
+  const issueGroupAnchors = useMemo(() => {
+    if (!receipts) return new Map<string, string>();
+    const anchors = new Map<string, string>();
+    for (const r of receipts) {
+      const key = duplicateGroupKey.get(r.id);
+      if (!key) continue;
+      const d = r.receipt_date ?? "";
+      const cur = anchors.get(key);
+      if (!cur || d > cur) anchors.set(key, d);
+    }
+    return anchors;
+  }, [receipts, duplicateGroupKey]);
+
   const sortedReceipts = useMemo(() => {
     if (!scopedReceipts) return null;
     let arr = [...scopedReceipts];
@@ -166,6 +195,20 @@ export default function Dashboard() {
       arr = arr.filter((r) => !r.company);
     } else if (pillFilter === "issues") {
       arr = arr.filter((r) => failedIds.has(r.id) || duplicateIds.has(r.id) || mismatchIds.has(r.id));
+      // Custom sort: by group anchor desc, then keep group members together,
+      // then by uploaded_at asc within a group for chronological order.
+      arr.sort((a, b) => {
+        const aKey = duplicateGroupKey.get(a.id);
+        const bKey = duplicateGroupKey.get(b.id);
+        const aAnchor = aKey ? (issueGroupAnchors.get(aKey) ?? "") : (a.receipt_date ?? "");
+        const bAnchor = bKey ? (issueGroupAnchors.get(bKey) ?? "") : (b.receipt_date ?? "");
+        if (aAnchor !== bAnchor) return aAnchor > bAnchor ? -1 : 1; // newer first
+        const aGroup = aKey ?? `_solo_${a.id}`;
+        const bGroup = bKey ?? `_solo_${b.id}`;
+        if (aGroup !== bGroup) return aGroup < bGroup ? -1 : 1;
+        return a.uploaded_at - b.uploaded_at;
+      });
+      return arr;
     }
     const dir = sortDir === "asc" ? 1 : -1;
     arr.sort((a, b) => {
@@ -182,7 +225,18 @@ export default function Dashboard() {
       return cmp * dir;
     });
     return arr;
-  }, [scopedReceipts, sortKey, sortDir, pillFilter, failedIds, duplicateIds, mismatchIds]);
+  }, [scopedReceipts, sortKey, sortDir, pillFilter, failedIds, duplicateIds, mismatchIds, duplicateGroupKey, issueGroupAnchors]);
+
+  // Helper — short label explaining why a receipt landed in the Issues bucket.
+  // Used only when the Issues filter is active (otherwise the row is just a
+  // normal row in the table).
+  function issueReason(r: Receipt): string | null {
+    if (r.ocr_status === "failed") return "OCR failed";
+    if (duplicateIds.has(r.id)) return "Possible duplicate";
+    if (failedIds.has(r.id)) return "No amount";
+    if (mismatchIds.has(r.id)) return "Edited values differ from OCR";
+    return null;
+  }
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -433,7 +487,12 @@ export default function Dashboard() {
                 </td>
                 <td>{formatDate(r.receipt_date ?? r.uploaded_at)}</td>
                 <td className="cell-vendor">{r.vendor ?? "—"}</td>
-                <td className="cell-desc">{r.notes ?? ""}</td>
+                <td className="cell-desc">
+                  {pillFilter === "issues" && issueReason(r) && (
+                    <span className="issue-chip">{issueReason(r)}</span>
+                  )}
+                  {r.notes ?? ""}
+                </td>
                 <td className="cell-amt">{r.amount ?? "—"}</td>
                 <td>{r.currency ?? ""}</td>
                 <td>{r.category ?? ""}</td>
@@ -486,6 +545,9 @@ export default function Dashboard() {
                   })()}
                   {r.ocr_status === "pending" && <span className="badge">Reading…</span>}
                   {r.ocr_status === "failed" && <span className="badge warn">OCR failed</span>}
+                  {pillFilter === "issues" && issueReason(r) && r.ocr_status !== "failed" && (
+                    <span className="badge warn">{issueReason(r)}</span>
+                  )}
                 </div>
               </Link>
             </li>

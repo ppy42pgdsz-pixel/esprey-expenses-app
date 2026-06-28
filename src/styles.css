@@ -203,6 +203,22 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
 .pills { display: inline-flex; gap: 4px; flex-wrap: wrap; }
 .pill.cat-pill { background: #e0f2fe; color: #075985; }
 
+/* Issues view: small chip in the desktop table's Description cell explaining
+   why the row is flagged (only shown when the Issues pill is active). */
+.issue-chip {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9a3412;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 10px;
+  padding: 1px 8px;
+  margin-right: 6px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 /* Settings page */
 .settings-section {
   background: var(--card); border: 1px solid var(--line); border-radius: 10px;
