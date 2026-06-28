@@ -36,18 +36,21 @@ export default function ReceiptDetail() {
   const [tipMode, setTipMode] = useState<"pct" | "custom">("pct");
   const [tipPct, setTipPct] = useState(0);
   const [tipCustomAmount, setTipCustomAmount] = useState("");
+  const [allReceipts, setAllReceipts] = useState<Receipt[]>([]);
 
   async function load() {
     setErr(null);
     try {
-      const [r, c, p, cat, cur, me] = await Promise.all([
+      const [r, c, p, cat, cur, me, all] = await Promise.all([
         api.getReceipt(id),
         api.listCompanies(),
         api.listPeople(),
         api.listCategories(),
         api.listCurrencies(),
         api.whoAmI().catch(() => ({ middlewareSaw: { userEmail: null, isAdmin: false } })),
+        api.listReceipts().catch(() => ({ receipts: [] as Receipt[] })),
       ]);
+      setAllReceipts(all.receipts ?? []);
       setIsAdmin(!!me.middlewareSaw.isAdmin);
       const rec = r.receipt;
       setReceipt(rec);
@@ -194,6 +197,8 @@ export default function ReceiptDetail() {
       </header>
 
       {err && <div className="err">{err}</div>}
+
+      <IssuesBanner receipt={receipt} allReceipts={allReceipts} />
 
       <OcrMismatchBanner
         receipt={receipt}
@@ -571,6 +576,81 @@ function fieldDiffersText(cur: string, ocr: string): boolean {
 function normalizeTipPct(n: unknown): number {
   const v = typeof n === "number" ? n : parseInt(String(n ?? 0), 10);
   return [0, 5, 10, 15, 20].includes(v) ? v : 0;
+}
+
+/* ----- IssuesBanner: explain WHY a receipt is flagged on the Dashboard ----- */
+// Mirrors the Issues-pill logic in Dashboard.tsx: duplicates, no amount, OCR
+// failure. The OCR mismatch ("you edited the amount/date") case has its own
+// dedicated banner with a comparison table and an Acknowledge button, so we
+// don't duplicate that one here.
+function IssuesBanner({
+  receipt,
+  allReceipts,
+}: {
+  receipt: Receipt | null;
+  allReceipts: Receipt[];
+}) {
+  if (!receipt) return null;
+
+  // Duplicate detection — same vendor + amount + date as 1+ other receipt(s)
+  // belonging to the same user. Matches Dashboard.tsx exactly.
+  const vendor = (receipt.vendor ?? "").trim().toLowerCase();
+  const amt = parseFloat(receipt.amount ?? "");
+  const date = receipt.receipt_date ?? "";
+  const haveKey = !!vendor && isFinite(amt) && amt > 0 && !!date;
+  const dupeSiblings: Receipt[] = haveKey
+    ? allReceipts.filter((r) => {
+        if (r.id === receipt.id) return false;
+        const v = (r.vendor ?? "").trim().toLowerCase();
+        const a = parseFloat(r.amount ?? "");
+        const d = r.receipt_date ?? "";
+        return v === vendor && isFinite(a) && Math.abs(a - amt) < 0.005 && d === date;
+      })
+    : [];
+
+  // No usable amount — OCR ran (not pending) but amount is missing/zero.
+  // Matches the failedIds heuristic in Dashboard.
+  const ocrDone = receipt.ocr_status !== "pending";
+  const noAmount = ocrDone && (!isFinite(amt) || amt <= 0);
+
+  // OCR call itself errored out.
+  const ocrFailed = receipt.ocr_status === "failed";
+
+  if (!dupeSiblings.length && !noAmount && !ocrFailed) return null;
+
+  return (
+    <div className="ocr-mismatch" style={{ background: "#fff7ed", borderColor: "#fdba74" }}>
+      <div className="ocr-mismatch-title">Why this receipt is flagged</div>
+      <ul style={{ margin: "6px 0 0", paddingLeft: "1.2em" }}>
+        {ocrFailed && (
+          <li>
+            OCR failed to process this receipt. Fill in the amount, currency, and date manually below.
+          </li>
+        )}
+        {noAmount && !ocrFailed && (
+          <li>
+            No amount was extracted from this receipt. Enter the amount manually in the Amount field below.
+          </li>
+        )}
+        {dupeSiblings.length > 0 && (
+          <li>
+            Possible duplicate{dupeSiblings.length > 1 ? "s" : ""} — same vendor, amount,
+            and date as {dupeSiblings.length === 1 ? "this receipt" : "these receipts"}:{" "}
+            {dupeSiblings.map((sib, i) => (
+              <span key={sib.id}>
+                {i > 0 && ", "}
+                <Link to={`/receipts/${sib.id}`} style={{ textDecoration: "underline" }}>
+                  {formatDate(sib.receipt_date)} · {sib.vendor || "(no vendor)"} ·{" "}
+                  {sib.amount ?? "—"} {sib.currency ?? ""}
+                </Link>
+              </span>
+            ))}
+            . If one of them is wrong, delete the duplicate; otherwise edit the amount or date so they differ.
+          </li>
+        )}
+      </ul>
+    </div>
+  );
 }
 
 // Heuristic — show the tip selector for any category that looks like food,
