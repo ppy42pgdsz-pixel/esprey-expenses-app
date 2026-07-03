@@ -41,6 +41,8 @@ export interface TeamMemberRow {
 export interface AuthContext {
   userEmail: string | null;
   isAdmin: boolean;
+  // PagesFunction's Data generic requires Record<string, unknown>.
+  [key: string]: unknown;
 }
 
 export interface BillFrom {
@@ -63,14 +65,17 @@ export interface ReceiptRow {
   id: string;
   r2_key: string;
   thumb_r2_key: string | null;
-  source: "camera" | "email";
+  source: "camera" | "email" | "manual";
   source_meta: string | null;
   vendor: string | null;
   amount: string | null;
   currency: string | null;
   receipt_date: string | null;
   company: string | null;
+  category: string | null;
   notes: string | null;
+  attendees: string | null; // JSON string array
+  user_email: string;
   ocr_raw: string | null;
   ocr_status: "pending" | "success" | "failed" | "manual";
   uploaded_at: number;
@@ -79,6 +84,9 @@ export interface ReceiptRow {
   tip_amount: string | null; // custom tip amount (decimal string). null = use tip_pct.
   override_acknowledged: number; // 0/1 — user confirmed manual override of OCR-extracted values
   policy_acknowledged: number; // 0/1 — user confirmed an over-limit (category spending policy) receipt
+  duplicate_acknowledged: number; // 0/1 — user confirmed a possible duplicate is a separate expense
+  fx_rate_date: string | null; // UTC date of the fx_rates table snapshotted at capture (null = pre-0011 row)
+  deleted_at: number | null; // ms epoch of soft delete; null = live. 30 days in Trash, then purged.
 }
 
 export interface ExtractedReceipt {

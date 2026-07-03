@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../lib/api";
-import type { Person } from "../lib/types";
+import { api, formatDate } from "../lib/api";
+import type { Person, Receipt } from "../lib/types";
 
 export default function Settings() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -30,7 +30,66 @@ export default function Settings() {
       <PeopleSection />
       <CategoriesSection isAdmin={isAdmin} />
       <CurrenciesSection isAdmin={isAdmin} />
+      <TrashSection />
     </div>
+  );
+}
+
+/* ------------ Trash (everyone — own receipts only) ------------ */
+// Deleted receipts sit here for 30 days and can be restored; after that
+// they're purged for good (row + stored image).
+function TrashSection() {
+  const [items, setItems] = useState<Receipt[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function reload() {
+    setErr(null);
+    try {
+      const r = await api.listTrash();
+      setItems(r.receipts);
+    } catch (e) { setErr((e as Error).message); }
+  }
+  useEffect(() => { reload(); }, []);
+
+  async function restore(id: string) {
+    setBusy(id);
+    try {
+      await api.restoreReceipt(id);
+      await reload();
+    } catch (e) { setErr((e as Error).message); }
+    finally { setBusy(null); }
+  }
+
+  return (
+    <section className="settings-section">
+      <h2>Trash</h2>
+      {err && <div className="error">{err}</div>}
+      {items.length === 0 ? (
+        <div className="hint small">Deleted receipts appear here for 30 days, then they're gone for good.</div>
+      ) : (
+        <div className="manage-list">
+          {items.map((r) => (
+            <div className="manage-row" key={r.id}>
+              <span className="manage-name">
+                <strong>{r.vendor || "Unknown vendor"}</strong>
+                <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
+                  · {r.currency ? `${r.currency} ` : ""}{r.amount ?? "—"}
+                  {r.receipt_date ? ` · ${formatDate(r.receipt_date)}` : ""}
+                </span>
+              </span>
+              <button
+                className="primary-btn small"
+                disabled={busy === r.id}
+                onClick={() => restore(r.id)}
+              >
+                {busy === r.id ? "Restoring…" : "Restore"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

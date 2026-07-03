@@ -7,6 +7,7 @@ import { jsonError } from "../../_lib/types";
 import { extractReceipt } from "../../_lib/anthropic";
 import { arrayBufferToBase64, extFromMime, newId, r2KeyForReceipt } from "../../_lib/util";
 import { requireUser } from "../../_lib/auth";
+import { ensureTodayRates } from "../../_lib/fx";
 
 export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
   const guard = await requireUser(request, env, data);
@@ -89,6 +90,18 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
       id
     )
     .run();
+
+  // FX snapshot (best-effort): stamp which day's rate table applies, so
+  // reports convert at capture-time rates rather than report-time rates.
+  // Never blocks the upload — pre-migration schema or FX downtime is fine.
+  try {
+    const fx = await ensureTodayRates(env.DB);
+    if (fx) {
+      await env.DB.prepare(`UPDATE receipts SET fx_rate_date = ? WHERE id = ?`)
+        .bind(fx.date, id)
+        .run();
+    }
+  } catch { /* fx_rate_date column not deployed yet — ignore */ }
 
   return Response.json({ id, ocr_status: ocrStatus, extracted });
 };

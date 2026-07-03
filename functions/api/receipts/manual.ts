@@ -6,6 +6,7 @@ import { jsonError } from "../../_lib/types";
 import { newId } from "../../_lib/util";
 import { requireUser, isAdminEmail } from "../../_lib/auth";
 import { isPersonalCompany } from "../../_lib/const";
+import { ensureTodayRates } from "../../_lib/fx";
 
 interface ManualBody {
   vendor?: string | null;
@@ -71,6 +72,16 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
       guard.userEmail
     )
     .run();
+
+  // FX snapshot (best-effort) — see upload.ts for rationale.
+  try {
+    const fx = await ensureTodayRates(env.DB);
+    if (fx) {
+      await env.DB.prepare(`UPDATE receipts SET fx_rate_date = ? WHERE id = ? AND user_email = ?`)
+        .bind(fx.date, id, guard.userEmail)
+        .run();
+    }
+  } catch { /* fx_rate_date column not deployed yet — ignore */ }
 
   const isAdmin = await isAdminEmail(env, guard.userEmail);
 

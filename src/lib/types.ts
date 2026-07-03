@@ -22,6 +22,8 @@ export interface Receipt {
   override_acknowledged: number; // 0/1 — user confirmed their manual edits differ from OCR
   policy_acknowledged: number; // 0/1 — user confirmed an over-limit policy violation
   duplicate_acknowledged: number; // 0/1 — user confirmed this looks-like-a-duplicate is in fact a separate expense
+  fx_rate_date: string | null; // UTC date of the FX table snapshotted at capture (null on pre-0011 rows)
+  deleted_at: number | null; // ms epoch of soft delete; null = live. In Trash 30 days, then purged.
 }
 
 export interface Person {

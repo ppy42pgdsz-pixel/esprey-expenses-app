@@ -27,6 +27,14 @@ export const api = {
     }),
   deleteReceipt: (id: string) =>
     jsonFetch<{ deleted: string }>(`/api/receipts/${id}`, { method: "DELETE" }),
+  listTrash: () =>
+    jsonFetch<{ receipts: Receipt[] }>(`/api/receipts/trash`),
+  restoreReceipt: (id: string) =>
+    jsonFetch<{ restored: string }>(`/api/receipts/trash`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }),
   uploadReceipt: (file: File, company?: string) => {
     const fd = new FormData();
     fd.append("image", file);

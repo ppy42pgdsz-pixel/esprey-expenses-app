@@ -93,7 +93,7 @@ export default function Capture() {
       try {
         const pdfBytes = await imagesToPdf(files);
         const pdfFile = new File(
-          [new Blob([pdfBytes], { type: "application/pdf" })],
+          [new Blob([pdfBytes as unknown as BlobPart], { type: "application/pdf" })],
           `multi-page-${Date.now()}.pdf`,
           { type: "application/pdf" },
         );

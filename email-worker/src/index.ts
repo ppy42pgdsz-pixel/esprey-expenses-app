@@ -8,6 +8,7 @@
 
 import PostalMime from "postal-mime";
 import { extractReceipt } from "./anthropic";
+import { stampFxDate } from "./fx";
 import {
   extFromMime,
   newId,
@@ -214,8 +215,8 @@ async function streamToUint8Array(
 async function processAttachment(
   env: Env,
   att: {
-    filename?: string;
-    mimeType?: string;
+    filename?: string | null; // postal-mime uses null for missing filenames
+    mimeType?: string | null;
     content: ArrayBuffer | Uint8Array | string;
   },
   sourceMeta: string,
@@ -290,6 +291,10 @@ async function processAttachment(
       userEmail,
     )
     .run();
+
+  // Stamp the capture-day FX table (best-effort) so reports convert at
+  // capture-time rates.
+  await stampFxDate(env.DB, id, userEmail);
 }
 
 async function processBody(
@@ -364,4 +369,6 @@ async function processBody(
       userEmail,
     )
     .run();
+
+  await stampFxDate(env.DB, id, userEmail);
 }

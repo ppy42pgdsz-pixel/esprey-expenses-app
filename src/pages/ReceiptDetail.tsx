@@ -6,6 +6,7 @@ import { parseAttendees } from "../lib/types";
 import CompanyPicker from "../components/CompanyPicker";
 import PeoplePicker from "../components/PeoplePicker";
 import CurrencyPicker, { type Currency } from "../components/CurrencyPicker";
+import { billFromTotal, minorToAmount, toMinor, totalWithTipPct } from "../../shared/money";
 
 export default function ReceiptDetail() {
   const { id = "" } = useParams();
@@ -58,18 +59,18 @@ export default function ReceiptDetail() {
       // Amount input displays the BILL (what's on the receipt). The saved
       // `amount` column stores the TOTAL (bill + tip). Derive the bill back
       // out depending on which kind of tip was saved.
-      const savedTotal = parseFloat(rec.amount ?? "");
-      const customTipNum = rec.tip_amount ? parseFloat(rec.tip_amount) : NaN;
-      if (isFinite(customTipNum) && customTipNum > 0 && isFinite(savedTotal)) {
+      const savedTotalM = toMinor(rec.amount);
+      const customTipM = rec.tip_amount ? toMinor(rec.tip_amount) : null;
+      if (customTipM !== null && customTipM > 0 && savedTotalM !== null) {
         // Custom tip mode.
-        setAmount((savedTotal - customTipNum).toFixed(2));
+        setAmount(minorToAmount(savedTotalM - customTipM));
         setTipMode("custom");
         setTipPct(0);
-        setTipCustomAmount(customTipNum.toFixed(2));
+        setTipCustomAmount(minorToAmount(customTipM));
       } else {
         const savedTip = normalizeTipPct(rec.tip_pct ?? 0);
-        if (savedTip > 0 && isFinite(savedTotal) && savedTotal > 0) {
-          setAmount((savedTotal / (1 + savedTip / 100)).toFixed(2));
+        if (savedTip > 0 && savedTotalM !== null && savedTotalM > 0) {
+          setAmount(minorToAmount(billFromTotal(savedTotalM, savedTip)));
         } else {
           setAmount(rec.amount ?? "");
         }
@@ -101,8 +102,8 @@ export default function ReceiptDetail() {
     // Amount must be a positive number — letters or empty are rejected before
     // hitting the server (the server saves "0" otherwise, which fouls reports).
     if (amount) {
-      const n = parseFloat(amount);
-      if (isNaN(n) || n <= 0) {
+      const n = toMinor(amount);
+      if (n === null || n <= 0) {
         setErr("Amount must be a positive number (e.g. 12.50). Letters aren't allowed.");
         return;
       }
@@ -117,21 +118,21 @@ export default function ReceiptDetail() {
     }
     // Saved amount = bill + tip. The bill is in the `amount` input; the
     // tip is either a preset % or a custom decimal.
-    const billNum = parseFloat(amount);
-    const customTipNum = parseFloat(tipCustomAmount);
+    const billM = toMinor(amount);
+    const customTipM = toMinor(tipCustomAmount);
     let totalToSave: string | null;
     let tipPctToSave = 0;
     let tipAmountToSave: string | null = null;
-    if (isFinite(billNum) && billNum > 0) {
-      if (tipMode === "custom" && isFinite(customTipNum) && customTipNum > 0) {
-        totalToSave = (billNum + customTipNum).toFixed(2);
-        tipAmountToSave = customTipNum.toFixed(2);
+    if (billM !== null && billM > 0) {
+      if (tipMode === "custom" && customTipM !== null && customTipM > 0) {
+        totalToSave = minorToAmount(billM + customTipM);
+        tipAmountToSave = minorToAmount(customTipM);
         tipPctToSave = 0;
       } else if (tipMode === "pct" && tipPct > 0) {
-        totalToSave = (billNum * (1 + tipPct / 100)).toFixed(2);
+        totalToSave = minorToAmount(totalWithTipPct(billM, tipPct));
         tipPctToSave = tipPct;
       } else {
-        totalToSave = billNum.toFixed(2);
+        totalToSave = minorToAmount(billM);
       }
     } else {
       totalToSave = amount || null;
@@ -329,9 +330,9 @@ export default function ReceiptDetail() {
                     setTipMode("custom");
                     // Seed custom input with the current % tip value if any.
                     if (!tipCustomAmount) {
-                      const billNum = parseFloat(amount);
-                      if (isFinite(billNum) && billNum > 0 && tipPct > 0) {
-                        setTipCustomAmount((billNum * tipPct / 100).toFixed(2));
+                      const billM = toMinor(amount);
+                      if (billM !== null && billM > 0 && tipPct > 0) {
+                        setTipCustomAmount(minorToAmount(Math.round((billM * tipPct) / 100)));
                       }
                     }
                   } else {
@@ -365,30 +366,30 @@ export default function ReceiptDetail() {
               )}
 
               {(() => {
-                const bill = parseFloat(amount);
-                if (!isFinite(bill) || bill <= 0) {
+                const billM = toMinor(amount);
+                if (billM === null || billM <= 0) {
                   return (
                     <div className="hint small" style={{ marginTop: 6 }}>
                       Bill amount goes in the Amount box above. Total saved to the report = Bill + tip.
                     </div>
                   );
                 }
-                let tipValue: number;
+                let tipM: number;
                 let tipLabel: string;
                 if (tipMode === "custom") {
-                  tipValue = parseFloat(tipCustomAmount);
-                  if (!isFinite(tipValue) || tipValue < 0) tipValue = 0;
+                  const t = toMinor(tipCustomAmount);
+                  tipM = t !== null && t > 0 ? t : 0;
                   tipLabel = "Tip (custom)";
                 } else {
-                  tipValue = bill * tipPct / 100;
+                  tipM = Math.round((billM * tipPct) / 100);
                   tipLabel = `Tip (${tipPct}%)`;
                 }
-                const total = bill + tipValue;
+                const totalM = billM + tipM;
                 return (
                   <div className="tip-breakdown" style={{ marginTop: 6 }}>
-                    <div><span>Bill (from receipt):</span> <strong>{bill.toFixed(2)}</strong></div>
-                    <div><span>{tipLabel}:</span> <strong>{tipValue.toFixed(2)}</strong></div>
-                    <div className="tip-total"><span>Total (saved to report):</span> <strong>{total.toFixed(2)}</strong></div>
+                    <div><span>Bill (from receipt):</span> <strong>{minorToAmount(billM)}</strong></div>
+                    <div><span>{tipLabel}:</span> <strong>{minorToAmount(tipM)}</strong></div>
+                    <div className="tip-total"><span>Total (saved to report):</span> <strong>{minorToAmount(totalM)}</strong></div>
                   </div>
                 );
               })()}
@@ -575,10 +576,10 @@ function parseOcrFromRaw(raw: string | null): OcrRawExtracted | null {
   } catch { return null; }
 }
 function fieldDiffersAmount(cur: string, ocr: string): boolean {
-  const a = parseFloat(cur);
-  const b = parseFloat(ocr);
-  if (!isFinite(a) || !isFinite(b)) return false;
-  return Math.abs(a - b) > 0.01;
+  const a = toMinor(cur);
+  const b = toMinor(ocr);
+  if (a === null || b === null) return false;
+  return Math.abs(a - b) > 1; // more than a penny apart
 }
 function fieldDiffersText(cur: string, ocr: string): boolean {
   return (cur ?? "").trim().toUpperCase() !== (ocr ?? "").trim().toUpperCase();
@@ -610,16 +611,16 @@ function IssuesBanner({
   // include siblings even if THEY have been acknowledged, because the user
   // viewing this receipt still needs to see the matches before deciding.
   const vendor = (receipt.vendor ?? "").trim().toLowerCase();
-  const amt = parseFloat(receipt.amount ?? "");
+  const amtM = toMinor(receipt.amount);
   const date = receipt.receipt_date ?? "";
-  const haveKey = !!vendor && isFinite(amt) && amt > 0 && !!date;
+  const haveKey = !!vendor && amtM !== null && amtM > 0 && !!date;
   const dupeSiblings: Receipt[] = haveKey
     ? allReceipts.filter((r) => {
         if (r.id === receipt.id) return false;
         const v = (r.vendor ?? "").trim().toLowerCase();
-        const a = parseFloat(r.amount ?? "");
+        const a = toMinor(r.amount);
         const d = r.receipt_date ?? "";
-        return v === vendor && isFinite(a) && Math.abs(a - amt) < 0.005 && d === date;
+        return v === vendor && a !== null && a === amtM && d === date;
       })
     : [];
   // Only flag the duplicate issue on THIS receipt if the user hasn't already
@@ -630,7 +631,7 @@ function IssuesBanner({
   // No usable amount — OCR ran (not pending) but amount is missing/zero.
   // Matches the failedIds heuristic in Dashboard.
   const ocrDone = receipt.ocr_status !== "pending";
-  const noAmount = ocrDone && (!isFinite(amt) || amt <= 0);
+  const noAmount = ocrDone && (amtM === null || amtM <= 0);
 
   // OCR call itself errored out.
   const ocrFailed = receipt.ocr_status === "failed";

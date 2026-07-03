@@ -16,6 +16,7 @@ import {
   degrees,
 } from "pdf-lib";
 import type { BankDetails, BillFrom, ReceiptRow } from "./types";
+import { toMinor } from "../../shared/money";
 import { convert, type FxRates } from "./fx";
 
 export interface BilledToCompany {
@@ -47,7 +48,9 @@ export async function buildMonthlyReport(opts: {
   companyName: string | null;  // null = "All companies"
   billedToCompany?: BilledToCompany | null;
   currencyFilter: string | null;
-  fxRates?: FxRates | null;    // set when currencyFilter is non-null
+  fxRates?: FxRates | null;    // set when currencyFilter is non-null (report-time fallback table)
+  /** Per-receipt capture-day rate table. Falls back to fxRates when null/absent. */
+  fxRatesFor?: (r: ReceiptRow) => FxRates | null;
   fxError?: string | null;
   receipts: ReceiptRow[];
   billFrom: BillFrom;
@@ -204,6 +207,7 @@ function drawInvoice(
     billedToCompany?: BilledToCompany | null;
     currencyFilter: string | null;
     fxRates?: FxRates | null;
+    fxRatesFor?: (r: ReceiptRow) => FxRates | null;
     fxError?: string | null;
     receipts: ReceiptRow[];
     billFrom: BillFrom;
@@ -363,7 +367,7 @@ function drawInvoice(
       page = pdf.addPage(PageSizes.A4);
       y = PAGE_H - MARGIN;
       // Continuation header
-      page.drawText(billTo, { x: MARGIN, y, size: 12, font: fonts.bold, color: rgb(0.3, 0.3, 0.3) });
+      page.drawText(billToTitle, { x: MARGIN, y, size: 12, font: fonts.bold, color: rgb(0.3, 0.3, 0.3) });
       drawRight(page, `Period: ${opts.monthLabel}  (continued)`, PAGE_W - MARGIN, y, 9, fonts.reg, rgb(0.4, 0.4, 0.4));
       y -= 24;
       drawTableHeader(page, y);
@@ -411,8 +415,9 @@ function drawInvoice(
         }
         const code = (r.currency ?? "").toUpperCase().slice(0, 4);
         page.drawText(code, { x: (cols as any).code, y, size: 10, font: fonts.reg, color: rgb(0.35, 0.35, 0.35) });
-        const converted = isFinite(origAmt)
-          ? convert(origAmt, code, targetCur, opts.fxRates!)
+        const rowRates = opts.fxRatesFor?.(r) ?? opts.fxRates ?? null;
+        const converted = isFinite(origAmt) && rowRates
+          ? convert(origAmt, code, targetCur, rowRates)
           : null;
         if (converted !== null) {
           drawRight(page, fmtMoney(converted), cols.conv, y, 10, fonts.reg);
@@ -445,16 +450,22 @@ function drawInvoice(
   const totalLineRightX = PAGE_W - MARGIN;
 
   if (useFx) {
-    // Converted totals in target currency.
-    let convertedTotal = 0;
+    // Converted totals in target currency. Each converted line item is
+    // rounded to the penny BEFORE summing (integer minor units — no drift,
+    // and the total matches the sum of the printed per-row figures).
+    let convertedTotalMinor = 0;
     let unconvertibleCount = 0;
     for (const r of opts.receipts) {
-      const amt = parseFloat((r.amount ?? "").replace(",", "."));
-      if (!isFinite(amt)) continue;
-      const v = convert(amt, (r.currency ?? "").toUpperCase(), targetCur, opts.fxRates!);
+      const amtM = toMinor(r.amount);
+      if (amtM === null) continue;
+      const rowRates = opts.fxRatesFor?.(r) ?? opts.fxRates ?? null;
+      const v = rowRates
+        ? convert(amtM / 100, (r.currency ?? "").toUpperCase(), targetCur, rowRates)
+        : null;
       if (v === null) unconvertibleCount++;
-      else convertedTotal += v;
+      else convertedTotalMinor += Math.round(v * 100);
     }
+    const convertedTotal = convertedTotalMinor / 100;
     // Subtotal & Tax rows (no rule above; matches Carl's invoice template).
     page.drawText("Subtotal", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
     drawRight(page, `${targetCur} ${fmtMoney(convertedTotal)}`, totalLineRightX, y, 10, fonts.reg);
@@ -477,7 +488,9 @@ function drawInvoice(
       y -= LINE;
     }
     // Rates source line, so accountants can verify.
-    const rateNote = `Exchange rates: ${opts.fxRates!.source} · as of ${opts.fxRates!.date}`;
+    const rateNote = opts.fxRatesFor
+      ? `Exchange rates: ${opts.fxRates!.source} · locked at each receipt's capture date (older receipts: as of ${opts.fxRates!.date})`
+      : `Exchange rates: ${opts.fxRates!.source} · as of ${opts.fxRates!.date}`;
     page.drawText(rateNote, { x: MARGIN, y, size: 8, font: fonts.reg, color: rgb(0.5, 0.5, 0.5) });
     y -= LINE;
   } else if (opts.fxError) {
@@ -767,13 +780,16 @@ function formatAmount(r: ReceiptRow): string {
 }
 
 function sumByCurrency(rs: ReceiptRow[]): Map<string, number> {
-  const m = new Map<string, number>();
+  // Accumulate in integer minor units; convert to display units at the end.
+  const minor = new Map<string, number>();
   for (const r of rs) {
     const cur = (r.currency ?? "").trim();
-    const amt = parseFloat((r.amount ?? "").replace(",", "."));
-    if (!isFinite(amt)) continue;
-    m.set(cur, (m.get(cur) ?? 0) + amt);
+    const amtM = toMinor(r.amount);
+    if (amtM === null) continue;
+    minor.set(cur, (minor.get(cur) ?? 0) + amtM);
   }
+  const m = new Map<string, number>();
+  for (const [cur, v] of minor) m.set(cur, v / 100);
   return m;
 }
 

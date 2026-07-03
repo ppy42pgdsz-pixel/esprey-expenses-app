@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "wrangler pages deploy dist",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "deploy": "npm run check && npm run test && npm run build && wrangler pages deploy dist",
     "db:create": "wrangler d1 create esprey-expenses",
     "db:migrate:local": "wrangler d1 execute esprey-expenses --local --file=./schema.sql",
     "db:migrate:remote": "wrangler d1 execute esprey-expenses --remote --file=./schema.sql"
@@ -26,6 +28,7 @@
     "@vitejs/plugin-react": "^4.3.2",
     "typescript": "^5.6.2",
     "vite": "^5.4.8",
+    "vitest": "^4.1.9",
     "wrangler": "^3.78.10"
   }
 }

@@ -8,7 +8,7 @@ import { jsonError } from "../../_lib/types";
 import type { CompanyRow } from "../companies";
 import { buildMonthlyReport } from "../../_lib/pdf";
 import { sendReportEmail } from "../../_lib/resend";
-import { fetchLatestRates, type FxRates } from "../../_lib/fx";
+import { fetchLatestRates, getRatesForDate, type FxRates } from "../../_lib/fx";
 import { htmlToPdf } from "../../_lib/pdfshift";
 import { buildReceiptZip } from "../../_lib/zip";
 import type { UserProfileRow } from "../user";
@@ -44,8 +44,16 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
   ];
   const args: unknown[] = [guard.userEmail, startISO, endISO, startMs, endMs];
   if (company) { where.push(`company = ?`); args.push(company); }
-  const sql = `SELECT * FROM receipts WHERE ${where.join(" AND ")} ORDER BY receipt_date, uploaded_at`;
-  const { results } = await env.DB.prepare(sql).bind(...args).all<ReceiptRow>();
+  // Soft-deleted receipts never appear in reports. Defensive fallback for the
+  // deploy → migration window (deleted_at column may not exist yet).
+  let results: ReceiptRow[] | undefined;
+  try {
+    const sql = `SELECT * FROM receipts WHERE ${[...where, `deleted_at IS NULL`].join(" AND ")} ORDER BY receipt_date, uploaded_at`;
+    ({ results } = await env.DB.prepare(sql).bind(...args).all<ReceiptRow>());
+  } catch {
+    const sql = `SELECT * FROM receipts WHERE ${where.join(" AND ")} ORDER BY receipt_date, uploaded_at`;
+    ({ results } = await env.DB.prepare(sql).bind(...args).all<ReceiptRow>());
+  }
   const receipts = results ?? [];
 
   // Filename + R2 key (namespaced by user — reports/<user_slug>/<month>__<slug>.pdf).
@@ -69,6 +77,28 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
   if (currency) {
     try { fxRates = await fetchLatestRates(); }
     catch (e) { fxError = (e as Error).message; }
+  }
+
+  // Capture-day rate tables (migration 0011): receipts stamped with
+  // fx_rate_date convert at the rates cached the day they were captured, so
+  // regenerating an old report never changes its numbers. Unstamped (older)
+  // rows fall back to the live table above.
+  const ratesByDate = new Map<string, FxRates>();
+  if (currency) {
+    const dates = [...new Set(
+      receipts.map((r) => r.fx_rate_date).filter((d): d is string => !!d)
+    )];
+    for (const d of dates) {
+      const t = await getRatesForDate(env.DB, d);
+      if (t) ratesByDate.set(d, t);
+    }
+    // If the live fetch failed but we do have snapshots, use the newest
+    // snapshot as the fallback table rather than failing FX entirely.
+    if (!fxRates && ratesByDate.size > 0) {
+      const newest = [...ratesByDate.keys()].sort().pop()!;
+      fxRates = ratesByDate.get(newest)!;
+      fxError = null;
+    }
   }
 
   // If a specific company was selected, pull its full record (full name + address)
@@ -152,6 +182,9 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
     billedToCompany,
     currencyFilter: currency,
     fxRates,
+    fxRatesFor: ratesByDate.size > 0
+      ? (r) => (r.fx_rate_date && ratesByDate.get(r.fx_rate_date)) || fxRates
+      : undefined,
     fxError,
     receipts,
     billFrom: {

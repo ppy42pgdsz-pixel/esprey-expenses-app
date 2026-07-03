@@ -179,10 +179,22 @@ export const onRequestDelete: PagesFunction<Env, "id", any> = async ({ request, 
     .first<{ r2_key: string; thumb_r2_key: string | null }>();
   if (!row) return jsonError(404, "not found");
 
-  await env.RECEIPTS.delete(row.r2_key);
-  if (row.thumb_r2_key) await env.RECEIPTS.delete(row.thumb_r2_key);
-  await env.DB.prepare(
-    `DELETE FROM receipts WHERE id = ? AND user_email = ?`
-  ).bind(id, guard.userEmail).run();
-  return Response.json({ deleted: id });
+  // Soft delete: stamp deleted_at and keep the row + R2 objects. The receipt
+  // disappears from lists/reports, sits in Trash for 30 days (restorable),
+  // then gets purged for real by the trash endpoint's lazy sweep.
+  try {
+    await env.DB.prepare(
+      `UPDATE receipts SET deleted_at = ? WHERE id = ? AND user_email = ?`
+    ).bind(Date.now(), id, guard.userEmail).run();
+    return Response.json({ deleted: id, soft: true });
+  } catch {
+    // deleted_at column not deployed yet (pre-0012 window) — fall back to the
+    // old hard delete so the button still works.
+    await env.RECEIPTS.delete(row.r2_key);
+    if (row.thumb_r2_key) await env.RECEIPTS.delete(row.thumb_r2_key);
+    await env.DB.prepare(
+      `DELETE FROM receipts WHERE id = ? AND user_email = ?`
+    ).bind(id, guard.userEmail).run();
+    return Response.json({ deleted: id, soft: false });
+  }
 };

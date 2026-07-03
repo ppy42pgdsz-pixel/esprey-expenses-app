@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api, companyColor, formatAmount, formatDate, imageUrl } from "../lib/api";
 import type { Receipt } from "../lib/types";
 import { parseAttendees } from "../lib/types";
+import { billFromTotal, minorToAmount, toMinor } from "../../shared/money";
 
 type SortKey = "date" | "vendor" | "amount" | "currency" | "category" | "company";
 type SortDir = "asc" | "desc";
@@ -103,10 +104,10 @@ export default function Dashboard() {
     for (const r of receipts) {
       if (r.duplicate_acknowledged === 1) continue;
       const vendor = (r.vendor ?? "").trim().toLowerCase();
-      const amt = parseFloat(r.amount ?? "");
+      const amtM = toMinor(r.amount);
       const date = r.receipt_date ?? "";
-      if (!vendor || !isFinite(amt) || amt <= 0 || !date) continue;
-      const key = `${vendor}|${amt.toFixed(2)}|${date}`;
+      if (!vendor || amtM === null || amtM <= 0 || !date) continue;
+      const key = `${vendor}|${amtM}|${date}`;
       const arr = groups.get(key) ?? [];
       arr.push(r.id);
       groups.set(key, arr);
@@ -153,8 +154,8 @@ export default function Dashboard() {
         .filter((r) => {
           if (r.ocr_status === "pending") return false;
           if (r.ocr_status === "failed") return true;
-          const amt = parseFloat(r.amount ?? "");
-          if (!isFinite(amt) || amt <= 0) return true;
+          const amtM = toMinor(r.amount);
+          if (amtM === null || amtM <= 0) return true;
           return false;
         })
         .map((r) => r.id)
@@ -760,14 +761,14 @@ function formatRange(start: string, end: string): string {
 // printed on the receipt itself). OCR reads the bill, not the tipped total.
 // Tip can be either an absolute custom amount OR a percentage.
 function getBillAmount(r: Receipt): string {
-  const total = parseFloat(r.amount ?? "");
-  if (!isFinite(total)) return r.amount ?? "";
-  const customTip = parseFloat(r.tip_amount ?? "");
-  if (isFinite(customTip) && customTip > 0) {
-    return (total - customTip).toFixed(2);
+  const totalM = toMinor(r.amount);
+  if (totalM === null) return r.amount ?? "";
+  const customTipM = toMinor(r.tip_amount);
+  if (customTipM !== null && customTipM > 0) {
+    return minorToAmount(totalM - customTipM);
   }
   const tip = r.tip_pct ?? 0;
-  if (tip > 0) return (total / (1 + tip / 100)).toFixed(2);
+  if (tip > 0) return minorToAmount(billFromTotal(totalM, tip));
   return r.amount ?? "";
 }
 
@@ -793,10 +794,10 @@ function fieldDiffers(current: string | null | undefined, ocr: string | null, ki
   const ext = ocr.trim();
   if (!ext) return false;
   if (kind === "amount") {
-    const a = parseFloat(cur);
-    const b = parseFloat(ext);
-    if (!isFinite(a) || !isFinite(b)) return false;
-    return Math.abs(a - b) > 0.01;
+    const a = toMinor(cur);
+    const b = toMinor(ext);
+    if (a === null || b === null) return false;
+    return Math.abs(a - b) > 1; // more than a penny apart
   }
   if (kind === "currency") return cur.toUpperCase() !== ext.toUpperCase();
   if (kind === "date")     return cur !== ext;
