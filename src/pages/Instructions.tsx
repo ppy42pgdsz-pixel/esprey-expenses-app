@@ -10,13 +10,18 @@ import { getLang, t } from "../../shared/i18n";
 export default function Instructions() {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<Set<number>>(new Set());
-  const fr = getLang() === "fr";
+  const lang = getLang();
 
   // Language-aware view of the FAQ; search matches both languages so a user
   // can find "duplicate" or "doublon" regardless of their setting.
   const items = useMemo(
-    () => FAQ.map((f, i) => ({ i, q: fr ? f.q_fr : f.q, a: fr ? f.a_fr : f.a, all: `${f.q} ${f.a} ${f.q_fr} ${f.a_fr} ${f.keywords ?? ""}`.toLowerCase() })),
-    [fr]
+    () => FAQ.map((f, i) => ({
+      i,
+      q: lang === "fr" ? f.q_fr : lang === "pt" ? f.q_pt : f.q,
+      a: lang === "fr" ? f.a_fr : lang === "pt" ? f.a_pt : f.a,
+      all: `${f.q} ${f.a} ${f.q_fr} ${f.a_fr} ${f.q_pt} ${f.a_pt} ${f.keywords ?? ""}`.toLowerCase(),
+    })),
+    [lang]
   );
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();

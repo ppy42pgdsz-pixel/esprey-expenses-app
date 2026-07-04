@@ -97,7 +97,7 @@ export default function UserSettings() {
           </div>
 
           <section className="settings-section">
-            <h2>{t("Language")} / Langue</h2>
+            <h2>{t("Language")} / Langue / Idioma</h2>
             <label className="field">
               <span className="label">{t("App language")}</span>
               <select
@@ -111,8 +111,7 @@ export default function UserSettings() {
               </select>
             </label>
             <div className="hint small">
-              Receipt descriptions are also written in this language. / Les descriptions des reçus
-              seront aussi rédigées dans cette langue.
+              {t("Receipt descriptions are also written in this language.")}
             </div>
             <div style={{ marginTop: 8 }}>
               <button

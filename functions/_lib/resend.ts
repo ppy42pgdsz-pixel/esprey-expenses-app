@@ -53,21 +53,26 @@ export async function sendWelcomeEmail(opts: {
   displayName?: string | null;
   addedByName?: string | null;
   appUrl: string;
-  language?: "en" | "fr" | "pt"; // pt falls back to the English body for now
+  language?: "en" | "fr" | "pt";
 }): Promise<{ id: string }> {
   const appUrl = opts.appUrl.replace(/\/$/, "") + "/";
   const helpUrl = opts.appUrl.replace(/\/$/, "") + "/instructions";
-  const fr = opts.language === "fr";
+  const lang = opts.language === "fr" ? "fr" : opts.language === "pt" ? "pt" : "en";
   const firstName = opts.displayName ? opts.displayName.split(" ")[0] : null;
+
+  const SUBJECTS = {
+    en: "You've been added to Esprey Expenses",
+    fr: "Vous avez été ajouté à Esprey Expenses",
+    pt: "Foi adicionado ao Esprey Expenses",
+  } as const;
+  const BODIES = { en: welcomeEn, fr: welcomeFr, pt: welcomePt } as const;
 
   const body: Record<string, unknown> = {
     from: `Esprey Expenses <${opts.fromAddress}>`,
     to: [opts.toAddress],
-    subject: fr ? "Vous avez été ajouté à Esprey Expenses" : "You've been added to Esprey Expenses",
+    subject: SUBJECTS[lang],
     ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
-    text: fr
-      ? welcomeFr(firstName, opts.addedByName ?? null, appUrl, helpUrl)
-      : welcomeEn(firstName, opts.addedByName ?? null, appUrl, helpUrl),
+    text: BODIES[lang](firstName, opts.addedByName ?? null, appUrl, helpUrl),
   };
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -319,6 +324,121 @@ AIDE
 
 Aide & FAQ dans l'application (consultable, avec boîte à questions) : ${helpUrl}
 Pour tout le reste : répondez simplement à cet e-mail.
+
+— Esprey Expenses
+`;
+}
+
+
+function welcomePt(firstName: string | null, addedBy: string | null, appUrl: string, helpUrl: string): string {
+  const greeting = firstName ? `Olá ${firstName},` : "Olá,";
+  const inviter = addedBy ? ` por ${addedBy}` : "";
+  return `${greeting}
+
+Foi adicionado${inviter} ao Esprey Expenses, a aplicação que usamos para registar despesas profissionais e produzir as notas de despesas mensais a reembolsar.
+
+Guarde este e-mail como referência. Tudo o que se segue (e mais) está também na aplicação: toque no «?» no ecrã inicial para a Ajuda e FAQ pesquisável, onde também pode simplesmente fazer uma pergunta:
+${helpUrl}
+
+────────────────────────────
+INICIAR SESSÃO
+────────────────────────────
+
+Abra este endereço em qualquer navegador (telemóvel, tablet, computador):
+${appUrl}
+
+Na primeira vez, a Cloudflare envia-lhe por e-mail um código único de 6 dígitos. Introduza-o e está feito. As sessões duram 24 horas; depois recebe um novo código.
+
+Adicione a aplicação ao ecrã principal para abrir como uma aplicação nativa:
+  • iPhone (Safari): toque em Partilhar → «Adicionar ao ecrã principal»
+  • Android (Chrome): menu ⋮ → «Instalar aplicação»
+
+────────────────────────────
+O QUE É PRIVADO
+────────────────────────────
+
+Os seus recibos, os seus relatórios mensais, o seu perfil e dados bancários, e a sua lista privada de «pessoas» são SÓ SEUS. O administrador não vê nenhum destes elementos.
+
+Partilhado por toda a equipa (gerido pelo administrador; vê o que lhe for atribuído): as empresas faturáveis, as categorias (e os seus limites de despesa) e as moedas.
+
+────────────────────────────
+PASSO 1: CONFIGURE O SEU PERFIL
+────────────────────────────
+
+Vá a Definições → O meu perfil e preencha:
+  • O seu idioma — português, francês ou inglês. Toda a aplicação, e as descrições de recibos escritas pela IA, seguem-no.
+  • O seu nome completo (e nome da empresa, se faturar através de uma)
+  • Morada, número de IVA (se aplicável), telefone
+  • Dados bancários — texto livre; cole o que o seu banco exigir.
+
+Estes dados aparecem no topo de cada nota de despesas que gerar, para que o pagador saiba a quem pagar e como.
+
+────────────────────────────
+PASSO 2: TRÊS FORMAS DE ADICIONAR UM RECIBO
+────────────────────────────
+
+1) FOTO — Toque em «+ Foto» e fotografe o recibo. Fornecedor, montante, data e moeda são lidos automaticamente; confirme, etiquete, guarde.
+   Fatura com várias páginas? Depois da primeira foto, toque em «+ Adicionar página» — todas as páginas são combinadas num único recibo PDF.
+
+2) REENCAMINHAR UM E-MAIL — Envie qualquer recibo para receipts@esprey.net. Confirmações da Uber, faturas PDF, fotos, e-mails de texto: tudo funciona. IMPORTANTE: envie a partir DESTE endereço (ou de um alias registado — ver abaixo). Remetentes desconhecidos recebem uma rejeição.
+
+3) REGISTO MANUAL — Toque em «+ Manual» para dinheiro sem recibo; o montante é obrigatório.
+
+Recibos acumulados? «+ Foto» → «Escolher foto(s) ou PDF dos ficheiros» permite selecionar vários de uma vez — cada um torna-se um recibo distinto.
+
+────────────────────────────
+INDIQUE QUEM ESTAVA CONSIGO
+────────────────────────────
+
+Em qualquer recibo, use «Pessoas presentes» para registar quem estava (jantar com cliente, táxi partilhado). A sua lista é privada, os favoritos sobem ao topo — e os nomes aparecem junto à despesa no relatório mensal. Vale a pena fazê-lo em todas as refeições.
+
+────────────────────────────
+GORJETAS EM RESTAURANTES / TÁXIS
+────────────────────────────
+
+Nos recibos de refeições ou táxi aparece um campo Gorjeta: ponha o valor da CONTA (como impresso) em Montante, escolha uma % ou um valor personalizado, e a aplicação guarda Conta + Gorjeta = Total. Os seus registos correspondem ao que pagou realmente, com a conta impressa preservada para auditoria.
+
+────────────────────────────
+LIMITES DE DESPESA
+────────────────────────────
+
+Algumas categorias têm um limite por recibo definido pelo administrador. Se o ultrapassar, o recibo é sinalizado — pode mesmo assim submetê-lo: toque em Confirmar no recibo para registar que sabe. Nada é bloqueado nem escondido; fica apenas registado.
+
+────────────────────────────
+GERAR O RELATÓRIO MENSAL
+────────────────────────────
+
+No fim do mês, abra Relatórios:
+  1. Escolha o mês (por omissão o mês passado), opcionalmente uma empresa, opcionalmente uma moeda de destino (convertida à taxa do dia de captura de cada recibo)
+  2. Escolha o idioma do relatório — independente do idioma da aplicação: pode trabalhar em português e entregar um PDF em inglês ao contabilista. Os nomes dos estabelecimentos permanecem sempre exatamente como impressos.
+  3. Toque em Gerar e depois: Abrir o PDF, Transferir o PDF, ou Enviar o PDF por e-mail. Um ZIP com os ficheiros originais também está disponível.
+
+Nada é enviado por e-mail sem que toque num botão de envio.
+
+────────────────────────────
+O BOTÃO «ANOMALIAS»
+────────────────────────────
+
+O contador Anomalias no painel fica vermelho quando há recibos a precisar de atenção: foto ilegível, montante em falta, possível duplicado, valores editados diferentes do recibo, ou limite de despesa ultrapassado. Abra cada um — a faixa explica exatamente porquê e o que fazer.
+
+────────────────────────────
+ELIMINOU ALGO POR ENGANO?
+────────────────────────────
+
+Um recibo eliminado vai para Definições → Lixo durante 30 dias. Restaure-o a partir daí; após 30 dias desaparece definitivamente.
+
+────────────────────────────
+VÁRIOS ENDEREÇOS DE E-MAIL?
+────────────────────────────
+
+Se puder reencaminhar recibos de mais de um endereço (profissional + pessoal), responda a este e-mail com os outros endereços. Serão registados como alias — os recibos chegam à mesma conta e o início de sessão funciona a partir de qualquer um.
+
+────────────────────────────
+AJUDA
+────────────────────────────
+
+Ajuda e FAQ na aplicação (pesquisável, com caixa de perguntas): ${helpUrl}
+Para tudo o resto: responda simplesmente a este e-mail.
 
 — Esprey Expenses
 `;

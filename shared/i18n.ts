@@ -244,6 +244,7 @@ const FR: Record<string, string> = {
   "Done — moved to Trash (restorable for 30 days).": "C'est fait — déplacé dans la corbeille (restaurable pendant 30 jours).",
   "Okay — cancelled, nothing was deleted.": "D'accord — annulé, rien n'a été supprimé.",
   "Smart AI": "Smart AI",
+  "Receipt descriptions are also written in this language.": "Les descriptions des reçus seront aussi rédigées dans cette langue.",
 };
 
 
@@ -461,4 +462,6 @@ const PT: Record<string, string> = {
   "Done — moved to Trash (restorable for 30 days).": "Feito — movido para o Lixo (restaurável durante 30 dias).",
   "Okay — cancelled, nothing was deleted.": "Certo — cancelado, nada foi eliminado.",
   "Smart AI": "Smart AI",
+
+  "Receipt descriptions are also written in this language.": "As descrições dos recibos também serão escritas neste idioma.",
 };
