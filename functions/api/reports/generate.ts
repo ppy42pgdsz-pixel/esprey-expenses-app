@@ -32,7 +32,7 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
   const currency = (body.currency ?? "").trim().toUpperCase() || null;
   // Report output language (#49). Independent of the user's app language:
   // a French-speaking user can generate an English report and vice versa.
-  const language: AppLanguage = body.language === "fr" ? "fr" : "en";
+  const language: AppLanguage = body.language === "fr" ? "fr" : body.language === "pt" ? "pt" : "en";
 
   const { startMs, endMs, label: monthLabel } = monthBoundsUTC(month, language);
   const startISO = monthFirstDay(month);
@@ -286,11 +286,11 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
 };
 
 /* ---- helpers ---- */
-function monthBoundsUTC(month: string, language: "en" | "fr" = "en"): { startMs: number; endMs: number; label: string } {
+function monthBoundsUTC(month: string, language: "en" | "fr" | "pt" = "en"): { startMs: number; endMs: number; label: string } {
   const [y, m] = month.split("-").map(Number);
   const start = Date.UTC(y, m - 1, 1, 0, 0, 0, 0);
   const end = Date.UTC(y, m, 1, 0, 0, 0, 0);
-  const locale = language === "fr" ? "fr-FR" : "en-GB";
+  const locale = language === "fr" ? "fr-FR" : language === "pt" ? "pt-PT" : "en-GB";
   const label = new Date(start).toLocaleDateString(locale, { month: "long", year: "numeric", timeZone: "UTC" });
   return { startMs: start, endMs: end, label };
 }

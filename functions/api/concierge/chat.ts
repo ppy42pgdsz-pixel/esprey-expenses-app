@@ -145,12 +145,12 @@ const TOOLS = [
 
 /* ---------------- System prompt ---------------- */
 
-function systemPrompt(lang: "en" | "fr", isAdmin: boolean): string {
+function systemPrompt(lang: "en" | "fr" | "pt", isAdmin: boolean): string {
   // Models don't know the current date — inject it, plus the ranges users
   // mean by "this month" / "last month", so relative dates just work.
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  const weekday = now.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", { weekday: "long", timeZone: "UTC" });
+  const weekday = now.toLocaleDateString(lang === "fr" ? "fr-FR" : lang === "pt" ? "pt-PT" : "en-GB", { weekday: "long", timeZone: "UTC" });
   const monthStart = (y: number, m: number) => new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
   const monthEnd = (y: number, m: number) => new Date(Date.UTC(y, m + 1, 0)).toISOString().slice(0, 10);
   const y = now.getUTCFullYear(), m = now.getUTCMonth();
@@ -162,7 +162,7 @@ When the user says "today", "yesterday", "last month" etc., resolve them from th
 
 ${dateBlock}
 
-Language: reply in ${lang === "fr" ? "French" : "English"} unless the user writes in another language — then match them.
+Language: reply in ${lang === "fr" ? "French" : lang === "pt" ? "European Portuguese" : "English"} unless the user writes in another language — then match them.
 
 Hard rules:
 - You only have the tools listed. There are NO tools for team management, company access, spending-limit changes, or other admin actions${isAdmin ? " — even though this user is the admin, those live in Settings by design" : ""}. If asked, say it's done in Settings and briefly say where.

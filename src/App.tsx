@@ -24,7 +24,7 @@ export default function App() {
     (async () => {
       try {
         const { profile } = await api.getUserProfile();
-        const want = profile.language === "fr" ? "fr" : "en";
+        const want = profile.language === "fr" ? "fr" : profile.language === "pt" ? "pt" : "en";
         if (want !== getLang()) {
           setLang(want);
           bump((n) => n + 1);

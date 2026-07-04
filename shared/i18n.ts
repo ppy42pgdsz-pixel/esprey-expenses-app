@@ -4,13 +4,16 @@
 // simply render in English, and adding a language later (e.g. pt-PT) is
 // just another column here.
 
-export type Lang = "en" | "fr";
+export type Lang = "en" | "fr" | "pt";
 
 const STORAGE_KEY = "esprey.lang";
 
+const VALID: Lang[] = ["en", "fr", "pt"];
+
 let current: Lang = (() => {
   try {
-    return localStorage.getItem(STORAGE_KEY) === "fr" ? "fr" : "en";
+    const v = localStorage.getItem(STORAGE_KEY) as Lang | null;
+    return v && VALID.includes(v) ? v : "en";
   } catch {
     return "en";
   }
@@ -22,13 +25,14 @@ export function getLang(): Lang {
 
 /** Set the UI language (persisted per device; synced from the profile on boot). */
 export function setLang(l: Lang) {
-  current = l === "fr" ? "fr" : "en";
+  current = VALID.includes(l) ? l : "en";
   try { localStorage.setItem(STORAGE_KEY, current); } catch { /* ignore */ }
 }
 
 export function t(s: string): string {
   if (current === "en") return s;
-  return FR[s] ?? s;
+  const dict = current === "fr" ? FR : PT;
+  return dict[s] ?? s;
 }
 
 const FR: Record<string, string> = {
@@ -239,5 +243,222 @@ const FR: Record<string, string> = {
   "Confirm delete": "Confirmer la suppression",
   "Done — moved to Trash (restorable for 30 days).": "C'est fait — déplacé dans la corbeille (restaurable pendant 30 jours).",
   "Okay — cancelled, nothing was deleted.": "D'accord — annulé, rien n'a été supprimé.",
+  "Smart AI": "Smart AI",
+};
+
+
+const PT: Record<string, string> = {
+  // ----- Chrome / navigation -----
+  "Expenses": "Despesas",
+  "Settings": "Definições",
+  "Reports": "Relatórios",
+  "Help & FAQ": "Ajuda e FAQ",
+  "← Back": "← Voltar",
+  "Back": "Voltar",
+  "Loading…": "A carregar…",
+  "Open": "Abrir",
+  "Refresh": "Atualizar",
+  "Cancel": "Cancelar",
+  "Delete": "Eliminar",
+  "Save": "Guardar",
+  "Saving…": "A guardar…",
+  "Save & back": "Guardar e voltar",
+  "+ Manual": "+ Manual",
+  "+ Capture": "+ Foto",
+
+  // ----- Dashboard -----
+  "Receipts": "Recibos",
+  "Uncategorized": "Sem categoria",
+  "Issues": "Anomalias",
+  "Filter by company": "Filtrar por empresa",
+  "All companies": "Todas as empresas",
+  "Filter by date range": "Filtrar por período",
+  "All time": "Todo o período",
+  "This week": "Esta semana",
+  "Last week": "Semana passada",
+  "This month": "Este mês",
+  "Last month": "Mês passado",
+  "Last 30 days": "Últimos 30 dias",
+  "Last 90 days": "Últimos 90 dias",
+  "Custom (pick dates)": "Personalizado (escolher datas)",
+  "Pick dates": "Escolher datas",
+  "Custom date range": "Período personalizado",
+  "Edit custom date range": "Editar o período",
+  "From": "De",
+  "To": "Até",
+  "Done": "OK",
+  "Date": "Data",
+  "Vendor": "Fornecedor",
+  "Amount": "Montante",
+  "Currency": "Moeda",
+  "Category": "Categoria",
+  "Company": "Empresa",
+  "Description": "Descrição",
+  "Notes": "Notas",
+  "OCR failed": "Falha na leitura",
+  "Possible duplicate": "Possível duplicado",
+  "No amount": "Montante em falta",
+  "Over category limit": "Acima do limite",
+  "Edited values differ from OCR": "Valores editados ≠ leitura do recibo",
+  "Reassign company…": "Reatribuir empresa…",
+  "Reassign category…": "Reatribuir categoria…",
+  "Capture your first one →": "Fotografe o seu primeiro recibo →",
+
+  // ----- Capture -----
+  "Capture receipt": "Fotografar recibo",
+  "Snap a photo of your receipt — Claude will read it.": "Tire uma foto do recibo — o Claude lê-o automaticamente.",
+  "Add another page": "Adicionar página",
+  "Retake": "Repetir",
+  "Start over": "Recomeçar",
+  "Uploading & reading…": "A enviar e ler…",
+  "Working…": "A processar…",
+  "Reading…": "A ler…",
+  "Multi-page invoice?": "Fatura com várias páginas?",
+  "Bulk upload tip:": "Dica de envio em massa:",
+  "Camera app": "câmara",
+  "PDF file": "Ficheiro PDF",
+  "Claude will read the PDF contents.": "O Claude lerá o conteúdo do PDF.",
+  "No preview available.": "Pré-visualização indisponível.",
+
+  // ----- Manual entry -----
+  "Manual entry": "Registo manual",
+  "Save expense": "Guardar despesa",
+  "Amount *": "Montante *",
+  "What was this for?": "Para que foi isto?",
+  "e.g. Cash taxi, Coffee shop": "ex. Táxi em dinheiro, Café",
+
+  // ----- Receipt detail -----
+  "Receipt": "Recibo",
+  "People present": "Pessoas presentes",
+  "Tip": "Gorjeta",
+  "No tip": "Sem gorjeta",
+  "Custom amount…": "Montante personalizado…",
+  "Tip amount": "Valor da gorjeta",
+  "e.g. 5.00": "ex. 5,00",
+  "Bill (from receipt):": "Conta (no recibo):",
+  "Total (saved to report):": "Total (guardado):",
+  "Why this receipt is flagged": "Porque está este recibo sinalizado",
+  "Acknowledge — this is a separate expense": "Confirmar — é uma despesa distinta",
+  "Acknowledge — I know this is over the limit": "Confirmar — sei que ultrapassa o limite",
+  "Acknowledge override": "Confirmar a alteração",
+
+  // ----- Reports -----
+  "Monthly reports": "Relatórios mensais",
+  "Generate a report": "Gerar um relatório",
+  "Month": "Mês",
+  "Report language": "Idioma do relatório",
+  "All companies (combined PDF)": "Todas as empresas (PDF combinado)",
+  "All currencies": "Todas as moedas",
+  "Generate": "Gerar",
+  "Generating…": "A gerar…",
+  "Open PDF": "Abrir o PDF",
+  "Download PDF": "Transferir o PDF",
+  "Emailing…": "A enviar…",
+  "Personal": "Pessoal",
+  "Open camera": "Abrir a câmara",
+  "Pick photo(s) or PDF from files": "Escolher foto(s) ou PDF dos ficheiros",
+  "Building PDF & uploading…": "A criar o PDF e enviar…",
+  "Save & close": "Guardar e fechar",
+  "Cur": "Moe",
+  "Custom range…": "Período personalizado…",
+  "Descriptions and categories are translated. Establishment names stay exactly as printed on the receipts.": "As descrições e categorias são traduzidas. Os nomes dos estabelecimentos permanecem exatamente como impressos nos recibos.",
+
+  // ----- Settings -----
+  "How this works": "Como funciona",
+  "Searchable answers + ask-a-question box": "Respostas pesquisáveis + caixa de perguntas",
+  "Team": "Equipa",
+  "Manage team members": "Gerir os membros da equipa",
+  "Add or remove people who can sign in": "Adicionar ou remover pessoas",
+  "My profile": "O meu perfil",
+  "Personal details": "Dados pessoais",
+  "Name, address, bank details (used on invoices)": "Nome, morada, dados bancários (para as faturas)",
+  "Edit": "Editar",
+  "Trash": "Lixo",
+  "Deleted receipts appear here for 30 days, then they're gone for good.": "Os recibos eliminados ficam aqui 30 dias e depois desaparecem definitivamente.",
+  "Unknown vendor": "Fornecedor desconhecido",
+  "Restore": "Restaurar",
+  "Restoring…": "A restaurar…",
+  "Companies": "Empresas",
+  "Categories": "Categorias",
+  "People": "Pessoas",
+  "Currencies": "Moedas",
+  "No entries yet.": "Ainda sem entradas.",
+  "+ Add company": "+ Adicionar empresa",
+  "Add a person": "Adicionar pessoa",
+  "Currency name": "Nome da moeda",
+  "New category name": "Nome da nova categoria",
+  "No limit": "Sem limite",
+  "Add": "Adicionar",
+  "+ Add category": "+ Adicionar categoria",
+  "Spending limit is per receipt. Anything over it gets flagged in Issues until the team member acknowledges it.": "O limite de despesa aplica-se por recibo. Qualquer excesso é sinalizado em Anomalias até o membro da equipa o confirmar.",
+  "Categories are managed by the admin. Ask Carl to add a new one if you need it.": "As categorias são geridas pelo administrador. Peça ao Carl para adicionar uma nova se precisar.",
+
+  // ----- My profile -----
+  "App language": "Idioma da aplicação",
+  "Identity": "Identidade",
+  "Address": "Morada",
+  "Payment details": "Dados de pagamento",
+  "Payment instructions": "Instruções de pagamento",
+  "Full name": "Nome completo",
+  "Business name": "Nome da empresa",
+  "Email": "E-mail",
+  "Phone": "Telefone",
+  "Address line 1": "Morada, linha 1",
+  "Address line 2": "Morada, linha 2",
+  "Country": "País",
+  "VAT / Tax number": "Número de IVA",
+  "Your full name": "O seu nome completo",
+  "Street address": "Morada (rua)",
+  "City, region, postcode": "Cidade, região, código postal",
+  "Your country": "O seu país",
+  "Optional": "Opcional",
+  "Translating…": "A traduzir…",
+  "Translate my existing receipt descriptions": "Traduzir as descrições dos meus recibos existentes",
+
+  // ----- Prose, banners, dialogs, errors -----
+  "Language": "Idioma",
+  "Amount must be a positive number (e.g. 12.50). Letters aren't allowed.": "O montante deve ser um número positivo (ex. 12,50). Não são permitidas letras.",
+  "Amount must be a positive number (e.g. 12.50).": "O montante deve ser um número positivo (ex. 12,50).",
+  "Receipt date is in the future — please pick today or earlier.": "A data do recibo está no futuro — escolha hoje ou uma data anterior.",
+  "Delete this receipt? It moves to Trash for 30 days, then it's gone for good.": "Eliminar este recibo? Vai para o Lixo durante 30 dias e depois desaparece definitivamente.",
+  "OCR vs your edits — please review": "Leitura do recibo vs as suas alterações — verifique",
+  "OCR failed to process this receipt. Fill in the amount, currency, and date manually below.": "A leitura automática deste recibo falhou. Preencha o montante, a moeda e a data manualmente abaixo.",
+  "No amount was extracted from this receipt. Enter the amount manually in the Amount field below.": "Não foi extraído nenhum montante deste recibo. Introduza-o manualmente no campo Montante abaixo.",
+  "Clicking confirms you're intentionally claiming this even though it matches another receipt. If it really is a duplicate, delete one instead.": "Clicar confirma que submete intencionalmente esta despesa apesar de corresponder a outro recibo. Se for mesmo um duplicado, elimine um deles.",
+  "Clicking records that you're knowingly claiming an over-limit expense and clears the Issues flag. The acknowledgement stays on the receipt's record.": "Clicar regista que submete conscientemente uma despesa acima do limite e remove a sinalização. A confirmação fica no histórico do recibo.",
+  "This receipt is": "Este recibo é de",
+  "over the": "acima do limite de",
+  "limit for": "para",
+  "Over the spending limit": "Limite de despesa ultrapassado",
+  "No internet detected.": "Sem ligação à internet.",
+  "Photos taken in this app are not yet saved while offline — they'd be lost when the upload fails. As a fallback right now: take the photo with your phone's Camera app, then email it to": "As fotos tiradas na aplicação ainda não são guardadas offline — perder-se-iam se o envio falhar. Como alternativa: tire a foto com a câmara do telemóvel e envie-a por e-mail para",
+  "Your mail app's outbox will queue and send it when you're back online.": "A sua aplicação de e-mail enviá-la-á automaticamente quando a ligação voltar.",
+  "Open camera, take the first page, then tap \"+ Add another page\" on the preview to keep going. All pages are combined into one PDF receipt.": "Abra a câmara, tire a primeira página e toque em «+ Adicionar página» na pré-visualização para continuar. Todas as páginas são combinadas num único recibo PDF.",
+  "in the file picker, tap-and-hold on iPhone or Cmd-click on Mac to select multiple files at once. Each becomes its own receipt.": "no seletor de ficheiros, mantenha premido (iPhone) ou Cmd-clique (Mac) para selecionar vários ficheiros de uma vez. Cada um torna-se um recibo distinto.",
+  "No signal? Use your Camera app and email to": "Sem rede? Use a câmara e envie por e-mail para",
+  "These details appear at the top of every monthly invoice (BILL FROM block) and in the payment-details footer.": "Estes dados aparecem no topo de cada fatura mensal e no rodapé dos dados de pagamento.",
+
+  // ----- Help & FAQ page -----
+  "Search the FAQ… (e.g. duplicate, email, tip)": "Pesquisar na FAQ… (ex. duplicado, e-mail, gorjeta)",
+  "Nothing matches": "Sem resultados para",
+  "Try the question box above, or email": "Experimente a caixa de perguntas acima, ou escreva a",
+  "How do I…?": "Como faço…?",
+  "Ask anything — e.g. how do I forward a receipt by email?": "Faça a sua pergunta — ex. como reencaminho um recibo por e-mail?",
+  "Thinking…": "A pensar…",
+  "Ask": "Perguntar",
+  "Answers usage questions only — it can't see your receipts or change anything.": "Responde apenas a perguntas de utilização — sem acesso aos seus recibos e sem alterar nada.",
+
+  // ----- Concierge -----
+  "Concierge": "Concierge",
+  "Send": "Enviar",
+  "Message the Concierge…": "Escreva ao Concierge…",
+  "Ask me about your expenses, or tell me to record one:": "Pergunte-me sobre as suas despesas, ou peça-me para registar uma:",
+  "How much did I spend on meals last month?": "Quanto gastei em refeições no mês passado?",
+  "Record a 4.50 coffee at Starbeans today, category Meals": "Regista um café de 4,50 no Starbeans hoje, categoria Refeições",
+  "Which receipts still have issues?": "Que recibos ainda têm anomalias?",
+  "I can only see and change YOUR receipts. Team and settings changes happen in Settings.": "Só vejo e altero OS SEUS recibos. A equipa e as definições gerem-se em Definições.",
+  "Confirm delete": "Confirmar a eliminação",
+  "Done — moved to Trash (restorable for 30 days).": "Feito — movido para o Lixo (restaurável durante 30 dias).",
+  "Okay — cancelled, nothing was deleted.": "Certo — cancelado, nada foi eliminado.",
   "Smart AI": "Smart AI",
 };

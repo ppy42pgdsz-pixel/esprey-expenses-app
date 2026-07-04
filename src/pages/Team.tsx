@@ -203,6 +203,7 @@ export default function Team() {
             >
               <option value="en">English</option>
               <option value="fr">Français</option>
+              <option value="pt">Português (Portugal)</option>
             </select>
           </label>
           <button

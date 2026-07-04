@@ -23,7 +23,7 @@ export interface UserProfileRow {
   bank_iban: string | null;   // legacy
   bank_swift: string | null;  // legacy
   bank_details: string | null;
-  language: string | null; // 'en' | 'fr' — NULL means 'en' (pre-0013 rows)
+  language: string | null; // 'en' | 'fr' | 'pt' — NULL means 'en' (pre-0013 rows)
   updated_at: number;
 }
 
@@ -33,7 +33,7 @@ const EDITABLE = [
   "bank_details", "language",
 ] as const;
 
-const LANGUAGES = ["en", "fr"] as const;
+const LANGUAGES = ["en", "fr", "pt"] as const;
 
 export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
   const guard = await requireUser(request, env, data);

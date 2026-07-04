@@ -22,7 +22,7 @@ function loadPrefs(): { company: string; currency: string; language: string } {
       return {
         company: String(p.company ?? ""),
         currency: String(p.currency ?? ""),
-        language: p.language === "fr" ? "fr" : "en",
+        language: p.language === "fr" ? "fr" : p.language === "pt" ? "pt" : "en",
       };
     }
   } catch { /* first visit / storage disabled */ }
@@ -166,6 +166,7 @@ export default function Reports() {
             <select className="picker-select" value={reportLanguage} onChange={(e) => setReportLanguage(e.target.value)}>
               <option value="en">English</option>
               <option value="fr">Français</option>
+              <option value="pt">Português (Portugal)</option>
             </select>
           </label>
           <button type="button" className="primary-btn" onClick={generate} disabled={busy}>

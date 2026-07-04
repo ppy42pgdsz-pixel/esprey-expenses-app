@@ -935,3 +935,66 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
 }
 .instructions-body a { color: #1d4ed8; text-decoration: underline; }
 .instructions-body a:hover { color: #1e40af; }
+
+
+/* ============================================================
+   Mobile optimization pass (Carl, 2026-07-04). The app is used
+   mostly on phones — make everything fit and stay tappable at
+   iPhone widths (~375-430px).
+   ============================================================ */
+@media (max-width: 480px) {
+  /* iOS Safari zooms into any input with font-size < 16px. Prevent that
+     everywhere — it's the single biggest mobile-feel improvement. */
+  input, select, textarea { font-size: 16px !important; }
+
+  /* Topbar: 3 nav icons + title + two action buttons must fit 375px. */
+  .icon-link { width: 38px; height: 38px; font-size: 21px; }
+  .icon-actions { gap: 2px; }
+  .topbar { gap: 6px; padding: 6px 0 12px; }
+  .topbar h1 { font-size: 16px; }
+  .header-actions { gap: 4px; }
+  .header-actions .ghost-btn, .header-actions .primary-btn {
+    font-size: 12px; padding: 6px 8px;
+  }
+  .topbar > span { width: 0; }
+
+  /* Forms: stack every field full-width instead of squeezing columns. */
+  .report-form { flex-direction: column; align-items: stretch; }
+  .report-form .field { min-width: 100%; }
+  .report-form .primary-btn { width: 100%; padding: 12px; }
+  .row { flex-direction: column; }
+
+  /* Settings rows (name + limit input + delete) wrap instead of clipping. */
+  .manage-row { flex-wrap: wrap; row-gap: 6px; }
+
+  /* Date popover: never wider than the screen. */
+  .date-popover { width: min(280px, calc(100vw - 40px)); right: -8px; }
+
+  /* Floating Smart AI button: keep it clear of list content and thumbs. */
+  .page { padding-bottom: 96px; }
+  .smart-ai-fab { right: 12px; bottom: 12px; padding: 11px 16px; }
+  .smart-ai-panel {
+    right: 8px; left: 8px; bottom: 8px;
+    width: auto;
+    height: min(70dvh, 560px);
+  }
+
+  /* Pills: three across without wrapping, slightly tighter. */
+  .dashboard-pills { gap: 6px; }
+
+  /* Chat bubbles can use more of the narrow screen. */
+  .chat-msg { max-width: 92%; }
+
+  /* Bigger tap targets on the small action buttons. */
+  .primary-btn.small, .ghost-btn.small, .danger-btn.small {
+    padding: 8px 12px; font-size: 13px;
+  }
+
+  /* Full-page views that scroll a lot: give the last content air. */
+  .instructions-body, .detail-form { padding-bottom: 24px; }
+}
+
+/* Very narrow (older/smaller phones): drop the title text, keep function. */
+@media (max-width: 360px) {
+  .page.dashboard .topbar h1 { display: none; }
+}

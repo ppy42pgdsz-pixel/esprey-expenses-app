@@ -53,7 +53,7 @@ export async function sendWelcomeEmail(opts: {
   displayName?: string | null;
   addedByName?: string | null;
   appUrl: string;
-  language?: "en" | "fr";
+  language?: "en" | "fr" | "pt"; // pt falls back to the English body for now
 }): Promise<{ id: string }> {
   const appUrl = opts.appUrl.replace(/\/$/, "") + "/";
   const helpUrl = opts.appUrl.replace(/\/$/, "") + "/instructions";

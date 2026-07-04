@@ -88,7 +88,7 @@ async function addMember({ request, env, data }: { request: Request; env: Env; d
   const displayName = (body.display_name ?? "").trim() || null;
   // Default app language for the new member (#49). They can change it later
   // in My Profile; this just seeds their user_profile row.
-  const language = body.language === "fr" ? "fr" : "en";
+  const language = body.language === "fr" ? "fr" : body.language === "pt" ? "pt" : "en";
 
   if (!isPlausibleEmail(email)) {
     return jsonError(400, "email is required and must look like an email address");

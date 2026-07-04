@@ -39,7 +39,7 @@ export async function extractReceipt(
     textBody?: string;
     /** Language the "notes" field should be written in (default English).
      *  Vendor names are ALWAYS kept exactly as printed — never translated. */
-    notesLanguage?: "en" | "fr";
+    notesLanguage?: "en" | "fr" | "pt";
   }
 ): Promise<{ extracted: ExtractedReceipt; raw: string }> {
   const content: AnthropicMessage["content"] = [];
@@ -79,7 +79,9 @@ export async function extractReceipt(
         SYSTEM_PROMPT +
         (opts.notesLanguage === "fr"
           ? `\n- Write the "notes" field in French. Keep "vendor" EXACTLY as printed on the receipt — never translate it.`
-          : ""),
+          : opts.notesLanguage === "pt"
+            ? `\n- Write the "notes" field in European Portuguese (Portugal, not Brazil). Keep "vendor" EXACTLY as printed on the receipt — never translate it.`
+            : ""),
       messages: [{ role: "user", content }],
     }),
   });

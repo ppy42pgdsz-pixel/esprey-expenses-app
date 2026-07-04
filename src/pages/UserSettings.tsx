@@ -44,7 +44,7 @@ export default function UserSettings() {
           p.bank_swift ? `SWIFT: ${p.bank_swift}` : null,
         ].filter(Boolean).join("\n");
         setBankDetails(p.bank_details ?? composedLegacy ?? "");
-        setLanguage((p as any).language === "fr" ? "fr" : "en");
+        setLanguage((p as any).language === "fr" ? "fr" : (p as any).language === "pt" ? "pt" : "en");
       } catch (e) {
         setErr((e as Error).message);
       } finally {
@@ -69,7 +69,7 @@ export default function UserSettings() {
         language: language as any,
       };
       await api.updateUserProfile(patch);
-      setLang(language === "fr" ? "fr" : "en"); // apply UI language immediately
+      setLang(language === "fr" ? "fr" : language === "pt" ? "pt" : "en"); // apply UI language immediately
       navigate("/settings");
     } catch (e) {
       setErr((e as Error).message);
@@ -107,6 +107,7 @@ export default function UserSettings() {
               >
                 <option value="en">English</option>
                 <option value="fr">Français</option>
+                <option value="pt">Português (Portugal)</option>
               </select>
             </label>
             <div className="hint small">
@@ -119,7 +120,7 @@ export default function UserSettings() {
                 className="ghost-btn small"
                 disabled={translating}
                 onClick={async () => {
-                  const langName = language === "fr" ? "French / français" : "English";
+                  const langName = language === "fr" ? "French / français" : language === "pt" ? "Portuguese / português" : "English";
                   if (!confirm(
                     `Rewrite the descriptions of ALL your existing receipts in ${langName}? ` +
                     `Vendor names, amounts and dates are never changed. This can't be undone.`

@@ -11,13 +11,13 @@ import { extractReceipt } from "./anthropic";
 import { stampFxDate } from "./fx";
 
 // User language for OCR notes (#49). Defensive: pre-0013 schema → English.
-async function getUserLanguage(db: D1Database, userEmail: string): Promise<"en" | "fr"> {
+async function getUserLanguage(db: D1Database, userEmail: string): Promise<"en" | "fr" | "pt"> {
   try {
     const row = await db
       .prepare(`SELECT language FROM user_profile WHERE user_email = ?`)
       .bind(userEmail)
       .first<{ language: string | null }>();
-    return row?.language === "fr" ? "fr" : "en";
+    return row?.language === "fr" ? "fr" : row?.language === "pt" ? "pt" : "en";
   } catch {
     return "en";
   }

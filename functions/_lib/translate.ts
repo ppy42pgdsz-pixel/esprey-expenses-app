@@ -9,12 +9,12 @@
 
 const MODEL = "claude-haiku-4-5-20251001";
 
-const LANG_NAMES: Record<string, string> = { en: "English", fr: "French" };
+const LANG_NAMES: Record<string, string> = { en: "English", fr: "French", pt: "European Portuguese (Portugal, NOT Brazilian)" };
 
 export async function translateStrings(
   apiKey: string,
   strings: string[],
-  target: "en" | "fr"
+  target: "en" | "fr" | "pt"
 ): Promise<string[]> {
   const nonEmpty = strings.map((s, i) => ({ s, i })).filter((x) => x.s && x.s.trim());
   if (nonEmpty.length === 0) return strings;
