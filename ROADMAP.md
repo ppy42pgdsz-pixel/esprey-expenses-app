@@ -29,18 +29,18 @@ Everything agreed or proposed, merged from the previous model's handover backlog
 | 43 | Concierge AI (email + in-app chat) | Both entry points: email to `ask@expenses.esprey.net` + PWA chat page. Read + write via Claude tool-use over existing D1 queries. Destructive actions (delete, add team member, change company access) gated on "Reply YES to confirm"; non-destructive writes (manual receipt, categorization rule) fire without confirmation. ~3 days. Modelled on Expensify's Concierge (see memory: concierge_ai_backlog) |
 | 44 | Attendees in monthly report | Small; blocks #45. Also applies to any Concierge-generated report |
 | 45 | Welcome-email update for #44 | Adds "Tag who was with you" section; after #44 |
-| 46 | FAQ / help page | Searchable Q&A replacing thin `/instructions` |
-| 47 | "How do I…" AI help widget | Grounded in FAQ, no tool access — safer/cheaper than Concierge; blocked by #46 |
+| 46 | ✅ FAQ / help page | DONE 2026-07-04 — searchable Q&A at `/instructions`, content in `shared/faq.ts` |
+| 47 | ✅ "How do I…" AI help widget | DONE 2026-07-04 — `/api/help/ask` (Haiku, FAQ-grounded, read-only) + ask box on the help page |
 | 48 | Marketing site + walkthrough | (a) recorded video demo, or (b) live demo mode with tooltip overlays — needs `/demo` CF Access bypass + seeded fake data, 2–3× the effort of (a) |
 
 Deferred by Carl: receipt splitting across categories.
 
 ## 4. Prioritized feature adds (endorsed from handover §16)
 
-1. **CSV / accounting export** (Xero/QuickBooks-friendly) — #1 gap vs Expensify; one endpoint.
+1. ⏸️ **CSV / accounting export** — PARKED by Carl 2026-07-04 (accountant works from PDFs for now).
 2. **VAT / tax field separation** (net + tax + gross) — pairs with export.
 3. **Reimbursement status** per receipt (pending / paid) — one column + chip.
-4. **Report scheduling** — CF Cron Trigger emailing the monthly report on the 1st; `generate.ts` already does the work.
+4. ~~Report scheduling~~ — REMOVED by Carl 2026-07-04 (not wanted).
 5. **URL-persisted dashboard filters** — trivial; fixes bookmarks/back button.
 
 ## 5. Remaining ideas from handover §16 (unprioritized pool)

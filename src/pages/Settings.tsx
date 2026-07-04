@@ -101,9 +101,9 @@ function HelpSection() {
       <div className="manage-list">
         <div className="manage-row">
           <Link to="/instructions" className="manage-name manage-link">
-            <strong>Instructions</strong>
+            <strong>Help &amp; FAQ</strong>
             <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
-              · Privacy, the three ways to add a receipt, monthly reports, and more
+              · Searchable answers + ask-a-question box
             </span>
           </Link>
           <Link to="/instructions" className="primary-btn small">Open</Link>

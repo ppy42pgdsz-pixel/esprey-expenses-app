@@ -3,9 +3,28 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 
 function defaultMonth() {
-  // Default to the current month (you usually generate mid-month for review).
+  // Default to LAST month — reports are almost always generated for a
+  // finished month (Carl, 2026-07-04).
   const now = new Date();
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+// Remember the last company/currency the user reported on, so the page
+// doesn't reset to "all companies" every visit.
+const PREFS_KEY = "esprey.reports.prefs";
+function loadPrefs(): { company: string; currency: string } {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      return { company: String(p.company ?? ""), currency: String(p.currency ?? "") };
+    }
+  } catch { /* first visit / storage disabled */ }
+  return { company: "", currency: "" };
+}
+function savePrefs(company: string, currency: string) {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify({ company, currency })); } catch { /* ignore */ }
 }
 
 // Generate ~24 month options spanning 2 years back from current month so the
@@ -27,8 +46,9 @@ export default function Reports() {
   const [companies, setCompanies] = useState<string[]>([]);
   const [currencies, setCurrencies] = useState<Array<{ code: string; name: string }>>([]);
   const [month, setMonth] = useState(defaultMonth());
-  const [company, setCompany] = useState<string>(""); // "" = all companies
-  const [currency, setCurrency] = useState<string>(""); // "" = all currencies
+  const [company, setCompany] = useState<string>(() => loadPrefs().company); // "" = all companies
+  const [currency, setCurrency] = useState<string>(() => loadPrefs().currency); // "" = all currencies
+  useEffect(() => { savePrefs(company, currency); }, [company, currency]);
   const monthOptions = useMemo(buildMonthOptions, []);
   const [busy, setBusy] = useState(false);
   const [emailingZip, setEmailingZip] = useState(false);
