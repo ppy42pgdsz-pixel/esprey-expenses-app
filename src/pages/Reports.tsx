@@ -126,7 +126,10 @@ export default function Reports() {
         {lastResult && (
           <div className="report-result">
             <div>✅ Generated <strong>{lastResult.monthLabel}</strong> · {lastResult.receipts} receipts · {fmtSize(lastResult.sizeBytes)}</div>
-            <div><Link to={`/pdf?file=${encodeURIComponent(lastResult.file)}`}>Open PDF</Link></div>
+            <div className="zip-actions">
+              <Link to={`/pdf?file=${encodeURIComponent(lastResult.file)}`}>Open PDF</Link>
+              <a href={lastResult.downloadUrl} download>Download PDF</a>
+            </div>
             {lastResult.zipDownloadUrl && lastResult.zipFile && (
               <div className="zip-actions">
                 <a href={lastResult.zipDownloadUrl} download>

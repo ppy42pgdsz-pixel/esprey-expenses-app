@@ -587,13 +587,17 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
 /* Table view */
 .receipts-table tr.row-failed > td    { background: #fef2f2; }
 .receipts-table tr.row-duplicate > td { background: #fff7ed; }
+.receipts-table tr.row-overlimit > td { background: #fff7ed; }
 /* If both, failed wins. Selected still wins over both (uses existing style). */
 .receipts-table tr.row-failed.row-duplicate > td { background: #fef2f2; }
+.receipts-table tr.row-failed.row-overlimit > td { background: #fef2f2; }
 
 /* Card view (mobile) */
 .receipts li.row-failed    { background: #fef2f2; border-left: 3px solid #ef4444; }
 .receipts li.row-duplicate { background: #fff7ed; border-left: 3px solid #f59e0b; }
-.receipts li.row-failed.row-duplicate {
+.receipts li.row-overlimit { background: #fff7ed; border-left: 3px solid #f97316; }
+.receipts li.row-failed.row-duplicate,
+.receipts li.row-failed.row-overlimit {
   background: #fef2f2;
   border-left: 3px solid #ef4444;
 }
@@ -693,6 +697,14 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
   border: 1px solid #d4d4d8;
   border-radius: 6px;
   width: 100%;
+}
+/* The generic `.toolbar button` rule paints buttons white, which turned the
+   popover's Done button white-on-white. Re-assert the primary style here
+   (this selector is more specific than .toolbar button). */
+.date-popover .primary-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
 }
 
 /* Active-range caption under the pills */

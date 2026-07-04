@@ -272,41 +272,121 @@ function PeopleSection() {
 
 /* ------------ Categories ------------ */
 function CategoriesSection({ isAdmin }: { isAdmin: boolean }) {
-  const [items, setItems] = useState<string[]>([]);
+  const [items, setItems] = useState<Array<{ name: string; spending_limit: string | null }>>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [addName, setAddName] = useState("");
+  // Draft limit values keyed by category name (admin edits before saving).
+  const [limitDrafts, setLimitDrafts] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
 
   async function reload() {
     setErr(null);
-    try { const r = await api.listCategories(); setItems(r.categories); }
-    catch (e) { setErr((e as Error).message); }
+    try {
+      const r = await api.listCategories();
+      const details = r.categoryDetails ?? r.categories.map((name) => ({ name, spending_limit: null }));
+      setItems(details);
+      setLimitDrafts(Object.fromEntries(details.map((d) => [d.name, d.spending_limit ?? ""])));
+    } catch (e) { setErr((e as Error).message); }
   }
   useEffect(() => { reload(); }, []);
 
+  async function saveLimit(name: string) {
+    const draft = (limitDrafts[name] ?? "").trim();
+    const current = items.find((i) => i.name === name)?.spending_limit ?? "";
+    if (draft === current) return; // nothing changed
+    setBusy(name);
+    setErr(null);
+    try {
+      // POST upserts — same name with a new limit updates it. Empty = no limit.
+      await api.addCategory(name, draft === "" ? null : draft);
+      await reload();
+    } catch (e) { setErr((e as Error).message); }
+    finally { setBusy(null); }
+  }
+
+  async function add() {
+    const name = addName.trim();
+    if (!name) return;
+    setBusy("__add__");
+    setErr(null);
+    try {
+      await api.addCategory(name);
+      setAddName("");
+      await reload();
+    } catch (e) { setErr((e as Error).message); }
+    finally { setBusy(null); }
+  }
+
   return (
     <Section title="Categories" err={err}>
-      <ManagedList
-        items={items}
-        renderItem={(name) => name}
-        onDelete={
-          isAdmin
-            ? async (name) => {
-                if (!confirm(`Delete "${name}" from the category list?`)) return;
-                await api.deleteCategory(name);
-                reload();
-              }
-            : undefined
-        }
-        onAdd={
-          isAdmin
-            ? async (name) => {
-                await api.addCategory(name);
-                reload();
-              }
-            : undefined
-        }
-        addLabel="+ Add category"
-        addNote={isAdmin ? undefined : "Categories are managed by the admin. Ask Carl to add a new one if you need it."}
-      />
+      {isAdmin && (
+        <div className="hint small" style={{ marginBottom: 6 }}>
+          Spending limit is per receipt. Anything over it gets flagged in Issues until the
+          team member acknowledges it.
+        </div>
+      )}
+      <div className="manage-list">
+        {items.length === 0 && <div className="empty small">No entries yet.</div>}
+        {items.map((it) => (
+          <div key={it.name} className="manage-row">
+            <span className="manage-name">
+              <strong>{it.name}</strong>
+              {!isAdmin && it.spending_limit && (
+                <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
+                  · limit {it.spending_limit}
+                </span>
+              )}
+            </span>
+            {isAdmin && (
+              <input
+                type="text"
+                inputMode="decimal"
+                style={{ width: 90, textAlign: "right" }}
+                placeholder="No limit"
+                value={limitDrafts[it.name] ?? ""}
+                disabled={busy === it.name}
+                onChange={(e) =>
+                  setLimitDrafts((d) => ({ ...d, [it.name]: e.target.value }))
+                }
+                onBlur={() => saveLimit(it.name)}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                aria-label={`Spending limit for ${it.name}`}
+              />
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                className="danger-btn small"
+                onClick={async () => {
+                  if (!confirm(`Delete "${it.name}" from the category list?`)) return;
+                  await api.deleteCategory(it.name);
+                  reload();
+                }}
+              >
+                Delete
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      {isAdmin ? (
+        <div className="manage-row" style={{ marginTop: 6 }}>
+          <input
+            type="text"
+            placeholder="New category name"
+            value={addName}
+            onChange={(e) => setAddName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+          />
+          <button type="button" className="primary-btn small" disabled={busy === "__add__"} onClick={add}>
+            + Add category
+          </button>
+        </div>
+      ) : (
+        <div className="hint small">
+          Categories are managed by the admin. Ask Carl to add a new one if you need it.
+        </div>
+      )}
     </Section>
   );
 }

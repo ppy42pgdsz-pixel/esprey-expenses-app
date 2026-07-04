@@ -14,6 +14,8 @@ export default function ReceiptDetail() {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [companies, setCompanies] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  // category name -> spending limit (decimal string), only categories WITH a limit
+  const [categoryLimits, setCategoryLimits] = useState<Map<string, string>>(new Map());
   const [people, setPeople] = useState<Person[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -89,6 +91,11 @@ export default function ReceiptDetail() {
       setCompanies(c.companies.map((co) => co.name));
       setPeople(p.people);
       setCategories(cat.categories);
+      setCategoryLimits(new Map(
+        (cat.categoryDetails ?? [])
+          .filter((d) => d.spending_limit)
+          .map((d) => [d.name, d.spending_limit as string])
+      ));
       setCurrencies(cur.currencies);
     } catch (e) {
       setErr((e as Error).message);
@@ -205,6 +212,19 @@ export default function ReceiptDetail() {
         onAcknowledgeDuplicate={async () => {
           try {
             const res = await api.patchReceipt(id, { duplicate_acknowledged: 1 as any });
+            setReceipt(res.receipt);
+          } catch (e) {
+            setErr((e as Error).message);
+          }
+        }}
+      />
+
+      <OverLimitBanner
+        receipt={receipt}
+        limit={receipt.category ? (categoryLimits.get(receipt.category) ?? null) : null}
+        onAcknowledge={async () => {
+          try {
+            const res = await api.patchReceipt(id, { policy_acknowledged: 1 as any });
             setReceipt(res.receipt);
           } catch (e) {
             setErr((e as Error).message);
@@ -678,6 +698,47 @@ function IssuesBanner({
           </li>
         )}
       </ul>
+    </div>
+  );
+}
+
+/* ----- OverLimitBanner: receipt exceeds its category's spending limit ----- */
+// Same acknowledge pattern as the duplicate + OCR-mismatch banners: explain
+// what's odd, require an explicit click, write an audit-trail flag. The copy
+// deliberately doesn't suggest editing the amount — that would just hide the
+// overspend rather than record it.
+function OverLimitBanner({
+  receipt,
+  limit,
+  onAcknowledge,
+}: {
+  receipt: Receipt | null;
+  limit: string | null;
+  onAcknowledge: () => Promise<void> | void;
+}) {
+  if (!receipt || !limit) return null;
+  if (receipt.policy_acknowledged === 1) return null;
+  const amtM = toMinor(receipt.amount);
+  const limM = toMinor(limit);
+  if (amtM === null || limM === null || amtM <= limM) return null;
+  const cur = receipt.currency ? `${receipt.currency} ` : "";
+
+  return (
+    <div className="ocr-mismatch" style={{ background: "#fff7ed", borderColor: "#fdba74" }}>
+      <div className="ocr-mismatch-title">Over the {receipt.category} spending limit</div>
+      <div style={{ marginTop: 6 }}>
+        This receipt is {cur}{minorToAmount(amtM)} — over the {cur}{minorToAmount(limM)} limit
+        for {receipt.category}.
+      </div>
+      <div className="ocr-mismatch-actions" style={{ marginTop: 8 }}>
+        <button type="button" className="primary-btn small" onClick={onAcknowledge}>
+          Acknowledge — I know this is over the limit
+        </button>
+        <span className="hint small">
+          Clicking records that you're knowingly claiming an over-limit expense and clears the
+          Issues flag. The acknowledgement stays on the receipt's record.
+        </span>
+      </div>
     </div>
   );
 }

@@ -93,12 +93,19 @@ export const api = {
   deletePerson: (name: string) =>
     jsonFetch<{ deleted: string }>(`/api/people/${encodeURIComponent(name)}`, { method: "DELETE" }),
 
-  listCategories: () => jsonFetch<{ categories: string[] }>("/api/categories"),
-  addCategory: (name: string) =>
+  listCategories: () =>
+    jsonFetch<{
+      categories: string[];
+      categoryDetails?: Array<{ name: string; spending_limit: string | null }>;
+    }>("/api/categories"),
+  // POST upserts: existing category + new limit = update the limit.
+  addCategory: (name: string, spending_limit?: string | null) =>
     jsonFetch<{ category: string }>("/api/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(
+        spending_limit === undefined ? { name } : { name, spending_limit }
+      ),
     }),
   deleteCategory: (name: string) =>
     jsonFetch<{ deleted: string }>(`/api/categories/${encodeURIComponent(name)}`, { method: "DELETE" }),

@@ -34,6 +34,8 @@ export default function Dashboard() {
   const [receipts, setReceipts] = useState<Receipt[] | null>(null);
   const [companies, setCompanies] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  // category name -> spending limit (decimal string). Only categories WITH a limit.
+  const [categoryLimits, setCategoryLimits] = useState<Map<string, string>>(new Map());
 
   // Three independent filters, AND-ed together at render time.
   const [pillFilter, setPillFilter] = useState<PillFilter>("all");
@@ -66,6 +68,11 @@ export default function Dashboard() {
       setReceipts(r.receipts);
       setCompanies(c.companies.map((co) => co.name));
       setCategories(cat.categories);
+      setCategoryLimits(new Map(
+        (cat.categoryDetails ?? [])
+          .filter((d) => d.spending_limit)
+          .map((d) => [d.name, d.spending_limit as string])
+      ));
     } catch (e) {
       setErr((e as Error).message);
     }
@@ -162,14 +169,29 @@ export default function Dashboard() {
     );
   }, [receipts]);
 
+  // Over category spending limit (migration 0009) and not yet acknowledged.
+  const overLimitIds = useMemo(() => {
+    if (!receipts) return new Set<string>();
+    const out = new Set<string>();
+    for (const r of receipts) {
+      if (r.policy_acknowledged === 1) continue;
+      const limit = r.category ? categoryLimits.get(r.category) : undefined;
+      if (!limit) continue;
+      const amtM = toMinor(r.amount);
+      const limM = toMinor(limit);
+      if (amtM !== null && limM !== null && amtM > limM) out.add(r.id);
+    }
+    return out;
+  }, [receipts, categoryLimits]);
+
   // Scope counts to the date-filtered subset.
   const total      = scopedReceipts?.length ?? 0;
   const uncatCount = scopedReceipts?.filter((r) => !r.company).length ?? 0;
   const issuesCount = useMemo(() => {
     if (!scopedReceipts) return 0;
-    const ids = new Set<string>([...failedIds, ...duplicateIds, ...mismatchIds]);
+    const ids = new Set<string>([...failedIds, ...duplicateIds, ...mismatchIds, ...overLimitIds]);
     return scopedReceipts.filter((r) => ids.has(r.id)).length;
-  }, [scopedReceipts, failedIds, duplicateIds, mismatchIds]);
+  }, [scopedReceipts, failedIds, duplicateIds, mismatchIds, overLimitIds]);
 
   // In Issues view we override the user's sort and group duplicate siblings
   // adjacent to each other (anchored by the group's most recent date). This
@@ -195,7 +217,7 @@ export default function Dashboard() {
     if (pillFilter === "uncategorized") {
       arr = arr.filter((r) => !r.company);
     } else if (pillFilter === "issues") {
-      arr = arr.filter((r) => failedIds.has(r.id) || duplicateIds.has(r.id) || mismatchIds.has(r.id));
+      arr = arr.filter((r) => failedIds.has(r.id) || duplicateIds.has(r.id) || mismatchIds.has(r.id) || overLimitIds.has(r.id));
       // Custom sort: by group anchor desc, then keep group members together,
       // then by uploaded_at asc within a group for chronological order.
       arr.sort((a, b) => {
@@ -226,7 +248,7 @@ export default function Dashboard() {
       return cmp * dir;
     });
     return arr;
-  }, [scopedReceipts, sortKey, sortDir, pillFilter, failedIds, duplicateIds, mismatchIds, duplicateGroupKey, issueGroupAnchors]);
+  }, [scopedReceipts, sortKey, sortDir, pillFilter, failedIds, duplicateIds, mismatchIds, overLimitIds, duplicateGroupKey, issueGroupAnchors]);
 
   // Helper — short label explaining why a receipt landed in the Issues bucket.
   // Used only when the Issues filter is active (otherwise the row is just a
@@ -235,6 +257,7 @@ export default function Dashboard() {
     if (r.ocr_status === "failed") return "OCR failed";
     if (duplicateIds.has(r.id)) return "Possible duplicate";
     if (failedIds.has(r.id)) return "No amount";
+    if (overLimitIds.has(r.id)) return "Over category limit";
     if (mismatchIds.has(r.id)) return "Edited values differ from OCR";
     return null;
   }
@@ -468,7 +491,8 @@ export default function Dashboard() {
               <tr key={r.id} className={
                 (selected.has(r.id) ? "selected " : "") +
                 (failedIds.has(r.id) ? "row-failed " : "") +
-                ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? "row-duplicate " : "")
+                ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? "row-duplicate " : "") +
+                (overLimitIds.has(r.id) ? "row-overlimit " : "")
               }>
                 <td className="col-check">
                   <input
@@ -517,7 +541,8 @@ export default function Dashboard() {
               className={
                 (r.company ? "cat" : "uncat") +
                 (failedIds.has(r.id) ? " row-failed" : "") +
-                ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? " row-duplicate" : "")
+                ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? " row-duplicate" : "") +
+                (overLimitIds.has(r.id) ? " row-overlimit" : "")
               }
             >
               <Link to={`/receipt/${r.id}`} className="receipt-link">

@@ -85,7 +85,7 @@ export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, e
         const allowed = [0, 5, 10, 15, 20];
         const clean = allowed.includes(n) ? n : 0;
         args.push(clean);
-      } else if (k === "override_acknowledged" || k === "duplicate_acknowledged") {
+      } else if (k === "override_acknowledged" || k === "duplicate_acknowledged" || k === "policy_acknowledged") {
         // Explicit-acknowledgement flags — 1/0 booleans. Not a "content edit"
         // since the amount/date/vendor on the receipt isn't changing; we're
         // just recording that the user knowingly accepted a flagged issue.

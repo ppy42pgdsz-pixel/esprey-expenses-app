@@ -173,6 +173,17 @@ function drawCategoryBreakdown(pdf: PDFDocument, fonts: Fonts, receipts: Receipt
         page.drawText(nameLines[i], { x: cols.name, y, size: 10, font: fonts.reg });
         y -= LINE;
       }
+      // Attendees (#44): small grey line under the vendor so meal/hotel claims
+      // show who was present. Only drawn when the receipt has attendees.
+      const attendees = parseAttendeesJson(r.attendees);
+      if (attendees.length > 0) {
+        const attLines = wrapText(`with ${attendees.join(", ")}`, fonts.reg, 9, nameMaxWidth);
+        for (const line of attLines) {
+          ensureSpace(LINE);
+          page.drawText(line, { x: cols.name, y, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45) });
+          y -= LINE;
+        }
+      }
     }
 
     // Per-currency subtotals for this category.
@@ -777,6 +788,16 @@ function formatAmount(r: ReceiptRow): string {
   const amt = (r.amount ?? "").trim();
   if (!amt) return "—";
   return cur ? `${cur} ${amt}` : amt;
+}
+
+function parseAttendeesJson(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.map(String).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
 }
 
 function sumByCurrency(rs: ReceiptRow[]): Map<string, number> {
