@@ -11,6 +11,10 @@ Everything agreed or proposed, merged from the previous model's handover backlog
 ### New candidate items from Carl (2026-07-04, not yet scheduled)
 - Spending-limits master on/off toggle (limits currently "off" when no category has a value)
 - Per-company spending limits + delegated per-company policy admin (needs multi-admin auth — `team_members.is_admin` groundwork exists)
+- **#49 Multi-language (French first)** — for West African team members. Two halves:
+  1. *App in the user's language*: per-user language preference (User Settings, default from browser). All UI strings via an i18n dictionary; OCR prompt told to write the receipt `notes` in the user's language, so a French user sees French descriptions. Shared category names get display labels per language (canonical value stays stable in the DB).
+  2. *Report language dropdown*: on the Reports page, pick the output language (e.g. team member works in French, report generated in English). Template headings come from the same dictionary; receipt notes/descriptions are batch-translated with one Claude call at generation time. **Vendor/establishment names are NEVER translated** — they must match the underlying receipt. Same rule for amounts, dates, and currency codes.
+  Estimate: UI half ~2 days (touches every page), report half ~half a day. Report half is independently shippable first if desired.
 
 ## 2. Correctness fixes (new — from code review)
 
@@ -41,7 +45,7 @@ Deferred by Carl: receipt splitting across categories.
 2. **VAT / tax field separation** (net + tax + gross) — pairs with export.
 3. **Reimbursement status** per receipt (pending / paid) — one column + chip.
 4. ~~Report scheduling~~ — REMOVED by Carl 2026-07-04 (not wanted).
-5. **URL-persisted dashboard filters** — trivial; fixes bookmarks/back button.
+5. ✅ **URL-persisted dashboard filters** — DONE 2026-07-04. Filters mirror to ?pill/&company/&date/&from/&to; refresh, Back, and bookmarks all preserve the view. Also added a "?" help link in the Dashboard header.
 
 ## 5. Remaining ideas from handover §16 (unprioritized pool)
 

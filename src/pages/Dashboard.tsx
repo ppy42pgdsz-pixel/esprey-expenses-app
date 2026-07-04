@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, companyColor, formatAmount, formatDate, imageUrl } from "../lib/api";
 import type { Receipt } from "../lib/types";
 import { parseAttendees } from "../lib/types";
@@ -38,12 +38,40 @@ export default function Dashboard() {
   const [categoryLimits, setCategoryLimits] = useState<Map<string, string>>(new Map());
 
   // Three independent filters, AND-ed together at render time.
-  const [pillFilter, setPillFilter] = useState<PillFilter>("all");
-  const [companyFilter, setCompanyFilter] = useState<string>("all"); // "all" or a company name
-  const [datePreset, setDatePreset] = useState<DatePreset>("all");
-  const [customStart, setCustomStart] = useState<string>("");
-  const [customEnd, setCustomEnd] = useState<string>("");
+  // Filter state is mirrored into the URL (?pill=…&company=…&date=…) so
+  // refresh keeps your view, Back from a receipt restores it, and a filtered
+  // view can be bookmarked.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const PILLS: PillFilter[] = ["all", "uncategorized", "issues"];
+  const PRESETS: DatePreset[] = ["all", "this_week", "last_week", "this_month", "last_month", "last_30", "last_90", "custom"];
+  const [pillFilter, setPillFilter] = useState<PillFilter>(() => {
+    const v = searchParams.get("pill") as PillFilter | null;
+    return v && PILLS.includes(v) ? v : "all";
+  });
+  const [companyFilter, setCompanyFilter] = useState<string>(
+    () => searchParams.get("company") ?? "all"
+  ); // "all" or a company name
+  const [datePreset, setDatePreset] = useState<DatePreset>(() => {
+    const v = searchParams.get("date") as DatePreset | null;
+    return v && PRESETS.includes(v) ? v : "all";
+  });
+  const [customStart, setCustomStart] = useState<string>(() => searchParams.get("from") ?? "");
+  const [customEnd, setCustomEnd] = useState<string>(() => searchParams.get("to") ?? "");
   const [showCustomPopover, setShowCustomPopover] = useState(false);
+
+  // Write filters back to the URL whenever they change. Defaults are omitted
+  // so the plain "/" URL stays clean; replace (not push) keeps history tidy.
+  useEffect(() => {
+    const p: Record<string, string> = {};
+    if (pillFilter !== "all") p.pill = pillFilter;
+    if (companyFilter !== "all") p.company = companyFilter;
+    if (datePreset !== "all") p.date = datePreset;
+    if (datePreset === "custom") {
+      if (customStart) p.from = customStart;
+      if (customEnd) p.to = customEnd;
+    }
+    setSearchParams(p, { replace: true });
+  }, [pillFilter, companyFilter, datePreset, customStart, customEnd, setSearchParams]);
 
   const [err, setErr] = useState<string | null>(null);
   const isWide = useIsWide(900);
@@ -324,6 +352,7 @@ export default function Dashboard() {
         <div className="header-actions icon-actions">
           <Link to="/settings" className="icon-link" aria-label="Settings">⚙</Link>
           <Link to="/reports" className="icon-link" aria-label="Reports">📄</Link>
+          <Link to="/instructions" className="icon-link" aria-label="Help & FAQ">?</Link>
         </div>
         <div className="brand">
           <img src="/icons/icon-192.png" alt="" className="brand-logo" />
