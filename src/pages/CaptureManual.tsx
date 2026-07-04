@@ -68,7 +68,7 @@ export default function CaptureManual() {
     setErr(null);
     const n = parseFloat(amount);
     if (!amount.trim() || isNaN(n) || n <= 0) {
-      setErr("Amount must be a positive number (e.g. 12.50).");
+      setErr(t("Amount must be a positive number (e.g. 12.50)."));
       return;
     }
     setSaving(true);

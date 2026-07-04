@@ -152,11 +152,10 @@ export default function Capture() {
 
       {!online && (
         <div className="offline-warn">
-          <strong>📡 No internet detected.</strong>
+          <strong>📡 {t("No internet detected.")}</strong>
           <p>
-            Photos taken in this app are <strong>not yet</strong> saved while offline — they'd be lost when the upload fails.
-            As a fallback right now: take the photo with your phone's <strong>Camera app</strong>, then email it to{" "}
-            <code>receipts@esprey.net</code>. Your mail app's outbox will queue and send it when you're back online.
+            {t("Photos taken in this app are not yet saved while offline — they'd be lost when the upload fails. As a fallback right now: take the photo with your phone's Camera app, then email it to")}{" "}
+            <code>receipts@esprey.net</code>. {t("Your mail app's outbox will queue and send it when you're back online.")}
           </p>
         </div>
       )}
@@ -189,14 +188,11 @@ export default function Capture() {
             {t("Pick photo(s) or PDF from files")}
           </button>
           <div className="capture-tip">
-            <strong>Multi-page invoice?</strong> Open camera, take the first page,
-            then tap <em>"+ Add another page"</em> on the preview to keep going.
-            All pages are combined into one PDF receipt.
+            <strong>{t("Multi-page invoice?")}</strong> {t("Open camera, take the first page, then tap \"+ Add another page\" on the preview to keep going. All pages are combined into one PDF receipt.")}
             <br /><br />
-            <strong>Bulk upload tip:</strong> in the file picker, tap-and-hold on iPhone
-            or Cmd-click on Mac to select multiple files at once. Each becomes its own receipt.
+            <strong>{t("Bulk upload tip:")}</strong> {t("in the file picker, tap-and-hold on iPhone or Cmd-click on Mac to select multiple files at once. Each becomes its own receipt.")}
             <br /><br />
-            No signal? Use your <strong>Camera app</strong> and email to{" "}
+            {t("No signal? Use your Camera app and email to")}{" "}
             <code>receipts@esprey.net</code>.
           </div>
         </div>

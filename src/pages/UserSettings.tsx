@@ -93,11 +93,11 @@ export default function UserSettings() {
       ) : (
         <div className="detail-form">
           <div className="hint small" style={{ marginBottom: 8 }}>
-            These details appear at the top of every monthly invoice (BILL FROM block) and in the payment-details footer.
+            {t("These details appear at the top of every monthly invoice (BILL FROM block) and in the payment-details footer.")}
           </div>
 
           <section className="settings-section">
-            <h2>Language / Langue</h2>
+            <h2>{t("Language")} / Langue</h2>
             <label className="field">
               <span className="label">{t("App language")}</span>
               <select

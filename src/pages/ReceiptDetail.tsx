@@ -112,7 +112,7 @@ export default function ReceiptDetail() {
     if (amount) {
       const n = toMinor(amount);
       if (n === null || n <= 0) {
-        setErr("Amount must be a positive number (e.g. 12.50). Letters aren't allowed.");
+        setErr(t("Amount must be a positive number (e.g. 12.50). Letters aren't allowed."));
         return;
       }
     }
@@ -120,7 +120,7 @@ export default function ReceiptDetail() {
     // Defensive client-side check — iOS Safari's date picker doesn't always
     // honour `max`, so we also catch future dates here before sending.
     if (receiptDate && /^\d{4}-\d{2}-\d{2}$/.test(receiptDate) && receiptDate > todayISO()) {
-      setErr("Receipt date is in the future — please pick today or earlier.");
+      setErr(t("Receipt date is in the future — please pick today or earlier."));
       setSaving(false);
       return;
     }
@@ -175,7 +175,7 @@ export default function ReceiptDetail() {
   }
 
   async function remove() {
-    if (!confirm("Delete this receipt? The original image will be removed too.")) return;
+    if (!confirm(t("Delete this receipt? It moves to Trash for 30 days, then it's gone for good."))) return;
     try {
       await api.deleteReceipt(id);
       navigate("/");
@@ -543,19 +543,19 @@ function OcrMismatchBanner({
 
   const diffs: Array<{ field: string; ocr: string; current: string }> = [];
   if (ocr.amount && fieldDiffersAmount(liveAmount, ocr.amount)) {
-    diffs.push({ field: "Amount", ocr: ocr.amount, current: liveAmount || "(empty)" });
+    diffs.push({ field: t("Amount"), ocr: ocr.amount, current: liveAmount || "(empty)" });
   }
   if (ocr.currency && fieldDiffersText(liveCurrency, ocr.currency)) {
-    diffs.push({ field: "Currency", ocr: ocr.currency, current: liveCurrency || "(empty)" });
+    diffs.push({ field: t("Currency"), ocr: ocr.currency, current: liveCurrency || "(empty)" });
   }
   if (ocr.receipt_date && fieldDiffersText(liveDate, ocr.receipt_date)) {
-    diffs.push({ field: "Date", ocr: ocr.receipt_date, current: liveDate || "(empty)" });
+    diffs.push({ field: t("Date"), ocr: ocr.receipt_date, current: liveDate || "(empty)" });
   }
   if (diffs.length === 0) return null;
 
   return (
     <div className="ocr-mismatch">
-      <div className="ocr-mismatch-title">OCR vs your edits — please review</div>
+      <div className="ocr-mismatch-title">{t("OCR vs your edits — please review")}</div>
       <table className="ocr-mismatch-table">
         <thead>
           <tr><th></th><th>OCR extracted</th><th>You entered</th></tr>
@@ -665,12 +665,12 @@ function IssuesBanner({
       <ul style={{ margin: "6px 0 0", paddingLeft: "1.2em" }}>
         {ocrFailed && (
           <li>
-            OCR failed to process this receipt. Fill in the amount, currency, and date manually below.
+            {t("OCR failed to process this receipt. Fill in the amount, currency, and date manually below.")}
           </li>
         )}
         {noAmount && !ocrFailed && (
           <li>
-            No amount was extracted from this receipt. Enter the amount manually in the Amount field below.
+            {t("No amount was extracted from this receipt. Enter the amount manually in the Amount field below.")}
           </li>
         )}
         {duplicateIssue && (
@@ -692,8 +692,7 @@ function IssuesBanner({
                 {t("Acknowledge — this is a separate expense")}
               </button>
               <span className="hint small">
-                Clicking confirms you're intentionally claiming this even though it matches another receipt.
-                If it really is a duplicate, delete one instead.
+                {t("Clicking confirms you're intentionally claiming this even though it matches another receipt. If it really is a duplicate, delete one instead.")}
               </span>
             </div>
           </li>
@@ -726,18 +725,16 @@ function OverLimitBanner({
 
   return (
     <div className="ocr-mismatch" style={{ background: "#fff7ed", borderColor: "#fdba74" }}>
-      <div className="ocr-mismatch-title">Over the {receipt.category} spending limit</div>
+      <div className="ocr-mismatch-title">{t("Over the spending limit")} — {receipt.category}</div>
       <div style={{ marginTop: 6 }}>
-        This receipt is {cur}{minorToAmount(amtM)} — over the {cur}{minorToAmount(limM)} limit
-        for {receipt.category}.
+        {t("This receipt is")} {cur}{minorToAmount(amtM)} — {t("over the")} {cur}{minorToAmount(limM)} {t("limit for")} {receipt.category}.
       </div>
       <div className="ocr-mismatch-actions" style={{ marginTop: 8 }}>
         <button type="button" className="primary-btn small" onClick={onAcknowledge}>
           {t("Acknowledge — I know this is over the limit")}
         </button>
         <span className="hint small">
-          Clicking records that you're knowingly claiming an over-limit expense and clears the
-          Issues flag. The acknowledgement stays on the receipt's record.
+          {t("Clicking records that you're knowingly claiming an over-limit expense and clears the Issues flag. The acknowledgement stays on the receipt's record.")}
         </span>
       </div>
     </div>

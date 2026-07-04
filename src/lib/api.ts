@@ -204,7 +204,7 @@ export const api = {
       cloudflareRemoved: boolean;
       cloudflareEmails: string[];
     }>(`/api/team/aliases/${encodeURIComponent(alias)}`, { method: "DELETE" }),
-  addTeamMember: (email: string, display_name?: string | null) =>
+  addTeamMember: (email: string, display_name?: string | null, language?: string) =>
     jsonFetch<{
       member: { email: string; display_name: string | null };
       cloudflareAdded: boolean;
@@ -214,7 +214,7 @@ export const api = {
     }>("/api/team", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, display_name: display_name ?? null }),
+      body: JSON.stringify({ email, display_name: display_name ?? null, language: language ?? "en" }),
     }),
   removeTeamMember: (email: string) =>
     jsonFetch<{

@@ -32,6 +32,7 @@ export default function Team() {
 
   const [addEmail, setAddEmail] = useState("");
   const [addName, setAddName] = useState("");
+  const [addLanguage, setAddLanguage] = useState("en"); // default app language for the new member
   const [adding, setAdding] = useState(false);
   const [addResult, setAddResult] = useState<string | null>(null);
 
@@ -77,7 +78,7 @@ export default function Team() {
     setAddResult(null);
     setErr(null);
     try {
-      const res = await api.addTeamMember(email, name || null);
+      const res = await api.addTeamMember(email, name || null, addLanguage);
       const lines: string[] = [];
       lines.push(`Added ${res.member.email}.`);
       if (res.cloudflareAdded) lines.push("Cloudflare Access updated.");
@@ -192,6 +193,17 @@ export default function Team() {
               onChange={(e) => setAddName(e.target.value)}
               placeholder="Alice Singh"
             />
+          </label>
+          <label className="field">
+            <span className="label">Language</span>
+            <select
+              className="picker-select"
+              value={addLanguage}
+              onChange={(e) => setAddLanguage(e.target.value)}
+            >
+              <option value="en">English</option>
+              <option value="fr">Français</option>
+            </select>
           </label>
           <button
             type="button"

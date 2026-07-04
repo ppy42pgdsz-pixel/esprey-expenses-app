@@ -80,12 +80,15 @@ async function addMember({ request, env, data }: { request: Request; env: Env; d
   const guard = await requireAdmin(request, env, data);
   if (!guard.ok) return guard.response;
 
-  let body: { email?: string; display_name?: string | null };
+  let body: { email?: string; display_name?: string | null; language?: string | null };
   try { body = (await request.json()) as typeof body; }
   catch { return jsonError(400, "invalid JSON body"); }
 
   const email = (body.email ?? "").trim().toLowerCase();
   const displayName = (body.display_name ?? "").trim() || null;
+  // Default app language for the new member (#49). They can change it later
+  // in My Profile; this just seeds their user_profile row.
+  const language = body.language === "fr" ? "fr" : "en";
 
   if (!isPlausibleEmail(email)) {
     return jsonError(400, "email is required and must look like an email address");
@@ -109,6 +112,20 @@ async function addMember({ request, env, data }: { request: Request; env: Env; d
        VALUES (?, ?, 'member', 0, ?, ?)`
     ).bind(email, displayName, now, guard.userEmail).run();
   }
+
+  // 1b. Seed their language preference (best-effort — pre-0013 schema is fine).
+  // Only set on a brand-new profile row; never overwrite an existing choice.
+  try {
+    const prof = await env.DB
+      .prepare(`SELECT id FROM user_profile WHERE user_email = ?`)
+      .bind(email)
+      .first<{ id: number }>();
+    if (!prof) {
+      await env.DB.prepare(
+        `INSERT INTO user_profile (user_email, language, updated_at) VALUES (?, ?, ?)`
+      ).bind(email, language, now).run();
+    }
+  } catch { /* language column not deployed yet — member just defaults to English */ }
 
   // 2. Add to Cloudflare Access policy.
   let cloudflareResult: { added: boolean; emails: string[] };

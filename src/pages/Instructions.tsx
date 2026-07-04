@@ -5,18 +5,24 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FAQ } from "../../shared/faq";
+import { getLang, t } from "../../shared/i18n";
 
 export default function Instructions() {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<Set<number>>(new Set());
+  const fr = getLang() === "fr";
 
+  // Language-aware view of the FAQ; search matches both languages so a user
+  // can find "duplicate" or "doublon" regardless of their setting.
+  const items = useMemo(
+    () => FAQ.map((f, i) => ({ i, q: fr ? f.q_fr : f.q, a: fr ? f.a_fr : f.a, all: `${f.q} ${f.a} ${f.q_fr} ${f.a_fr} ${f.keywords ?? ""}`.toLowerCase() })),
+    [fr]
+  );
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return FAQ.map((f, i) => ({ ...f, i }));
-    return FAQ.map((f, i) => ({ ...f, i })).filter((f) =>
-      `${f.q} ${f.a} ${f.keywords ?? ""}`.toLowerCase().includes(q)
-    );
-  }, [query]);
+    if (!q) return items;
+    return items.filter((f) => f.all.includes(q));
+  }, [query, items]);
 
   function toggle(i: number) {
     setOpen((cur) => {
@@ -29,8 +35,8 @@ export default function Instructions() {
   return (
     <div className="page instructions">
       <header className="topbar">
-        <Link to="/" className="back">← Back</Link>
-        <h1>Help &amp; FAQ</h1>
+        <Link to="/" className="back">{t("← Back")}</Link>
+        <h1>{t("Help & FAQ")}</h1>
         <span />
       </header>
 
@@ -41,14 +47,14 @@ export default function Instructions() {
           <input
             type="search"
             className="faq-search"
-            placeholder="Search the FAQ… (e.g. duplicate, email, tip)"
+            placeholder={t("Search the FAQ… (e.g. duplicate, email, tip)")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search the FAQ"
+            aria-label={t("Search the FAQ… (e.g. duplicate, email, tip)")}
           />
           {visible.length === 0 && (
             <p className="hint">
-              Nothing matches "{query}". Try the question box above, or email{" "}
+              {t("Nothing matches")} "{query}". {t("Try the question box above, or email")}{" "}
               <a href="mailto:cesprey@gmail.com">Carl</a>.
             </p>
           )}
@@ -102,24 +108,24 @@ function AskWidget() {
 
   return (
     <section className="ask-widget">
-      <h2>How do I…?</h2>
+      <h2>{t("How do I…?")}</h2>
       <div className="ask-row">
         <input
           type="text"
-          placeholder="Ask anything — e.g. how do I forward a receipt by email?"
+          placeholder={t("Ask anything — e.g. how do I forward a receipt by email?")}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") ask(); }}
           aria-label="Ask a question about using the app"
         />
         <button type="button" className="primary-btn" onClick={ask} disabled={busy || !question.trim()}>
-          {busy ? "Thinking…" : "Ask"}
+          {busy ? t("Thinking…") : t("Ask")}
         </button>
       </div>
       {answer && <div className="ask-answer">{answer}</div>}
       {err && <div className="warn-text">{err}</div>}
       <div className="hint small">
-        Answers usage questions only — it can't see your receipts or change anything.
+        {t("Answers usage questions only — it can't see your receipts or change anything.")}
       </div>
     </section>
   );
