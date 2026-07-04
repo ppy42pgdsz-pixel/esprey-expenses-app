@@ -174,8 +174,7 @@ export default function Reports() {
         </div>
         {reportLanguage !== "en" && (
           <div className="hint small" style={{ marginTop: 6 }}>
-            Descriptions and categories are translated. Establishment names stay exactly as
-            printed on the receipts.
+            {t("Descriptions and categories are translated. Establishment names stay exactly as printed on the receipts.")}
           </div>
         )}
         {lastResult && (

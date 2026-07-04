@@ -426,7 +426,7 @@ export default function Dashboard() {
             setCustomEnd(e);
           }}
         />
-        <button className="ghost-btn" onClick={reload}>Refresh</button>
+        <button className="ghost-btn" onClick={reload}>{t("Refresh")}</button>
       </div>
 
       {dateBounds && (
@@ -506,13 +506,13 @@ export default function Dashboard() {
                 />
               </th>
               <th className="col-thumb" />
-              <ThHeader label="Date"     sortKey="date"     curKey={sortKey} dir={sortDir} onClick={toggleSort} />
-              <ThHeader label="Vendor"   sortKey="vendor"   curKey={sortKey} dir={sortDir} onClick={toggleSort} />
-              <th className="col-desc">Description</th>
-              <ThHeader label="Amount"   sortKey="amount"   curKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-              <ThHeader label="Cur"      sortKey="currency" curKey={sortKey} dir={sortDir} onClick={toggleSort} />
-              <ThHeader label="Category" sortKey="category" curKey={sortKey} dir={sortDir} onClick={toggleSort} />
-              <ThHeader label="Company"  sortKey="company"  curKey={sortKey} dir={sortDir} onClick={toggleSort} />
+              <ThHeader label={t("Date")}     sortKey="date"     curKey={sortKey} dir={sortDir} onClick={toggleSort} />
+              <ThHeader label={t("Vendor")}   sortKey="vendor"   curKey={sortKey} dir={sortDir} onClick={toggleSort} />
+              <th className="col-desc">{t("Description")}</th>
+              <ThHeader label={t("Amount")}   sortKey="amount"   curKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+              <ThHeader label={t("Cur")}      sortKey="currency" curKey={sortKey} dir={sortDir} onClick={toggleSort} />
+              <ThHeader label={t("Category")} sortKey="category" curKey={sortKey} dir={sortDir} onClick={toggleSort} />
+              <ThHeader label={t("Company")}  sortKey="company"  curKey={sortKey} dir={sortDir} onClick={toggleSort} />
               <th />
             </tr>
           </thead>
@@ -674,7 +674,7 @@ function DateFilter({
 }) {
   const today = todayISO();
   const isActive = preset !== "all";
-  const label = isActive ? presetLabel(preset, customStart, customEnd) : "All time";
+  const label = isActive ? presetLabel(preset, customStart, customEnd) : t("All time");
   return (
     <div className={"date-filter" + (isActive ? " is-active" : "")}>
       <select
@@ -683,14 +683,14 @@ function DateFilter({
         aria-label="Filter by date range"
         className="filter"
       >
-        <option value="all">📅 Date: All time</option>
-        <option value="this_week">📅 This week (Mon–Sun)</option>
-        <option value="last_week">📅 Last week</option>
-        <option value="this_month">📅 This month</option>
-        <option value="last_month">📅 Last month</option>
-        <option value="last_30">📅 Last 30 days</option>
-        <option value="last_90">📅 Last 90 days</option>
-        <option value="custom">📅 Custom range…</option>
+        <option value="all">📅 {t("Date")}: {t("All time")}</option>
+        <option value="this_week">📅 {t("This week")}</option>
+        <option value="last_week">📅 {t("Last week")}</option>
+        <option value="this_month">📅 {t("This month")}</option>
+        <option value="last_month">📅 {t("Last month")}</option>
+        <option value="last_30">📅 {t("Last 30 days")}</option>
+        <option value="last_90">📅 {t("Last 90 days")}</option>
+        <option value="custom">📅 {t("Custom range…")}</option>
       </select>
       {preset === "custom" && (
         <button
@@ -787,14 +787,14 @@ function computeDateBounds(
 }
 function presetLabel(preset: DatePreset, customStart: string, customEnd: string): string {
   switch (preset) {
-    case "all":        return "All time";
-    case "this_week":  return "This week";
-    case "last_week":  return "Last week";
-    case "this_month": return "This month";
-    case "last_month": return "Last month";
-    case "last_30":    return "Last 30 days";
-    case "last_90":    return "Last 90 days";
-    case "custom":     return customStart && customEnd ? `${customStart} – ${customEnd}` : "Custom (pick dates)";
+    case "all":        return t("All time");
+    case "this_week":  return t("This week");
+    case "last_week":  return t("Last week");
+    case "this_month": return t("This month");
+    case "last_month": return t("Last month");
+    case "last_30":    return t("Last 30 days");
+    case "last_90":    return t("Last 90 days");
+    case "custom":     return customStart && customEnd ? `${customStart} – ${customEnd}` : t("Custom (pick dates)");
   }
 }
 function formatRange(start: string, end: string): string {

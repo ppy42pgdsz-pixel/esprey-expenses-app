@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, formatDate } from "../lib/api";
 import type { Person, Receipt } from "../lib/types";
+import { t } from "../../shared/i18n";
 
 export default function Settings() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -19,8 +20,8 @@ export default function Settings() {
   return (
     <div className="page settings">
       <header className="topbar">
-        <Link to="/" className="back">← Back</Link>
-        <h1>Settings</h1>
+        <Link to="/" className="back">{t("← Back")}</Link>
+        <h1>{t("Settings")}</h1>
         <span />
       </header>
       <UserSection />
@@ -63,16 +64,16 @@ function TrashSection() {
 
   return (
     <section className="settings-section">
-      <h2>Trash</h2>
+      <h2>{t("Trash")}</h2>
       {err && <div className="error">{err}</div>}
       {items.length === 0 ? (
-        <div className="hint small">Deleted receipts appear here for 30 days, then they're gone for good.</div>
+        <div className="hint small">{t("Deleted receipts appear here for 30 days, then they're gone for good.")}</div>
       ) : (
         <div className="manage-list">
           {items.map((r) => (
             <div className="manage-row" key={r.id}>
               <span className="manage-name">
-                <strong>{r.vendor || "Unknown vendor"}</strong>
+                <strong>{r.vendor || t("Unknown vendor")}</strong>
                 <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
                   · {r.currency ? `${r.currency} ` : ""}{r.amount ?? "—"}
                   {r.receipt_date ? ` · ${formatDate(r.receipt_date)}` : ""}
@@ -83,7 +84,7 @@ function TrashSection() {
                 disabled={busy === r.id}
                 onClick={() => restore(r.id)}
               >
-                {busy === r.id ? "Restoring…" : "Restore"}
+                {busy === r.id ? t("Restoring…") : t("Restore")}
               </button>
             </div>
           ))}
@@ -97,16 +98,16 @@ function TrashSection() {
 function HelpSection() {
   return (
     <section className="settings-section">
-      <h2>How this works</h2>
+      <h2>{t("How this works")}</h2>
       <div className="manage-list">
         <div className="manage-row">
           <Link to="/instructions" className="manage-name manage-link">
-            <strong>Help &amp; FAQ</strong>
+            <strong>{t("Help & FAQ")}</strong>
             <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
-              · Searchable answers + ask-a-question box
+              · {t("Searchable answers + ask-a-question box")}
             </span>
           </Link>
-          <Link to="/instructions" className="primary-btn small">Open</Link>
+          <Link to="/instructions" className="primary-btn small">{t("Open")}</Link>
         </div>
       </div>
     </section>
@@ -117,16 +118,16 @@ function HelpSection() {
 function TeamSection() {
   return (
     <section className="settings-section">
-      <h2>Team</h2>
+      <h2>{t("Team")}</h2>
       <div className="manage-list">
         <div className="manage-row">
           <Link to="/settings/team" className="manage-name manage-link">
-            <strong>Manage team members</strong>
+            <strong>{t("Manage team members")}</strong>
             <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
-              · Add or remove people who can sign in
+              · {t("Add or remove people who can sign in")}
             </span>
           </Link>
-          <Link to="/settings/team" className="primary-btn small">Open</Link>
+          <Link to="/settings/team" className="primary-btn small">{t("Open")}</Link>
         </div>
       </div>
     </section>
@@ -137,16 +138,16 @@ function TeamSection() {
 function UserSection() {
   return (
     <section className="settings-section">
-      <h2>My profile</h2>
+      <h2>{t("My profile")}</h2>
       <div className="manage-list">
         <div className="manage-row">
           <Link to="/settings/user" className="manage-name manage-link">
-            <strong>Personal details</strong>
+            <strong>{t("Personal details")}</strong>
             <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
-              · Name, address, bank details (used on invoices)
+              · {t("Name, address, bank details (used on invoices)")}
             </span>
           </Link>
-          <Link to="/settings/user" className="primary-btn small">Edit</Link>
+          <Link to="/settings/user" className="primary-btn small">{t("Edit")}</Link>
         </div>
       </div>
     </section>
@@ -170,7 +171,7 @@ function CompaniesSection({ isAdmin }: { isAdmin: boolean }) {
   return (
     <Section title="Companies" err={err}>
       <div className="manage-list">
-        {items.length === 0 && <div className="empty small">No entries yet.</div>}
+        {items.length === 0 && <div className="empty small">{t("No entries yet.")}</div>}
         {items.map((c) => (
           <div key={c.name} className="manage-row">
             {isAdmin ? (
@@ -197,7 +198,7 @@ function CompaniesSection({ isAdmin }: { isAdmin: boolean }) {
                   await api.deleteCompany(c.name);
                   reload();
                 }}
-              >Delete</button>
+              >{t("Delete")}</button>
             )}
           </div>
         ))}
@@ -205,7 +206,7 @@ function CompaniesSection({ isAdmin }: { isAdmin: boolean }) {
       {isAdmin ? (
         <>
           <AddInput
-            placeholder="+ Add company"
+            placeholder={t("+ Add company")}
             onAdd={async (name) => {
               await api.addCompany(name);
               reload();
@@ -255,12 +256,12 @@ function PeopleSection() {
                 await api.deletePerson(p.name);
                 reload();
               }}
-            >Delete</button>
+            >{t("Delete")}</button>
           </div>
         ))}
       </div>
       <AddInput
-        placeholder="Add a person"
+        placeholder={t("Add a person")}
         onAdd={async (name) => {
           await api.addPerson(name, true);
           reload();
@@ -321,12 +322,12 @@ function CategoriesSection({ isAdmin }: { isAdmin: boolean }) {
     <Section title="Categories" err={err}>
       {isAdmin && (
         <div className="hint small" style={{ marginBottom: 6 }}>
-          Spending limit is per receipt. Anything over it gets flagged in Issues until the
-          team member acknowledges it.
+          {t("Spending limit is per receipt. Anything over it gets flagged in Issues until the team member acknowledges it.")}
+
         </div>
       )}
       <div className="manage-list">
-        {items.length === 0 && <div className="empty small">No entries yet.</div>}
+        {items.length === 0 && <div className="empty small">{t("No entries yet.")}</div>}
         {items.map((it) => (
           <div key={it.name} className="manage-row">
             <span className="manage-name">
@@ -342,7 +343,7 @@ function CategoriesSection({ isAdmin }: { isAdmin: boolean }) {
                 type="text"
                 inputMode="decimal"
                 style={{ width: 90, textAlign: "right" }}
-                placeholder="No limit"
+                placeholder={t("No limit")}
                 value={limitDrafts[it.name] ?? ""}
                 disabled={busy === it.name}
                 onChange={(e) =>
@@ -373,18 +374,18 @@ function CategoriesSection({ isAdmin }: { isAdmin: boolean }) {
         <div className="manage-row" style={{ marginTop: 6 }}>
           <input
             type="text"
-            placeholder="New category name"
+            placeholder={t("New category name")}
             value={addName}
             onChange={(e) => setAddName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") add(); }}
           />
           <button type="button" className="primary-btn small" disabled={busy === "__add__"} onClick={add}>
-            + Add category
+            {t("+ Add category")}
           </button>
         </div>
       ) : (
         <div className="hint small">
-          Categories are managed by the admin. Ask Carl to add a new one if you need it.
+          {t("Categories are managed by the admin. Ask Carl to add a new one if you need it.")}
         </div>
       )}
     </Section>
@@ -423,7 +424,7 @@ function CurrenciesSection({ isAdmin }: { isAdmin: boolean }) {
   return (
     <Section title="Currencies" err={err}>
       <div className="manage-list">
-        {items.length === 0 && <div className="empty small">No entries yet.</div>}
+        {items.length === 0 && <div className="empty small">{t("No entries yet.")}</div>}
         {items.map((it) => (
           <div key={it.code} className="manage-row">
             <span className="manage-name"><strong>{it.code}</strong> — {it.name}</span>
@@ -436,7 +437,7 @@ function CurrenciesSection({ isAdmin }: { isAdmin: boolean }) {
                   await api.deleteCurrency(it.code);
                   reload();
                 }}
-              >Delete</button>
+              >{t("Delete")}</button>
             )}
           </div>
         ))}
@@ -455,7 +456,7 @@ function CurrenciesSection({ isAdmin }: { isAdmin: boolean }) {
             value={addName}
             onChange={(e) => setAddName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") add(); }}
-            placeholder="Currency name"
+            placeholder={t("Currency name")}
           />
           <button type="button" className="primary-btn" disabled={busy || !addCode.trim() || !addName.trim()} onClick={add}>
             Add
@@ -472,7 +473,7 @@ function CurrenciesSection({ isAdmin }: { isAdmin: boolean }) {
 function Section({ title, children, err }: { title: string; children: React.ReactNode; err?: string | null }) {
   return (
     <section className="settings-section">
-      <h2>{title}</h2>
+      <h2>{t(title)}</h2>
       {err && <div className="err">{err}</div>}
       {children}
     </section>
@@ -492,12 +493,12 @@ function ManagedList<T>({
   return (
     <>
       <div className="manage-list">
-        {items.length === 0 && <div className="empty small">No entries yet.</div>}
+        {items.length === 0 && <div className="empty small">{t("No entries yet.")}</div>}
         {items.map((it, i) => (
           <div key={i} className="manage-row">
             <span className="manage-name">{renderItem(it)}</span>
             {onDelete && (
-              <button type="button" className="danger-btn small" onClick={() => onDelete(it)}>Delete</button>
+              <button type="button" className="danger-btn small" onClick={() => onDelete(it)}>{t("Delete")}</button>
             )}
           </div>
         ))}
@@ -526,7 +527,7 @@ function AddInput({ onAdd, placeholder }: { onAdd: (name: string) => Promise<voi
         placeholder={placeholder}
         disabled={busy}
       />
-      <button type="button" className="primary-btn" onClick={commit} disabled={busy || !v.trim()}>Add</button>
+      <button type="button" className="primary-btn" onClick={commit} disabled={busy || !v.trim()}>{t("Add")}</button>
     </div>
   );
 }
