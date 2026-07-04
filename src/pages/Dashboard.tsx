@@ -6,6 +6,7 @@ import { parseAttendees } from "../lib/types";
 import { billFromTotal, minorToAmount, toMinor } from "../../shared/money";
 import { t } from "../../shared/i18n";
 import ConciergeChat from "../components/ConciergeChat";
+import Tour, { dashboardTourSteps } from "../components/Tour";
 
 type SortKey = "date" | "vendor" | "amount" | "currency" | "category" | "company";
 type SortDir = "asc" | "desc";
@@ -84,6 +85,29 @@ export default function Dashboard() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [smartAiOpen, setSmartAiOpen] = useState(false); // floating Concierge panel
+
+  // Guided tour (#48a). ?tour=1 (from Help & FAQ) must be read at mount,
+  // because the URL-filter sync effect rewrites the query string.
+  const [showTour, setShowTour] = useState<boolean>(() => searchParams.get("tour") === "1");
+  useEffect(() => {
+    if (showTour) return; // explicit relaunch
+    try { if (localStorage.getItem("esprey.tour.seen")) return; } catch { /* ignore */ }
+    api.getUserProfile()
+      .then(({ profile }) => {
+        if ((profile as any).tour_seen) {
+          try { localStorage.setItem("esprey.tour.seen", "1"); } catch { /* ignore */ }
+        } else {
+          setShowTour(true);
+        }
+      })
+      .catch(() => { /* offline — try again next visit */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  function closeTour() {
+    setShowTour(false);
+    try { localStorage.setItem("esprey.tour.seen", "1"); } catch { /* ignore */ }
+    api.updateUserProfile({ tour_seen: 1 } as any).catch(() => { /* retried next time */ });
+  }
 
   async function reload() {
     setErr(null);
@@ -354,8 +378,8 @@ export default function Dashboard() {
       <header className="topbar">
         <div className="header-actions icon-actions">
           <Link to="/settings" className="icon-link" aria-label={t("Settings")}>⚙</Link>
-          <Link to="/reports" className="icon-link" aria-label={t("Reports")}>📄</Link>
-          <Link to="/instructions" className="icon-link" aria-label={t("Help & FAQ")}>?</Link>
+          <Link to="/reports" className="icon-link" aria-label={t("Reports")} data-tour="reports">📄</Link>
+          <Link to="/instructions" className="icon-link" aria-label={t("Help & FAQ")} data-tour="help">?</Link>
         </div>
         <div className="brand">
           <img src="/icons/icon-192.png" alt="" className="brand-logo" />
@@ -363,13 +387,13 @@ export default function Dashboard() {
         </div>
         <div className="header-actions">
           <Link to="/capture-manual" className="ghost-btn">{t("+ Manual")}</Link>
-          <Link to="/capture" className="primary-btn">{t("+ Capture")}</Link>
+          <Link to="/capture" className="primary-btn" data-tour="capture">{t("+ Capture")}</Link>
         </div>
       </header>
 
       {err && <div className="err">{err}</div>}
 
-      <div className="dashboard-pills">
+      <div className="dashboard-pills" data-tour="pills">
         <Pill
           label={t("Receipts")}
           count={total}
@@ -620,9 +644,11 @@ export default function Dashboard() {
         ) : null;
       })()}
 
+      {showTour && <Tour steps={dashboardTourSteps()} onClose={closeTour} />}
+
       {/* Floating Smart AI (Concierge) — Carl's preferred entry point */}
       {!smartAiOpen && (
-        <button type="button" className="smart-ai-fab" onClick={() => setSmartAiOpen(true)}>
+        <button type="button" className="smart-ai-fab" data-tour="smartai" onClick={() => setSmartAiOpen(true)}>
           ✨ {t("Smart AI")}
         </button>
       )}

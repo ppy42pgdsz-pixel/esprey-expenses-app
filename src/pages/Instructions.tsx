@@ -46,6 +46,9 @@ export default function Instructions() {
       </header>
 
       <div className="instructions-body">
+        <div style={{ marginBottom: 10 }}>
+          <Link to="/?tour=1" className="ghost-btn small">🚀 {t("Show me around again")}</Link>
+        </div>
         <AskWidget />
 
         <section>

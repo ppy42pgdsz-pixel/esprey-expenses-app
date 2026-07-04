@@ -35,21 +35,21 @@ Everything agreed or proposed, merged from the previous model's handover backlog
 | # | Item | Notes |
 |---|---|---|
 | 10 | UI polish pass | Open scope |
-| 13 | Offline photo buffer | Service-worker fallback so captures survive no-signal, upload on reconnect |
+| 13 | Offline photo buffer | AGREED DESIGN 2026-07-04: failed/offline captures saved to IndexedDB, shown as grey "waiting for connection" cards on Dashboard, auto-upload on retry. Team is MOSTLY IPHONE (some Android): iOS has no Background Sync, so primary path = retry on app-open/online-event while open + `navigator.storage.persist()` to resist Safari eviction; Android additionally gets true background sync. Idempotency key per queued photo to prevent double-upload. ~1 day |
 | 43 | 🔨 Concierge AI — CHAT PHASE DONE 2026-07-04 | Carl's v1 decisions: receipts-only (no admin tools, even for Carl), chat first, Haiku, persistent history, destructive = in-app confirm button only, NO destructive actions over email ever. Built: migration 0014 (messages + pending actions), `/api/concierge/chat` (8-round tool loop, 8 receipts-only tools, per-user scoped, penny-exact sums per currency, replies in user's language), confirm/cancel endpoint (one-shot, 10-min TTL), `/concierge` chat page + 💬 header icon. PHASE 2 (email to ask@…): read/answer only per Carl's rule — not started. |
 | 44 | Attendees in monthly report | Small; blocks #45. Also applies to any Concierge-generated report |
 | 45 | ✅ Welcome-email update | DONE 2026-07-04 — full rewrite in EN + FR (sent in the member's default language). Added: "Tag who was with you", spending limits, Trash, report-language, Help & FAQ + ask box, over-limit Issues reason. Fixed stale claim that the PDF auto-emails on generate. |
 | 46 | ✅ FAQ / help page | DONE 2026-07-04 — searchable Q&A at `/instructions`, content in `shared/faq.ts` |
 | 47 | ✅ "How do I…" AI help widget | DONE 2026-07-04 — `/api/help/ask` (Haiku, FAQ-grounded, read-only) + ask box on the help page |
-| 48 | Marketing site + walkthrough | (a) recorded video demo, or (b) live demo mode with tooltip overlays — needs `/demo` CF Access bypass + seeded fake data, 2–3× the effort of (a) |
+| 48 | SPLIT 2026-07-04 → 48a ✅ DONE / 48b deferred | **48a SHIPPED 2026-07-04 in EN+FR+PT** (migration 0015 `tour_seen`): spotlight tour over the real Dashboard, auto-start on first visit, relaunch via Help & FAQ "Show me around again" (/?tour=1). Original spec: **first-login guided tour for new team members** — 4–5 tooltip overlays on the real Dashboard (Capture → Issues → Reports → Smart AI), in the user's language, Skip button, auto-starts on first visit AND relaunchable from the Help & FAQ screen ("Show me around again"). Seen-flag in profile + localStorage. ~half day. **48b (deferred): marketing site for outsiders** — if ever needed, separate demo subdomain with mocked in-browser data; NO Cloudflare Access bypass on the real app (original `/demo` bypass idea rejected as an auth hole) |
 
 Deferred by Carl: receipt splitting across categories.
 
 ## 4. Prioritized feature adds (endorsed from handover §16)
 
 1. ⏸️ **CSV / accounting export** — PARKED by Carl 2026-07-04 (accountant works from PDFs for now).
-2. **VAT / tax field separation** (net + tax + gross) — pairs with export.
-3. **Reimbursement status** per receipt (pending / paid) — one column + chip.
+2. ~~VAT / tax field separation~~ — REMOVED by Carl 2026-07-04.
+3. ~~Reimbursement status~~ — REMOVED by Carl 2026-07-04. (FR/PT translation of admin-only pages also declined — Team + company editor stay English.)
 4. ~~Report scheduling~~ — REMOVED by Carl 2026-07-04 (not wanted).
 5. ✅ **URL-persisted dashboard filters** — DONE 2026-07-04. Filters mirror to ?pill/&company/&date/&from/&to; refresh, Back, and bookmarks all preserve the view. Also added a "?" help link in the Dashboard header.
 
@@ -57,6 +57,6 @@ Deferred by Carl: receipt splitting across categories.
 
 Approval workflow · mileage tracking · audit log · full data export (GDPR) · full-text search · recurring-expense reminders · OCR cost optimization (skip OCR for known structured emails: Uber, Ryanair…) · dark mode · print-friendly detail view · report customization · push notifications · handwritten-note/signature receipts · client/project tags · public API & webhooks.
 
-## 6. Suggested sequence
+## 6. Current sequence (2026-07-04)
 
-Spending-limits UI → fixes 2.1 + 2.2 (financial correctness) → CSV export + VAT split → reimbursement status → scheduling/URL filters → then backlog #44/#45, #46/#47, #43.
+48a first-login guided tour → #13 offline photo buffer (iPhone-first design) → then: spending-limits toggle, #10 polish from team feedback, #43 Concierge email phase, 48b if ever needed.

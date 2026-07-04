@@ -998,3 +998,25 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
 @media (max-width: 360px) {
   .page.dashboard .topbar h1 { display: none; }
 }
+
+
+/* Guided tour (#48a) */
+.tour-backdrop { position: fixed; inset: 0; z-index: 90; }
+.tour-backdrop.dim { background: rgba(0,0,0,0.45); }
+.tour-spotlight {
+  position: fixed; z-index: 91; border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+  pointer-events: none;
+  transition: all 0.25s ease;
+}
+.tour-card {
+  position: fixed; z-index: 92; width: 300px; max-width: calc(100vw - 16px);
+  background: #fff; border-radius: 12px; padding: 14px 16px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+}
+.tour-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+.tour-body { font-size: 13.5px; line-height: 1.5; color: #444; }
+.tour-dots { display: flex; gap: 5px; margin: 10px 0; }
+.tour-dots span { width: 7px; height: 7px; border-radius: 50%; background: #d4d4d8; }
+.tour-dots span.on { background: var(--accent); }
+.tour-actions { display: flex; gap: 8px; align-items: center; }

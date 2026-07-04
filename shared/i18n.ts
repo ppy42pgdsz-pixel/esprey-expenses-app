@@ -266,6 +266,20 @@ const FR: Record<string, string> = {
   "page": "page",
   "pages": "pages",
   "Page": "Page",
+  // ----- Guided tour (#48a) -----
+  "Skip": "Passer",
+  "Next": "Suivant",
+  "Got it!": "C'est parti !",
+  "Show me around again": "Refaire la visite guidée",
+  "Add receipts": "Ajouter des reçus",
+  "Tap + Capture to photograph a receipt — the amount, vendor and date are read for you. You can also email receipts in, or add cash expenses manually.": "Touchez + Photo pour photographier un reçu — le montant, le fournisseur et la date sont lus pour vous. Vous pouvez aussi envoyer des reçus par e-mail ou saisir des dépenses en espèces manuellement.",
+  "Your counters": "Vos compteurs",
+  "Receipts shows everything. Uncategorized still needs a company. Issues turns red when something needs your attention — tap it to see why.": "Reçus montre tout. Sans catégorie attend une société. Anomalies devient rouge quand quelque chose demande votre attention — touchez-le pour voir pourquoi.",
+  "At month-end, generate a polished PDF of your expenses here — in the language of your choice.": "En fin de mois, générez ici un PDF soigné de vos dépenses — dans la langue de votre choix.",
+  "Your assistant": "Votre assistant",
+  "Ask anything — \"how much did I spend on meals?\" — or tell it to record an expense for you. It only ever sees your own receipts.": "Posez n'importe quelle question — « combien ai-je dépensé en repas ? » — ou demandez-lui d'enregistrer une dépense. Il ne voit que vos propres reçus.",
+  "Need help?": "Besoin d'aide ?",
+  "The ? opens the FAQ with an ask-a-question box. You can rerun this tour from there anytime.": "Le ? ouvre la FAQ avec une boîte à questions. Vous pouvez relancer cette visite depuis là à tout moment.",
 };
 
 
@@ -506,4 +520,18 @@ const PT: Record<string, string> = {
   "page": "página",
   "pages": "páginas",
   "Page": "Página",
+  // ----- Guided tour (#48a) -----
+  "Skip": "Ignorar",
+  "Next": "Seguinte",
+  "Got it!": "Entendido!",
+  "Show me around again": "Repetir a visita guiada",
+  "Add receipts": "Adicionar recibos",
+  "Tap + Capture to photograph a receipt — the amount, vendor and date are read for you. You can also email receipts in, or add cash expenses manually.": "Toque em + Foto para fotografar um recibo — o montante, o fornecedor e a data são lidos por si. Também pode enviar recibos por e-mail ou registar despesas em dinheiro manualmente.",
+  "Your counters": "Os seus contadores",
+  "Receipts shows everything. Uncategorized still needs a company. Issues turns red when something needs your attention — tap it to see why.": "Recibos mostra tudo. Sem categoria ainda precisa de uma empresa. Anomalias fica vermelho quando algo precisa da sua atenção — toque para ver porquê.",
+  "At month-end, generate a polished PDF of your expenses here — in the language of your choice.": "No fim do mês, gere aqui um PDF cuidado das suas despesas — no idioma que preferir.",
+  "Your assistant": "O seu assistente",
+  "Ask anything — \"how much did I spend on meals?\" — or tell it to record an expense for you. It only ever sees your own receipts.": "Pergunte o que quiser — «quanto gastei em refeições?» — ou peça-lhe para registar uma despesa. Só vê os seus próprios recibos.",
+  "Need help?": "Precisa de ajuda?",
+  "The ? opens the FAQ with an ask-a-question box. You can rerun this tour from there anytime.": "O ? abre a FAQ com uma caixa de perguntas. Pode repetir esta visita a partir daí em qualquer altura.",
 };

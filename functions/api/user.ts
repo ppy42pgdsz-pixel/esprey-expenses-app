@@ -24,13 +24,14 @@ export interface UserProfileRow {
   bank_swift: string | null;  // legacy
   bank_details: string | null;
   language: string | null; // 'en' | 'fr' | 'pt' — NULL means 'en' (pre-0013 rows)
+  tour_seen: number | null; // 1 once the guided tour was completed/skipped (0015)
   updated_at: number;
 }
 
 const EDITABLE = [
   "name", "business_name", "email", "phone",
   "address_line1", "address_line2", "address_country", "vat_number",
-  "bank_details", "language",
+  "bank_details", "language", "tour_seen",
 ] as const;
 
 const LANGUAGES = ["en", "fr", "pt"] as const;
@@ -65,6 +66,7 @@ export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, en
       bank_swift: null,
       bank_details: isCarl ? composeLegacyBankDetails(env) : null,
       language: null,
+      tour_seen: 0,
       updated_at: 0,
     },
   });
@@ -89,6 +91,8 @@ export const onRequestPut: PagesFunction<Env, never, any> = async ({ request, en
       cols.push(k);
       if (k === "language") {
         vals.push(LANGUAGES.includes(v as any) ? (v as string) : null);
+      } else if (k === "tour_seen") {
+        vals.push(v === 1 || v === true || v === "1" ? 1 : 0);
       } else {
         vals.push(typeof v === "string" && v.trim() ? v.trim() : null);
       }
