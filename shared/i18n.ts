@@ -239,4 +239,5 @@ const FR: Record<string, string> = {
   "Confirm delete": "Confirmer la suppression",
   "Done — moved to Trash (restorable for 30 days).": "C'est fait — déplacé dans la corbeille (restaurable pendant 30 jours).",
   "Okay — cancelled, nothing was deleted.": "D'accord — annulé, rien n'a été supprimé.",
+  "Smart AI": "Smart AI",
 };

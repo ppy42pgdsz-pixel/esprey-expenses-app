@@ -5,6 +5,7 @@ import type { Receipt } from "../lib/types";
 import { parseAttendees } from "../lib/types";
 import { billFromTotal, minorToAmount, toMinor } from "../../shared/money";
 import { t } from "../../shared/i18n";
+import ConciergeChat from "../components/ConciergeChat";
 
 type SortKey = "date" | "vendor" | "amount" | "currency" | "category" | "company";
 type SortDir = "asc" | "desc";
@@ -82,6 +83,7 @@ export default function Dashboard() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [smartAiOpen, setSmartAiOpen] = useState(false); // floating Concierge panel
 
   async function reload() {
     setErr(null);
@@ -354,7 +356,6 @@ export default function Dashboard() {
           <Link to="/settings" className="icon-link" aria-label={t("Settings")}>⚙</Link>
           <Link to="/reports" className="icon-link" aria-label={t("Reports")}>📄</Link>
           <Link to="/instructions" className="icon-link" aria-label={t("Help & FAQ")}>?</Link>
-          <Link to="/concierge" className="icon-link" aria-label={t("Concierge")}>💬</Link>
         </div>
         <div className="brand">
           <img src="/icons/icon-192.png" alt="" className="brand-logo" />
@@ -618,6 +619,22 @@ export default function Dashboard() {
           <div className="hint">{pending} receipt(s) still being read by Claude — refresh in a moment.</div>
         ) : null;
       })()}
+
+      {/* Floating Smart AI (Concierge) — Carl's preferred entry point */}
+      {!smartAiOpen && (
+        <button type="button" className="smart-ai-fab" onClick={() => setSmartAiOpen(true)}>
+          ✨ {t("Smart AI")}
+        </button>
+      )}
+      {smartAiOpen && (
+        <div className="smart-ai-panel">
+          <div className="smart-ai-head">
+            <span>✨ {t("Smart AI")}</span>
+            <button type="button" className="smart-ai-close" aria-label={t("Cancel")} onClick={() => setSmartAiOpen(false)}>×</button>
+          </div>
+          <ConciergeChat embedded />
+        </div>
+      )}
     </div>
   );
 }
