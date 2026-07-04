@@ -19,6 +19,7 @@ export default function UserSettings() {
   const [country, setCountry] = useState("");
   const [vat, setVat] = useState("");
   const [bankDetails, setBankDetails] = useState("");
+  const [language, setLanguage] = useState<string>("en");
 
   useEffect(() => {
     (async () => {
@@ -40,6 +41,7 @@ export default function UserSettings() {
           p.bank_swift ? `SWIFT: ${p.bank_swift}` : null,
         ].filter(Boolean).join("\n");
         setBankDetails(p.bank_details ?? composedLegacy ?? "");
+        setLanguage((p as any).language === "fr" ? "fr" : "en");
       } catch (e) {
         setErr((e as Error).message);
       } finally {
@@ -61,6 +63,7 @@ export default function UserSettings() {
         address_country: country || null,
         vat_number: vat || null,
         bank_details: bankDetails || null,
+        language: language as any,
       };
       await api.updateUserProfile(patch);
       navigate("/settings");
@@ -88,6 +91,25 @@ export default function UserSettings() {
           <div className="hint small" style={{ marginBottom: 8 }}>
             These details appear at the top of every monthly invoice (BILL FROM block) and in the payment-details footer.
           </div>
+
+          <section className="settings-section">
+            <h2>Language / Langue</h2>
+            <label className="field">
+              <span className="label">App language</span>
+              <select
+                className="picker-select"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+              >
+                <option value="en">English</option>
+                <option value="fr">Français</option>
+              </select>
+            </label>
+            <div className="hint small">
+              Receipt descriptions are also written in this language. / Les descriptions des reçus
+              seront aussi rédigées dans cette langue.
+            </div>
+          </section>
 
           <section className="settings-section">
             <h2>Identity</h2>

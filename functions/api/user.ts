@@ -23,14 +23,17 @@ export interface UserProfileRow {
   bank_iban: string | null;   // legacy
   bank_swift: string | null;  // legacy
   bank_details: string | null;
+  language: string | null; // 'en' | 'fr' — NULL means 'en' (pre-0013 rows)
   updated_at: number;
 }
 
 const EDITABLE = [
   "name", "business_name", "email", "phone",
   "address_line1", "address_line2", "address_country", "vat_number",
-  "bank_details",
+  "bank_details", "language",
 ] as const;
+
+const LANGUAGES = ["en", "fr"] as const;
 
 export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
   const guard = await requireUser(request, env, data);
@@ -61,6 +64,7 @@ export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, en
       bank_iban: null,
       bank_swift: null,
       bank_details: isCarl ? composeLegacyBankDetails(env) : null,
+      language: null,
       updated_at: 0,
     },
   });
@@ -83,7 +87,11 @@ export const onRequestPut: PagesFunction<Env, never, any> = async ({ request, en
     if (Object.prototype.hasOwnProperty.call(body, k)) {
       const v = body[k];
       cols.push(k);
-      vals.push(typeof v === "string" && v.trim() ? v.trim() : null);
+      if (k === "language") {
+        vals.push(LANGUAGES.includes(v as any) ? (v as string) : null);
+      } else {
+        vals.push(typeof v === "string" && v.trim() ? v.trim() : null);
+      }
     }
   }
   const now = Date.now();

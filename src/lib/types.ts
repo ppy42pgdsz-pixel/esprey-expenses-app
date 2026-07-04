@@ -37,6 +37,7 @@ export interface UserProfile {
   business_name: string | null;
   email: string | null;
   phone: string | null;
+  language?: string | null; // 'en' | 'fr' — null means English
   address_line1: string | null;
   address_line2: string | null;
   address_country: string | null;

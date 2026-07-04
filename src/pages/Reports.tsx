@@ -13,18 +13,22 @@ function defaultMonth() {
 // Remember the last company/currency the user reported on, so the page
 // doesn't reset to "all companies" every visit.
 const PREFS_KEY = "esprey.reports.prefs";
-function loadPrefs(): { company: string; currency: string } {
+function loadPrefs(): { company: string; currency: string; language: string } {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
     if (raw) {
       const p = JSON.parse(raw);
-      return { company: String(p.company ?? ""), currency: String(p.currency ?? "") };
+      return {
+        company: String(p.company ?? ""),
+        currency: String(p.currency ?? ""),
+        language: p.language === "fr" ? "fr" : "en",
+      };
     }
   } catch { /* first visit / storage disabled */ }
-  return { company: "", currency: "" };
+  return { company: "", currency: "", language: "en" };
 }
-function savePrefs(company: string, currency: string) {
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify({ company, currency })); } catch { /* ignore */ }
+function savePrefs(company: string, currency: string, language: string) {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify({ company, currency, language })); } catch { /* ignore */ }
 }
 
 // Generate ~24 month options spanning 2 years back from current month so the
@@ -48,7 +52,8 @@ export default function Reports() {
   const [month, setMonth] = useState(defaultMonth());
   const [company, setCompany] = useState<string>(() => loadPrefs().company); // "" = all companies
   const [currency, setCurrency] = useState<string>(() => loadPrefs().currency); // "" = all currencies
-  useEffect(() => { savePrefs(company, currency); }, [company, currency]);
+  const [reportLanguage, setReportLanguage] = useState<string>(() => loadPrefs().language);
+  useEffect(() => { savePrefs(company, currency, reportLanguage); }, [company, currency, reportLanguage]);
   const monthOptions = useMemo(buildMonthOptions, []);
   const [busy, setBusy] = useState(false);
   const [emailingZip, setEmailingZip] = useState(false);
@@ -106,7 +111,7 @@ export default function Reports() {
   async function generate() {
     setBusy(true); setErr(null); setLastResult(null); setZipEmailMsg(null); setPdfEmailMsg(null);
     try {
-      const res = await api.generateReport(month, company || null, currency || null);
+      const res = await api.generateReport(month, company || null, currency || null, reportLanguage);
       setLastResult(res);
     } catch (e) {
       setErr((e as Error).message);
@@ -154,6 +159,17 @@ export default function Reports() {
               <option value="">All currencies</option>
               {currencies.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
             </select>
+          </label>
+          <label className="field">
+            <span className="label">Report language</span>
+            <select className="picker-select" value={reportLanguage} onChange={(e) => setReportLanguage(e.target.value)}>
+              <option value="en">English</option>
+              <option value="fr">Français</option>
+            </select>
+            <span className="hint small">
+              Descriptions and categories are translated. Establishment names stay exactly as
+              printed on the receipts.
+            </span>
           </label>
           <button type="button" className="primary-btn" onClick={generate} disabled={busy}>
             {busy ? "Generating…" : "Generate"}

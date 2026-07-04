@@ -37,6 +37,9 @@ export async function extractReceipt(
     imageMimeType?: string;
     pdfBase64?: string;
     textBody?: string;
+    /** Language the "notes" field should be written in (default English).
+     *  Vendor names are ALWAYS kept exactly as printed — never translated. */
+    notesLanguage?: "en" | "fr";
   }
 ): Promise<{ extracted: ExtractedReceipt; raw: string }> {
   const content: AnthropicMessage["content"] = [];
@@ -72,7 +75,11 @@ export async function extractReceipt(
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 512,
-      system: SYSTEM_PROMPT,
+      system:
+        SYSTEM_PROMPT +
+        (opts.notesLanguage === "fr"
+          ? `\n- Write the "notes" field in French. Keep "vendor" EXACTLY as printed on the receipt — never translate it.`
+          : ""),
       messages: [{ role: "user", content }],
     }),
   });

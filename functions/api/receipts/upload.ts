@@ -8,6 +8,7 @@ import { extractReceipt } from "../../_lib/anthropic";
 import { arrayBufferToBase64, extFromMime, newId, r2KeyForReceipt } from "../../_lib/util";
 import { requireUser } from "../../_lib/auth";
 import { ensureTodayRates } from "../../_lib/fx";
+import { getUserLanguage } from "../../_lib/lang";
 
 export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
   const guard = await requireUser(request, env, data);
@@ -55,13 +56,15 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
   let extracted = null as null | Awaited<ReturnType<typeof extractReceipt>>["extracted"];
   try {
     const base64 = arrayBufferToBase64(bytes);
+    const notesLanguage = await getUserLanguage(env.DB, guard.userEmail);
     let result;
     if (mime === "application/pdf") {
-      result = await extractReceipt(env.ANTHROPIC_API_KEY, { pdfBase64: base64 });
+      result = await extractReceipt(env.ANTHROPIC_API_KEY, { pdfBase64: base64, notesLanguage });
     } else if (mime.startsWith("image/")) {
       result = await extractReceipt(env.ANTHROPIC_API_KEY, {
         imageBase64: base64,
         imageMimeType: mime,
+        notesLanguage,
       });
     } else {
       throw new Error("unsupported file type: " + mime);

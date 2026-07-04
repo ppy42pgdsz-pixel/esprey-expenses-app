@@ -8,6 +8,8 @@ import { jsonError } from "../../_lib/types";
 import type { CompanyRow } from "../companies";
 import { buildMonthlyReport } from "../../_lib/pdf";
 import { fetchLatestRates, getRatesForDate, type FxRates } from "../../_lib/fx";
+import { getUserLanguage, type AppLanguage } from "../../_lib/lang";
+import { translateStrings } from "../../_lib/translate";
 import { htmlToPdf } from "../../_lib/pdfshift";
 import { buildReceiptZip } from "../../_lib/zip";
 import type { UserProfileRow } from "../user";
@@ -18,7 +20,7 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
   const guard = await requireUser(request, env, data);
   if (!guard.ok) return guard.response;
 
-  let body: { month?: string; company?: string | null; currency?: string | null };
+  let body: { month?: string; company?: string | null; currency?: string | null; language?: string | null };
   try { body = (await request.json()) as typeof body; }
   catch { return jsonError(400, "invalid JSON body"); }
 
@@ -28,8 +30,11 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
   }
   const company = (body.company ?? "").trim() || null;
   const currency = (body.currency ?? "").trim().toUpperCase() || null;
+  // Report output language (#49). Independent of the user's app language:
+  // a French-speaking user can generate an English report and vice versa.
+  const language: AppLanguage = body.language === "fr" ? "fr" : "en";
 
-  const { startMs, endMs, label: monthLabel } = monthBoundsUTC(month);
+  const { startMs, endMs, label: monthLabel } = monthBoundsUTC(month, language);
   const startISO = monthFirstDay(month);
   const endISO = monthFirstDay(addMonth(month, 1));
 
@@ -173,6 +178,24 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
   // invoices would show up with Carl's name and bank details.
   const isCarl = !!env.CARL_EMAIL && guard.userEmail === env.CARL_EMAIL.toLowerCase();
 
+  // Translate receipt content into the report language (#49) — notes and
+  // category names only. Vendor names, attendees, amounts, dates and currency
+  // codes are NEVER translated (they must match the underlying receipts).
+  // Skipped when the report owner's own language matches the output language
+  // (their content is already written in it). Best-effort: on failure the
+  // originals are used.
+  const ownerLanguage = await getUserLanguage(env.DB, guard.userEmail);
+  if (env.ANTHROPIC_API_KEY && receipts.length > 0 && ownerLanguage !== language) {
+    const notes = receipts.map((r) => r.notes ?? "");
+    const cats = receipts.map((r) => r.category ?? "");
+    const translated = await translateStrings(env.ANTHROPIC_API_KEY, [...notes, ...cats], language);
+    receipts.forEach((r, i) => {
+      if (r.notes && translated[i]) r.notes = translated[i];
+      const cat = translated[receipts.length + i];
+      if (r.category && cat) r.category = cat;
+    });
+  }
+
   // Build PDF.
   const pdfBytes = await buildMonthlyReport({
     monthLabel,
@@ -180,6 +203,7 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
     companyName: company,
     billedToCompany,
     currencyFilter: currency,
+    language,
     fxRates,
     fxRatesFor: ratesByDate.size > 0
       ? (r) => (r.fx_rate_date && ratesByDate.get(r.fx_rate_date)) || fxRates
@@ -262,11 +286,12 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
 };
 
 /* ---- helpers ---- */
-function monthBoundsUTC(month: string): { startMs: number; endMs: number; label: string } {
+function monthBoundsUTC(month: string, language: "en" | "fr" = "en"): { startMs: number; endMs: number; label: string } {
   const [y, m] = month.split("-").map(Number);
   const start = Date.UTC(y, m - 1, 1, 0, 0, 0, 0);
   const end = Date.UTC(y, m, 1, 0, 0, 0, 0);
-  const label = new Date(start).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+  const locale = language === "fr" ? "fr-FR" : "en-GB";
+  const label = new Date(start).toLocaleDateString(locale, { month: "long", year: "numeric", timeZone: "UTC" });
   return { startMs: start, endMs: end, label };
 }
 function monthFirstDay(month: string): string { return `${month}-01`; }

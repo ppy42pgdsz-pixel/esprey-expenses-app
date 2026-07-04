@@ -1,0 +1,84 @@
+// Report template labels in each supported output language (#49).
+// Vendor names, amounts, dates, currency codes and attendee names are NEVER
+// translated — they must reconcile against the original receipts.
+
+import type { AppLanguage } from "./lang";
+
+const STRINGS = {
+  en: {
+    invoice: "INVOICE",
+    invoiceSpaced: "I N V O I C E",
+    billedTo: "B I L L E D   T O",
+    forLabel: "F O R",
+    paymentDetails: "P A Y M E N T   D E T A I L S",
+    issueDate: "Issue date",
+    period: "Period",
+    continued: "(continued)",
+    breakdown: "Breakdown by category",
+    breakdownContinued: "Breakdown by category (continued)",
+    date: "Date",
+    name: "Name",
+    vendor: "Vendor",
+    category: "Category",
+    description: "Description",
+    amount: "Amount",
+    currency: "Currency",
+    original: "Original",
+    subtotal: "Subtotal",
+    subtotalsByCurrency: "Subtotals by currency",
+    tax: "Tax",
+    totalDue: "Total due",
+    total: "TOTAL",
+    appendix: "Appendix — original receipts",
+    allCompanies: "All companies",
+    uncategorized: "Uncategorized",
+    withAttendees: "with",
+    manualEntry: "(Manually entered — no original receipt)",
+    originalMissing: "(Original could not be loaded from storage)",
+    fxAsOf: (source: string, date: string) => `Exchange rates: ${source} · as of ${date}`,
+    fxCaptureLocked: (source: string, date: string) =>
+      `Exchange rates: ${source} · locked at each receipt's capture date (older receipts: as of ${date})`,
+    expenseReport: "Expense Report",
+  },
+  fr: {
+    invoice: "FACTURE",
+    invoiceSpaced: "F A C T U R E",
+    billedTo: "F A C T U R É   À",
+    forLabel: "P O U R",
+    paymentDetails: "C O O R D O N N É E S   D E   P A I E M E N T",
+    issueDate: "Date d'émission",
+    period: "Période",
+    continued: "(suite)",
+    breakdown: "Ventilation par catégorie",
+    breakdownContinued: "Ventilation par catégorie (suite)",
+    date: "Date",
+    name: "Nom",
+    vendor: "Fournisseur",
+    category: "Catégorie",
+    description: "Description",
+    amount: "Montant",
+    currency: "Devise",
+    original: "Original",
+    subtotal: "Sous-total",
+    subtotalsByCurrency: "Sous-totaux par devise",
+    tax: "Taxe",
+    totalDue: "Total à payer",
+    total: "TOTAL",
+    appendix: "Annexe — reçus originaux",
+    allCompanies: "Toutes les sociétés",
+    uncategorized: "Sans catégorie",
+    withAttendees: "avec",
+    manualEntry: "(Saisie manuelle — pas de reçu original)",
+    originalMissing: "(L'original n'a pas pu être chargé)",
+    fxAsOf: (source: string, date: string) => `Taux de change : ${source} · au ${date}`,
+    fxCaptureLocked: (source: string, date: string) =>
+      `Taux de change : ${source} · figés à la date de capture de chaque reçu (anciens reçus : au ${date})`,
+    expenseReport: "Note de frais",
+  },
+} as const;
+
+export type PdfStrings = (typeof STRINGS)["en"];
+
+export function pdfStrings(lang: AppLanguage): PdfStrings {
+  return (STRINGS[lang] ?? STRINGS.en) as PdfStrings;
+}

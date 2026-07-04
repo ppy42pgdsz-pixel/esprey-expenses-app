@@ -232,7 +232,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     }),
-  generateReport: (month: string, company: string | null, currency: string | null) =>
+  generateReport: (month: string, company: string | null, currency: string | null, language?: string) =>
     jsonFetch<{
       month: string;
       company: string | null;
@@ -250,7 +250,7 @@ export const api = {
     }>("/api/reports/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ month, company, currency }),
+      body: JSON.stringify({ month, company, currency, language: language || "en" }),
     }),
   emailReportPdf: (file: string) =>
     jsonFetch<{ emailedTo: string; sizeBytes: number }>("/api/reports/email-pdf", {

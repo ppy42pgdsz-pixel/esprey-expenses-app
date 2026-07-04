@@ -1,5 +1,5 @@
 // Monthly expense report PDF — invoice-style layout.
-// Page 1: invoice header (company name top-left, "INVOICE" + period top-right,
+// Page 1: invoice header (company name top-left, S.invoice + period top-right,
 //   bank-details placeholder on the left), then expense line items flowing down.
 // Subsequent pages: continued line items.
 // Final summary: totals on the last summary page.
@@ -17,6 +17,8 @@ import {
 } from "pdf-lib";
 import type { BankDetails, BillFrom, ReceiptRow } from "./types";
 import { toMinor } from "../../shared/money";
+import { pdfStrings, type PdfStrings } from "./pdfStrings";
+import type { AppLanguage } from "./lang";
 import { convert, type FxRates } from "./fx";
 
 export interface BilledToCompany {
@@ -45,7 +47,7 @@ interface OriginalLoader {
 export async function buildMonthlyReport(opts: {
   monthLabel: string;          // e.g. "June 2026"
   reportLabel: string;         // e.g. "June 2026 — Waraba Gold — EUR"
-  companyName: string | null;  // null = "All companies"
+  companyName: string | null;  // null = S.allCompanies
   billedToCompany?: BilledToCompany | null;
   currencyFilter: string | null;
   fxRates?: FxRates | null;    // set when currencyFilter is non-null (report-time fallback table)
@@ -57,9 +59,12 @@ export async function buildMonthlyReport(opts: {
   bank: BankDetails;
   fetchOriginal: OriginalLoader;
   generatedAt: Date;
+  /** Output language for template labels (#49). Content translation happens in generate.ts. */
+  language?: AppLanguage;
 }): Promise<Uint8Array> {
+  const S = pdfStrings(opts.language ?? "en");
   const pdf = await PDFDocument.create();
-  pdf.setTitle(`Expense Report — ${opts.reportLabel}`);
+  pdf.setTitle(`${S.expenseReport} — ${opts.reportLabel}`);
   pdf.setAuthor(opts.billFrom.name || "Esprey Expenses");
   pdf.setCreator("Esprey Expenses");
   pdf.setProducer("Esprey Expenses");
@@ -69,34 +74,34 @@ export async function buildMonthlyReport(opts: {
   };
 
   // Invoice + line items (may span multiple pages).
-  drawInvoice(pdf, fonts, opts);
+  drawInvoice(pdf, fonts, opts, S);
 
   // Category breakdown (new page after the invoice, before the appendix).
-  drawCategoryBreakdown(pdf, fonts, opts.receipts);
+  drawCategoryBreakdown(pdf, fonts, opts.receipts, S);
 
   // Appendix.
-  await drawAppendix(pdf, fonts, opts.receipts, opts.fetchOriginal);
+  await drawAppendix(pdf, fonts, opts.receipts, opts.fetchOriginal, S);
 
   return pdf.save();
 }
 
 /* ---------------- Category breakdown ---------------- */
-function drawCategoryBreakdown(pdf: PDFDocument, fonts: Fonts, receipts: ReceiptRow[]) {
+function drawCategoryBreakdown(pdf: PDFDocument, fonts: Fonts, receipts: ReceiptRow[], S: PdfStrings) {
   if (receipts.length === 0) return;
 
   let page = pdf.addPage(PageSizes.A4);
   let y = PAGE_H - MARGIN;
 
-  page.drawText("Breakdown by category", {
+  page.drawText(S.breakdown, {
     x: MARGIN, y, size: 16, font: fonts.bold, color: rgb(0.1, 0.1, 0.1),
   });
   y -= 24;
 
   // Group by category (Uncategorized at the end, otherwise alphabetical).
-  const byCat = groupBy(receipts, (r) => r.category || "Uncategorized");
+  const byCat = groupBy(receipts, (r) => r.category || S.uncategorized);
   const catNames = Array.from(byCat.keys()).sort((a, b) => {
-    if (a === "Uncategorized") return 1;
-    if (b === "Uncategorized") return -1;
+    if (a === S.uncategorized) return 1;
+    if (b === S.uncategorized) return -1;
     return a.localeCompare(b);
   });
 
@@ -113,7 +118,7 @@ function drawCategoryBreakdown(pdf: PDFDocument, fonts: Fonts, receipts: Receipt
     page = pdf.addPage(PageSizes.A4);
     y = PAGE_H - MARGIN;
     if (continued) {
-      page.drawText("Breakdown by category (continued)", {
+      page.drawText(S.breakdownContinued, {
         x: MARGIN, y, size: 11, font: fonts.bold, color: rgb(0.4, 0.4, 0.4),
       });
       y -= 20;
@@ -128,10 +133,10 @@ function drawCategoryBreakdown(pdf: PDFDocument, fonts: Fonts, receipts: Receipt
       thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
     });
     const c = rgb(0.3, 0.3, 0.3);
-    page.drawText("Date", { x: cols.date, y, size: 9, font: fonts.bold, color: c });
-    page.drawText("Name", { x: cols.name, y, size: 9, font: fonts.bold, color: c });
-    drawRight(page, "Amount",   cols.amt, y, 9, fonts.bold, c);
-    drawRight(page, "Currency", cols.cur, y, 9, fonts.bold, c);
+    page.drawText(S.date, { x: cols.date, y, size: 9, font: fonts.bold, color: c });
+    page.drawText(S.name, { x: cols.name, y, size: 9, font: fonts.bold, color: c });
+    drawRight(page, S.amount,   cols.amt, y, 9, fonts.bold, c);
+    drawRight(page, S.currency, cols.cur, y, 9, fonts.bold, c);
     page.drawLine({
       start: { x: MARGIN, y: y - 4 }, end: { x: PAGE_W - MARGIN, y: y - 4 },
       thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
@@ -177,7 +182,7 @@ function drawCategoryBreakdown(pdf: PDFDocument, fonts: Fonts, receipts: Receipt
       // show who was present. Only drawn when the receipt has attendees.
       const attendees = parseAttendeesJson(r.attendees);
       if (attendees.length > 0) {
-        const attLines = wrapText(`with ${attendees.join(", ")}`, fonts.reg, 9, nameMaxWidth);
+        const attLines = wrapText(`${S.withAttendees} ${attendees.join(", ")}`, fonts.reg, 9, nameMaxWidth);
         for (const line of attLines) {
           ensureSpace(LINE);
           page.drawText(line, { x: cols.name, y, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45) });
@@ -195,11 +200,11 @@ function drawCategoryBreakdown(pdf: PDFDocument, fonts: Fonts, receipts: Receipt
       thickness: 0.5, color: rgb(0.8, 0.8, 0.8),
     });
     if (subs.size === 0) {
-      drawRight(page, "Subtotal —", PAGE_W - MARGIN, y, 9, fonts.bold, rgb(0.3, 0.3, 0.3));
+      drawRight(page, `${S.subtotal} —`, PAGE_W - MARGIN, y, 9, fonts.bold, rgb(0.3, 0.3, 0.3));
       y -= LINE;
     } else {
       for (const [cur, amt] of subs) {
-        drawRight(page, `Subtotal  ${fmtMoney(amt)}`, cols.amt, y, 9, fonts.bold, rgb(0.3, 0.3, 0.3));
+        drawRight(page, `${S.subtotal}  ${fmtMoney(amt)}`, cols.amt, y, 9, fonts.bold, rgb(0.3, 0.3, 0.3));
         drawRight(page, cur || "—", cols.cur, y, 9, fonts.bold, rgb(0.35, 0.35, 0.35));
         y -= LINE;
       }
@@ -224,7 +229,8 @@ function drawInvoice(
     billFrom: BillFrom;
     bank: BankDetails;
     generatedAt: Date;
-  }
+  },
+  S: PdfStrings
 ) {
   let page = pdf.addPage(PageSizes.A4);
   let y = PAGE_H - MARGIN;
@@ -265,14 +271,14 @@ function drawInvoice(
     addrY -= 12;
   }
 
-  // Right: "INVOICE" label + No. (big) + Issue date.
-  page.drawText("I N V O I C E", {
-    x: rightX - fonts.reg.widthOfTextAtSize("I N V O I C E", 11),
+  // Right: S.invoice label + No. (big) + Issue date.
+  page.drawText(S.invoiceSpaced, {
+    x: rightX - fonts.reg.widthOfTextAtSize(S.invoiceSpaced, 11),
     y: y - 16, size: 11, font: fonts.reg, color: rgb(0.4, 0.4, 0.4),
   });
   const invoiceNo = buildInvoiceNumber(opts.companyName, opts.monthLabel, opts.generatedAt);
   drawRight(page, `No. ${invoiceNo}`, rightX, y - 38, 18, fonts.bold);
-  drawRight(page, "Issue date", rightX, y - 64, 9, fonts.reg, rgb(0.4, 0.4, 0.4));
+  drawRight(page, S.issueDate, rightX, y - 64, 9, fonts.reg, rgb(0.4, 0.4, 0.4));
   drawRight(page, opts.generatedAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
     rightX, y - 76, 11, fonts.reg);
 
@@ -289,13 +295,13 @@ function drawInvoice(
 
   // ----- MID BAND: BILLED TO (left) + FOR (right) -----
   const midTopY = y;
-  page.drawText("B I L L E D   T O", {
+  page.drawText(S.billedTo, {
     x: MARGIN, y: midTopY, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45),
   });
 
   // Use the full legal name if we have it, otherwise the short name.
   const co = opts.billedToCompany;
-  const billToTitle = (co?.full_name && co.full_name.trim()) || opts.companyName || "Multiple companies";
+  const billToTitle = (co?.full_name && co.full_name.trim()) || opts.companyName || S.allCompanies;
   page.drawText(billToTitle, {
     x: MARGIN, y: midTopY - 18, size: 12, font: fonts.bold, color: rgb(0.1, 0.1, 0.1),
   });
@@ -316,7 +322,7 @@ function drawInvoice(
   }
 
   // FOR block on the right, vertically aligned to billing block top.
-  page.drawText("F O R", {
+  page.drawText(S.forLabel, {
     x: PAGE_W / 2 + 20, y: midTopY, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45),
   });
   const forText = `Reimbursable expenses — ${opts.monthLabel}${opts.currencyFilter ? ` (${opts.currencyFilter})` : ""}`;
@@ -356,16 +362,16 @@ function drawInvoice(
     });
     const c = rgb(0.3, 0.3, 0.3);
     p.drawText("Date",     { x: cols.date,   y: yy, size: 9, font: fonts.bold, color: c });
-    p.drawText("Vendor",   { x: cols.vendor, y: yy, size: 9, font: fonts.bold, color: c });
+    p.drawText(S.vendor,   { x: cols.vendor, y: yy, size: 9, font: fonts.bold, color: c });
     if (useFx) {
-      p.drawText("Description", { x: cols.desc, y: yy, size: 9, font: fonts.bold, color: c });
-      drawRight(p, "Original", (cols as any).origAmt + 40, yy, 9, fonts.bold, c);
-      p.drawText("Cur",     { x: (cols as any).code, y: yy, size: 9, font: fonts.bold, color: c });
+      p.drawText(S.description, { x: cols.desc, y: yy, size: 9, font: fonts.bold, color: c });
+      drawRight(p, S.original, (cols as any).origAmt + 40, yy, 9, fonts.bold, c);
+      p.drawText(S.currency.slice(0,3) + ".",     { x: (cols as any).code, y: yy, size: 9, font: fonts.bold, color: c });
       drawRight(p, `${targetCur}`, cols.conv, yy, 9, fonts.bold, c);
     } else {
-      p.drawText("Category",    { x: (cols as any).cat,  y: yy, size: 9, font: fonts.bold, color: c });
-      p.drawText("Description", { x: cols.desc, y: yy, size: 9, font: fonts.bold, color: c });
-      drawRight(p, "Amount", (cols as any).amt, yy, 9, fonts.bold, c);
+      p.drawText(S.category,    { x: (cols as any).cat,  y: yy, size: 9, font: fonts.bold, color: c });
+      p.drawText(S.description, { x: cols.desc, y: yy, size: 9, font: fonts.bold, color: c });
+      drawRight(p, S.amount, (cols as any).amt, yy, 9, fonts.bold, c);
     }
     p.drawLine({
       start: { x: MARGIN, y: yy - 4 }, end: { x: PAGE_W - MARGIN, y: yy - 4 },
@@ -379,7 +385,7 @@ function drawInvoice(
       y = PAGE_H - MARGIN;
       // Continuation header
       page.drawText(billToTitle, { x: MARGIN, y, size: 12, font: fonts.bold, color: rgb(0.3, 0.3, 0.3) });
-      drawRight(page, `Period: ${opts.monthLabel}  (continued)`, PAGE_W - MARGIN, y, 9, fonts.reg, rgb(0.4, 0.4, 0.4));
+      drawRight(page, `${S.period}: ${opts.monthLabel}  ${S.continued}`, PAGE_W - MARGIN, y, 9, fonts.reg, rgb(0.4, 0.4, 0.4));
       y -= 24;
       drawTableHeader(page, y);
       y -= 14;
@@ -390,10 +396,10 @@ function drawInvoice(
   y -= 14;
 
   // If filtering to a single company, no need to sub-group.
-  // If "All companies", group by company → category.
+  // If S.allCompanies, group by company → category.
   const showCompanyGroups = !opts.companyName;
   const groups = showCompanyGroups
-    ? groupBy(opts.receipts, r => r.company || "Uncategorized")
+    ? groupBy(opts.receipts, r => r.company || S.uncategorized)
     : new Map([[opts.companyName ?? "Receipts", opts.receipts]]);
   const groupNames = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
 
@@ -478,10 +484,10 @@ function drawInvoice(
     }
     const convertedTotal = convertedTotalMinor / 100;
     // Subtotal & Tax rows (no rule above; matches Carl's invoice template).
-    page.drawText("Subtotal", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
+    page.drawText(S.subtotal, { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
     drawRight(page, `${targetCur} ${fmtMoney(convertedTotal)}`, totalLineRightX, y, 10, fonts.reg);
     y -= LINE;
-    page.drawText("Tax", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
+    page.drawText(S.tax, { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
     drawRight(page, "—", totalLineRightX, y, 10, fonts.reg, rgb(0.5, 0.5, 0.5));
     // Gap, then divider rule clearly above the Total row.
     y -= LINE + 10;
@@ -490,7 +496,7 @@ function drawInvoice(
       thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
     });
     // Total row — label and amount the same size for clean baseline alignment.
-    page.drawText("Total due", { x: labelX, y, size: 13, font: fonts.bold });
+    page.drawText(S.totalDue, { x: labelX, y, size: 13, font: fonts.bold });
     drawRight(page, `${targetCur} ${fmtMoney(convertedTotal)}`, totalLineRightX, y, 13, fonts.bold);
     y -= LINE + 6;
     if (unconvertibleCount > 0) {
@@ -500,8 +506,8 @@ function drawInvoice(
     }
     // Rates source line, so accountants can verify.
     const rateNote = opts.fxRatesFor
-      ? `Exchange rates: ${opts.fxRates!.source} · locked at each receipt's capture date (older receipts: as of ${opts.fxRates!.date})`
-      : `Exchange rates: ${opts.fxRates!.source} · as of ${opts.fxRates!.date}`;
+      ? S.fxCaptureLocked(opts.fxRates!.source, opts.fxRates!.date)
+      : S.fxAsOf(opts.fxRates!.source, opts.fxRates!.date);
     page.drawText(rateNote, { x: MARGIN, y, size: 8, font: fonts.reg, color: rgb(0.5, 0.5, 0.5) });
     y -= LINE;
   } else if (opts.fxError) {
@@ -511,25 +517,25 @@ function drawInvoice(
     // No target currency selected — fall back to per-original-currency subtotals.
     const totals = sumByCurrency(opts.receipts);
     if (totals.size === 0) {
-      drawRight(page, "TOTAL —", PAGE_W - MARGIN, y, 12, fonts.bold);
+      drawRight(page, `${S.total} —`, PAGE_W - MARGIN, y, 12, fonts.bold);
       y -= LINE;
     } else if (totals.size === 1) {
       const [cur, amt] = Array.from(totals)[0];
-      page.drawText("Subtotal", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
+      page.drawText(S.subtotal, { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
       drawRight(page, `${cur || ""} ${fmtMoney(amt)}`, totalLineRightX, y, 10, fonts.reg);
       y -= LINE;
-      page.drawText("Tax", { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
+      page.drawText(S.tax, { x: labelX, y, size: 10, font: fonts.reg, color: rgb(0.4, 0.4, 0.4) });
       drawRight(page, "—", totalLineRightX, y, 10, fonts.reg, rgb(0.5, 0.5, 0.5));
       y -= LINE + 10;
       page.drawLine({
         start: { x: totalLineLeftX, y: y + 18 }, end: { x: totalLineRightX, y: y + 18 },
         thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
       });
-      page.drawText("Total due", { x: labelX, y, size: 13, font: fonts.bold });
+      page.drawText(S.totalDue, { x: labelX, y, size: 13, font: fonts.bold });
       drawRight(page, `${cur || ""} ${fmtMoney(amt)}`, totalLineRightX, y, 13, fonts.bold);
       y -= LINE + 6;
     } else {
-      drawRight(page, "Subtotals by currency", PAGE_W - MARGIN, y, 10, fonts.bold, rgb(0.35, 0.35, 0.35));
+      drawRight(page, S.subtotalsByCurrency, PAGE_W - MARGIN, y, 10, fonts.bold, rgb(0.35, 0.35, 0.35));
       y -= LINE;
       for (const [cur, amt] of totals) {
         drawRight(page, `${cur || "(unknown)"}  ${fmtMoney(amt)}`, PAGE_W - MARGIN, y, 11, fonts.reg);
@@ -539,13 +545,14 @@ function drawInvoice(
   }
 
   // ----- Payment details block (always on the LAST invoice page) -----
-  drawPaymentDetailsAndFooter(page, fonts, opts);
+  drawPaymentDetailsAndFooter(page, fonts, opts, S);
 }
 
 function drawPaymentDetailsAndFooter(
   page: PDFPage,
   fonts: Fonts,
-  opts: { bank: BankDetails; receipts: ReceiptRow[] }
+  opts: { bank: BankDetails; receipts: ReceiptRow[] },
+  S: PdfStrings
 ) {
   // Fixed position near the bottom of the current page.
   const bottomBlockY = MARGIN + 70; // leave room for "Thank you" line under it
@@ -557,7 +564,7 @@ function drawPaymentDetailsAndFooter(
     thickness: 0.5, color: rgb(0.85, 0.85, 0.85),
   });
 
-  page.drawText("P A Y M E N T   D E T A I L S", {
+  page.drawText(S.paymentDetails, {
     x: MARGIN, y: bottomBlockY + 14, size: 9, font: fonts.reg, color: rgb(0.45, 0.45, 0.45),
   });
 
@@ -625,10 +632,11 @@ async function drawAppendix(
   fonts: Fonts,
   receipts: ReceiptRow[],
   fetchOriginal: OriginalLoader
-) {
+,
+  S: PdfStrings) {
   if (receipts.length === 0) return;
   const sep = pdf.addPage(PageSizes.A4);
-  sep.drawText("Appendix — original receipts", {
+  sep.drawText(S.appendix, {
     x: MARGIN, y: PAGE_H / 2, size: 18, font: fonts.bold, color: rgb(0.2, 0.2, 0.2),
   });
 
@@ -643,12 +651,12 @@ async function drawAppendix(
   let index = 0;
   for (const r of sorted) {
     index++;
-    const header = `${index}.  ${r.company ?? "Uncategorized"} · ${r.category ?? "—"} · ${r.vendor ?? "—"} · ${r.receipt_date ?? ""}  ${formatAmount(r)}`.trim();
+    const header = `${index}.  ${r.company ?? S.uncategorized} · ${r.category ?? "—"} · ${r.vendor ?? "—"} · ${r.receipt_date ?? ""}  ${formatAmount(r)}`.trim();
 
     if (r.source === "manual" || (r.r2_key && r.r2_key.startsWith("manual:"))) {
       const p = pdf.addPage(PageSizes.A4);
       drawHeader(p, fonts, header);
-      p.drawText("(Manually entered — no original receipt)", {
+      p.drawText(S.manualEntry, {
         x: MARGIN, y: PAGE_H / 2, size: 12, font: fonts.reg, color: rgb(0.4, 0.4, 0.4),
       });
       continue;
@@ -659,7 +667,7 @@ async function drawAppendix(
     if (!obj) {
       const p = pdf.addPage(PageSizes.A4);
       drawHeader(p, fonts, header);
-      p.drawText("(Original could not be loaded from storage)", {
+      p.drawText(S.originalMissing, {
         x: MARGIN, y: PAGE_H / 2, size: 12, font: fonts.reg, color: rgb(0.6, 0.2, 0.2),
       });
       continue;

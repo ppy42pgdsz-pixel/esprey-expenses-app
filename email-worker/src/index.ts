@@ -9,6 +9,19 @@
 import PostalMime from "postal-mime";
 import { extractReceipt } from "./anthropic";
 import { stampFxDate } from "./fx";
+
+// User language for OCR notes (#49). Defensive: pre-0013 schema → English.
+async function getUserLanguage(db: D1Database, userEmail: string): Promise<"en" | "fr"> {
+  try {
+    const row = await db
+      .prepare(`SELECT language FROM user_profile WHERE user_email = ?`)
+      .bind(userEmail)
+      .first<{ language: string | null }>();
+    return row?.language === "fr" ? "fr" : "en";
+  } catch {
+    return "en";
+  }
+}
 import {
   extFromMime,
   newId,
@@ -258,11 +271,15 @@ async function processAttachment(
     const base64 = uint8ToBase64(bytes);
     let result;
     if (mime === "application/pdf") {
-      result = await extractReceipt(env.ANTHROPIC_API_KEY, { pdfBase64: base64 });
+      result = await extractReceipt(env.ANTHROPIC_API_KEY, {
+        pdfBase64: base64,
+        notesLanguage: await getUserLanguage(env.DB, userEmail),
+      });
     } else if (mime.startsWith("image/")) {
       result = await extractReceipt(env.ANTHROPIC_API_KEY, {
         imageBase64: base64,
         imageMimeType: mime,
+        notesLanguage: await getUserLanguage(env.DB, userEmail),
       });
     } else {
       throw new Error("unsupported attachment mime type: " + mime);
@@ -344,7 +361,10 @@ async function processBody(
   let ocrRaw: string | null = null;
   let extracted = null as Awaited<ReturnType<typeof extractReceipt>>["extracted"] | null;
   try {
-    const result = await extractReceipt(env.ANTHROPIC_API_KEY, { textBody: composedText });
+    const result = await extractReceipt(env.ANTHROPIC_API_KEY, {
+      textBody: composedText,
+      notesLanguage: await getUserLanguage(env.DB, userEmail),
+    });
     ocrStatus = "success";
     ocrRaw = result.raw;
     extracted = result.extracted;
