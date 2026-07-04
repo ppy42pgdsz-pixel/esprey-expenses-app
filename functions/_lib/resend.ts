@@ -44,7 +44,7 @@ export async function sendReportEmail(opts: {
   return (await res.json()) as { id: string };
 }
 
-/** Welcome email sent to a newly-added team member. */
+/** Welcome email sent to a newly-added team member, in their language. */
 export async function sendWelcomeEmail(opts: {
   apiKey: string;
   fromAddress: string;
@@ -53,147 +53,21 @@ export async function sendWelcomeEmail(opts: {
   displayName?: string | null;
   addedByName?: string | null;
   appUrl: string;
+  language?: "en" | "fr";
 }): Promise<{ id: string }> {
-  const greeting = opts.displayName ? `Hi ${opts.displayName.split(" ")[0]},` : "Hi,";
-  const inviter = opts.addedByName ? ` by ${opts.addedByName}` : "";
   const appUrl = opts.appUrl.replace(/\/$/, "") + "/";
-  const instructionsUrl = opts.appUrl.replace(/\/$/, "") + "/instructions";
+  const helpUrl = opts.appUrl.replace(/\/$/, "") + "/instructions";
+  const fr = opts.language === "fr";
+  const firstName = opts.displayName ? opts.displayName.split(" ")[0] : null;
 
   const body: Record<string, unknown> = {
     from: `Esprey Expenses <${opts.fromAddress}>`,
     to: [opts.toAddress],
-    subject: "You've been added to Esprey Expenses",
+    subject: fr ? "Vous avez été ajouté à Esprey Expenses" : "You've been added to Esprey Expenses",
     ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
-    text:
-`${greeting}
-
-You've been added${inviter} to Esprey Expenses, the app we use to capture business expenses and produce monthly invoices for reimbursement.
-
-This email walks you through everything — keep it as a reference. The full version of these instructions lives in the app at Settings → Instructions, and at:
-${instructionsUrl}
-
-────────────────────────────
-SIGN IN
-────────────────────────────
-
-Open this URL in any browser (phone, tablet, computer):
-${appUrl}
-
-Cloudflare will email you a 6-digit one-time code the first time. Paste it in, you're done. Sessions last 24 hours; after that you get another code.
-
-Save the app to your home screen so it opens like a native app, not a browser tab:
-  • iPhone (Safari): tap the Share button → "Add to Home Screen"
-  • Android (Chrome): tap the ⋮ menu → "Install app"
-
-────────────────────────────
-WHAT'S PRIVATE TO YOU
-────────────────────────────
-
-Your receipts, your monthly reports, your profile and bank details, and your private "people" list are YOURS alone. The admin cannot see any of them.
-
-What IS shared across the team (admins curate, you see only what's been assigned to you):
-  • Companies you can bill to
-  • Categories (Meals, Travel, etc.)
-  • Currencies
-
-────────────────────────────
-STEP 1: SET UP YOUR PROFILE FIRST
-────────────────────────────
-
-Go to Settings → My Profile and fill in:
-  • Your full name (and business name if you invoice through one)
-  • Address, VAT number (if applicable), phone
-  • Bank details — IBAN, SWIFT, account name. Free-form text block, paste whatever your bank requires.
-
-This information appears at the top of every monthly invoice you generate, so the company paying you knows who to pay and how. Skip this and your invoices will be blank in the recipient-needs-these fields.
-
-────────────────────────────
-STEP 2: THREE WAYS TO ADD A RECEIPT
-────────────────────────────
-
-1) CAMERA — Tap "+ Capture" on the home screen, snap the receipt. The app reads vendor, amount, date, and currency automatically. You confirm, tag with a company/category/attendees, save.
-
-   MULTI-PAGE invoice (hotel bill, long restaurant statement, anything that spans more than one page)? After the first photo, tap "+ Add another page" on the preview, take the next shot, and so on. All pages get combined into one PDF and saved as a single receipt — OCR reads across all pages and finds the total wherever it sits.
-
-2) FORWARD AN EMAIL — Send any receipt to receipts@esprey.net. Works with Uber confirmations, Airbnb, restaurant bookings, attached PDF invoices, image attachments, even text-only emails. IMPORTANT: send from THIS email address (or any of your registered aliases — see "Multiple email addresses" below). Forwards from unregistered addresses get a bounce-back.
-
-3) MANUAL ENTRY — Tap "+ Manual" for cash expenses where you don't have a receipt. Fill in what you remember; amount is required.
-
-You can also bulk-upload a backlog: tap "+ Capture" → "Pick photo or PDF from files" → select multiple files at once. Each becomes its own receipt (different from multi-page, which combines into one).
-
-────────────────────────────
-ASSIGNING TO COMPANIES
-────────────────────────────
-
-Every receipt gets tagged with a Company. You'll start with "Personal" only (always available — use for your own non-business expenses).
-
-When you need to bill expenses to a specific client company, the admin will grant you access and that company will appear in your dropdown. Need access to a company you can't see? Reply to this email.
-
-────────────────────────────
-RESTAURANT / TAXI TIPS
-────────────────────────────
-
-For Meals or Taxi receipts, a Tip field appears under the amount:
-  • Put the BILL AMOUNT (what's printed on the receipt) in the Amount field
-  • Pick a tip percentage (5 / 10 / 15 / 20) OR "Custom amount" to type a specific tip
-  • The app shows you the Bill + Tip = Total breakdown and saves the total to your report
-
-This way your records match what you actually paid, with the original bill amount preserved for audit.
-
-────────────────────────────
-ROTATING RECEIPT PHOTOS
-────────────────────────────
-
-If a photo of a receipt is sideways/upside-down, open the receipt and tap the ⟳ Rotate button under the image. Rotation persists and also applies in the monthly invoice appendix.
-
-────────────────────────────
-GENERATING A MONTHLY REPORT
-────────────────────────────
-
-At month-end:
-  1. Open the Reports page
-  2. Pick the month and (optionally) a specific company
-  3. Optionally pick a target currency to convert everything into
-  4. Tap Generate
-
-You get TWO things, but only the PDF is emailed automatically:
-  • PDF INVOICE — your profile + bank details at the top, every receipt itemised in a table, with full-resolution copies of every original receipt in an appendix. Emailed to you the moment it's generated.
-  • ZIP of all the original receipt files — built and saved alongside the PDF, but NOT auto-emailed (some are too large for email). Available on the Reports page: tap "Download originals" to save it locally, or tap "Email ZIP" to have it sent to you.
-
-Both files are also downloadable anytime from the Reports page.
-
-────────────────────────────
-THE "ISSUES" BUTTON
-────────────────────────────
-
-On the dashboard you'll see three buttons at the top: Receipts / Uncategorized / Issues. The Issues button turns red when you have receipts that need attention:
-  • OCR couldn't read the amount (blurry photo, non-receipt email forwarded by mistake)
-  • Possible duplicate (same vendor + amount + date as another receipt)
-  • You manually edited the amount/date/currency from what OCR pulled — open it, confirm or fix, then tap "Acknowledge override"
-
-Tap the Issues button to filter to just those receipts and clear them up.
-
-────────────────────────────
-DATE FILTER
-────────────────────────────
-
-The Date dropdown lets you scope the dashboard to a specific period: This week, Last month, Last 30 days, custom range, etc. The button counts update to reflect that period.
-
-────────────────────────────
-MULTIPLE EMAIL ADDRESSES?
-────────────────────────────
-
-If you might forward receipts from more than one email (e.g. personal + work + another business), reply to this email with the other addresses. The admin will register them as aliases on your account so they all land in the same place — sign in works from any of them too.
-
-────────────────────────────
-HELP
-────────────────────────────
-
-Full instructions: ${instructionsUrl}
-Questions / problems: just reply to this email.
-
-— Esprey Expenses
-`,
+    text: fr
+      ? welcomeFr(firstName, opts.addedByName ?? null, appUrl, helpUrl)
+      : welcomeEn(firstName, opts.addedByName ?? null, appUrl, helpUrl),
   };
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -217,4 +91,235 @@ function uint8ToBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk) as unknown as number[]);
   }
   return btoa(binary);
+}
+
+
+/* ---------------- Welcome email bodies ---------------- */
+
+function welcomeEn(firstName: string | null, addedBy: string | null, appUrl: string, helpUrl: string): string {
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+  const inviter = addedBy ? ` by ${addedBy}` : "";
+  return `${greeting}
+
+You've been added${inviter} to Esprey Expenses, the app we use to capture business expenses and produce monthly invoices for reimbursement.
+
+Keep this email as a reference. Everything below (and more) also lives in the app: tap the "?" on the home screen for the searchable Help & FAQ, where you can also just type a question and get an answer:
+${helpUrl}
+
+────────────────────────────
+SIGN IN
+────────────────────────────
+
+Open this URL in any browser (phone, tablet, computer):
+${appUrl}
+
+Cloudflare will email you a 6-digit one-time code the first time. Paste it in, you're done. Sessions last 24 hours; after that you get another code.
+
+Save the app to your home screen so it opens like a native app:
+  • iPhone (Safari): tap Share → "Add to Home Screen"
+  • Android (Chrome): tap the ⋮ menu → "Install app"
+
+────────────────────────────
+WHAT'S PRIVATE TO YOU
+────────────────────────────
+
+Your receipts, your monthly reports, your profile and bank details, and your private "people" list are YOURS alone. The admin cannot see any of them.
+
+Shared across the team (admins curate; you see what's assigned to you): companies you can bill to, categories (and their spending limits), and currencies.
+
+────────────────────────────
+STEP 1: SET UP YOUR PROFILE
+────────────────────────────
+
+Go to Settings → My Profile and fill in:
+  • Your app language — English or French. The whole app, and the receipt descriptions the AI writes, follow it.
+  • Your full name (and business name if you invoice through one)
+  • Address, VAT number (if applicable), phone
+  • Bank details — free-form text; paste whatever your bank requires.
+
+This appears at the top of every invoice you generate, so the payer knows who to pay and how.
+
+────────────────────────────
+STEP 2: THREE WAYS TO ADD A RECEIPT
+────────────────────────────
+
+1) CAMERA — Tap "+ Capture", snap the receipt. Vendor, amount, date and currency are read automatically; you confirm, tag, save.
+   Multi-page invoice? After the first photo tap "+ Add another page" — all pages combine into one PDF receipt.
+
+2) FORWARD AN EMAIL — Send any receipt to receipts@esprey.net. Uber confirmations, PDF invoices, photos, text-only emails all work. IMPORTANT: send from THIS address (or a registered alias — see below). Unregistered senders get a bounce-back.
+
+3) MANUAL ENTRY — Tap "+ Manual" for cash with no receipt; amount is required.
+
+Backlog? "+ Capture" → "Pick photo(s) or PDF from files" lets you select many at once — each becomes its own receipt.
+
+────────────────────────────
+TAG WHO WAS WITH YOU
+────────────────────────────
+
+On any receipt, use "People present" to note who joined (client dinner, shared taxi). Your people list is private, favourites float to the top — and the names now appear next to that expense in the monthly report, so the claim carries its context. Worth doing for every meal.
+
+────────────────────────────
+RESTAURANT / TAXI TIPS
+────────────────────────────
+
+For Meals or Taxi receipts a Tip field appears: put the BILL amount (as printed) in Amount, pick a tip % or a custom amount, and the app saves Bill + Tip = Total. Your records match what you actually paid, with the printed bill preserved for audit.
+
+────────────────────────────
+SPENDING LIMITS
+────────────────────────────
+
+Some categories carry a per-receipt limit set by the admin. Go over it and the receipt is flagged — you can still claim it, just tap Acknowledge on the receipt to confirm you know. No sneaking, no blocking; just a record.
+
+────────────────────────────
+GENERATING A MONTHLY REPORT
+────────────────────────────
+
+At month-end, open Reports:
+  1. Pick the month (defaults to last month), optionally one company, optionally a target currency (converted at each receipt's capture-day rate)
+  2. Pick the report language — independent of your app language, so you can work in French and hand your accountant an English PDF. Establishment names always stay exactly as printed.
+  3. Tap Generate, then choose: Open PDF, Download PDF, or Email PDF. A ZIP of the original files is also there (Download originals / Email ZIP).
+
+Nothing is emailed unless you press an email button.
+
+────────────────────────────
+THE "ISSUES" BUTTON
+────────────────────────────
+
+The Issues pill on the dashboard turns red when receipts need attention: unreadable photo, missing amount, possible duplicate, edited values that differ from the receipt, or over a spending limit. Open each one — the banner explains exactly why and what to do.
+
+────────────────────────────
+DELETED SOMETHING BY MISTAKE?
+────────────────────────────
+
+Deleting a receipt moves it to Settings → Trash for 30 days. Restore it from there; after 30 days it's gone for good.
+
+────────────────────────────
+MULTIPLE EMAIL ADDRESSES?
+────────────────────────────
+
+If you might forward receipts from more than one address (work + personal), reply to this email with the others. They'll be registered as aliases — receipts land in the same account and sign-in works from any of them.
+
+────────────────────────────
+HELP
+────────────────────────────
+
+In-app Help & FAQ (searchable, with an ask-a-question box): ${helpUrl}
+Anything else: just reply to this email.
+
+— Esprey Expenses
+`;
+}
+
+function welcomeFr(firstName: string | null, addedBy: string | null, appUrl: string, helpUrl: string): string {
+  const greeting = firstName ? `Bonjour ${firstName},` : "Bonjour,";
+  const inviter = addedBy ? ` par ${addedBy}` : "";
+  return `${greeting}
+
+Vous avez été ajouté${inviter} à Esprey Expenses, l'application que nous utilisons pour saisir les dépenses professionnelles et produire les notes de frais mensuelles à rembourser.
+
+Gardez cet e-mail comme référence. Tout ce qui suit (et plus) se trouve aussi dans l'application : touchez le « ? » sur l'écran d'accueil pour l'Aide & FAQ consultable, où vous pouvez aussi simplement poser une question :
+${helpUrl}
+
+────────────────────────────
+SE CONNECTER
+────────────────────────────
+
+Ouvrez cette adresse dans n'importe quel navigateur (téléphone, tablette, ordinateur) :
+${appUrl}
+
+Cloudflare vous enverra un code à 6 chiffres par e-mail la première fois. Saisissez-le, c'est terminé. Les sessions durent 24 heures ; ensuite vous recevez un nouveau code.
+
+Ajoutez l'application à votre écran d'accueil pour qu'elle s'ouvre comme une application native :
+  • iPhone (Safari) : touchez Partager → « Sur l'écran d'accueil »
+  • Android (Chrome) : menu ⋮ → « Installer l'application »
+
+────────────────────────────
+CE QUI EST PRIVÉ
+────────────────────────────
+
+Vos reçus, vos rapports mensuels, votre profil et vos coordonnées bancaires, et votre liste privée de « personnes » sont à VOUS seul. L'administrateur ne peut voir aucun de ces éléments.
+
+Partagé pour toute l'équipe (géré par l'administrateur ; vous voyez ce qui vous est attribué) : les sociétés facturables, les catégories (et leurs limites de dépense), et les devises.
+
+────────────────────────────
+ÉTAPE 1 : CONFIGUREZ VOTRE PROFIL
+────────────────────────────
+
+Allez dans Réglages → Mon profil et renseignez :
+  • Votre langue — français ou anglais. Toute l'application, et les descriptions de reçus écrites par l'IA, la suivent.
+  • Votre nom complet (et raison sociale si vous facturez via une société)
+  • Adresse, numéro de TVA (le cas échéant), téléphone
+  • Coordonnées bancaires — texte libre ; collez ce que votre banque exige.
+
+Ces informations apparaissent en haut de chaque note de frais que vous générez, pour que le payeur sache qui payer et comment.
+
+────────────────────────────
+ÉTAPE 2 : TROIS FAÇONS D'AJOUTER UN REÇU
+────────────────────────────
+
+1) PHOTO — Touchez « + Photo », photographiez le reçu. Fournisseur, montant, date et devise sont lus automatiquement ; vous confirmez, étiquetez, enregistrez.
+   Facture de plusieurs pages ? Après la première photo, touchez « + Ajouter une page » — toutes les pages sont combinées en un seul reçu PDF.
+
+2) TRANSFÉRER UN E-MAIL — Envoyez n'importe quel reçu à receipts@esprey.net. Confirmations Uber, factures PDF, photos, e-mails texte : tout fonctionne. IMPORTANT : envoyez depuis CETTE adresse (ou un alias enregistré — voir plus bas). Les expéditeurs inconnus reçoivent un rejet.
+
+3) SAISIE MANUELLE — Touchez « + Saisie » pour l'espèce sans reçu ; le montant est obligatoire.
+
+Un arriéré de reçus ? « + Photo » → « Choisir photo(s) ou PDF depuis les fichiers » permet d'en sélectionner plusieurs — chacun devient un reçu distinct.
+
+────────────────────────────
+INDIQUEZ QUI ÉTAIT AVEC VOUS
+────────────────────────────
+
+Sur chaque reçu, utilisez « Personnes présentes » pour noter qui était là (dîner client, taxi partagé). Votre liste est privée, vos favoris remontent en tête — et les noms apparaissent désormais à côté de la dépense dans le rapport mensuel. À faire pour chaque repas.
+
+────────────────────────────
+POURBOIRES RESTAURANT / TAXI
+────────────────────────────
+
+Pour les reçus Repas ou Taxi, un champ Pourboire apparaît : mettez le montant de l'ADDITION (tel qu'imprimé) dans Montant, choisissez un % ou un montant personnalisé, et l'application enregistre Addition + Pourboire = Total. Vos données correspondent à ce que vous avez réellement payé, l'addition imprimée restant conservée pour l'audit.
+
+────────────────────────────
+LIMITES DE DÉPENSE
+────────────────────────────
+
+Certaines catégories ont une limite par reçu fixée par l'administrateur. En cas de dépassement, le reçu est signalé — vous pouvez quand même le soumettre : touchez Confirmer sur le reçu pour indiquer que vous le savez. Rien n'est bloqué ni caché ; c'est simplement enregistré.
+
+────────────────────────────
+GÉNÉRER LE RAPPORT MENSUEL
+────────────────────────────
+
+En fin de mois, ouvrez Rapports :
+  1. Choisissez le mois (par défaut le mois dernier), éventuellement une société, éventuellement une devise cible (convertie au taux du jour de capture de chaque reçu)
+  2. Choisissez la langue du rapport — indépendante de la langue de l'application : vous pouvez travailler en français et remettre un PDF en anglais au comptable. Les noms d'établissements restent toujours exactement tels qu'imprimés.
+  3. Touchez Générer, puis : Ouvrir le PDF, Télécharger le PDF, ou Envoyer le PDF par e-mail. Un ZIP des fichiers originaux est aussi disponible.
+
+Rien n'est envoyé par e-mail sans que vous touchiez un bouton d'envoi.
+
+────────────────────────────
+LE BOUTON « ANOMALIES »
+────────────────────────────
+
+La pastille Anomalies du tableau de bord devient rouge quand des reçus demandent votre attention : photo illisible, montant manquant, doublon possible, valeurs modifiées par rapport au reçu, ou limite de dépense dépassée. Ouvrez chaque reçu — la bannière explique exactement pourquoi et quoi faire.
+
+────────────────────────────
+SUPPRIMÉ PAR ERREUR ?
+────────────────────────────
+
+Un reçu supprimé va dans Réglages → Corbeille pendant 30 jours. Restaurez-le depuis là ; après 30 jours, il disparaît définitivement.
+
+────────────────────────────
+PLUSIEURS ADRESSES E-MAIL ?
+────────────────────────────
+
+Si vous pouvez transférer des reçus depuis plusieurs adresses (pro + perso), répondez à cet e-mail avec les autres adresses. Elles seront enregistrées comme alias — les reçus arrivent sur le même compte et la connexion fonctionne depuis chacune.
+
+────────────────────────────
+AIDE
+────────────────────────────
+
+Aide & FAQ dans l'application (consultable, avec boîte à questions) : ${helpUrl}
+Pour tout le reste : répondez simplement à cet e-mail.
+
+— Esprey Expenses
+`;
 }

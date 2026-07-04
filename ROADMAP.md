@@ -37,7 +37,7 @@ Everything agreed or proposed, merged from the previous model's handover backlog
 | 13 | Offline photo buffer | Service-worker fallback so captures survive no-signal, upload on reconnect |
 | 43 | Concierge AI (email + in-app chat) | Both entry points: email to `ask@expenses.esprey.net` + PWA chat page. Read + write via Claude tool-use over existing D1 queries. Destructive actions (delete, add team member, change company access) gated on "Reply YES to confirm"; non-destructive writes (manual receipt, categorization rule) fire without confirmation. ~3 days. Modelled on Expensify's Concierge (see memory: concierge_ai_backlog) |
 | 44 | Attendees in monthly report | Small; blocks #45. Also applies to any Concierge-generated report |
-| 45 | Welcome-email update for #44 | Adds "Tag who was with you" section; after #44 |
+| 45 | ✅ Welcome-email update | DONE 2026-07-04 — full rewrite in EN + FR (sent in the member's default language). Added: "Tag who was with you", spending limits, Trash, report-language, Help & FAQ + ask box, over-limit Issues reason. Fixed stale claim that the PDF auto-emails on generate. |
 | 46 | ✅ FAQ / help page | DONE 2026-07-04 — searchable Q&A at `/instructions`, content in `shared/faq.ts` |
 | 47 | ✅ "How do I…" AI help widget | DONE 2026-07-04 — `/api/help/ask` (Haiku, FAQ-grounded, read-only) + ask box on the help page |
 | 48 | Marketing site + walkthrough | (a) recorded video demo, or (b) live demo mode with tooltip overlays — needs `/demo` CF Access bypass + seeded fake data, 2–3× the effort of (a) |

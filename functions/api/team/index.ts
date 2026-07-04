@@ -176,6 +176,7 @@ async function addMember({ request, env, data }: { request: Request; env: Env; d
         displayName,
         addedByName: adminLabel,
         appUrl: APP_URL,
+        language, // welcome email in the member's default language
       });
       emailedTo = email;
     } catch (e) {
