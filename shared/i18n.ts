@@ -227,4 +227,16 @@ const FR: Record<string, string> = {
   "Thinking…": "Réflexion…",
   "Ask": "Demander",
   "Answers usage questions only — it can't see your receipts or change anything.": "Répond uniquement aux questions d'utilisation — sans accès à vos reçus et sans rien modifier.",
+  // ----- Concierge -----
+  "Concierge": "Concierge",
+  "Send": "Envoyer",
+  "Message the Concierge…": "Écrivez au Concierge…",
+  "Ask me about your expenses, or tell me to record one:": "Posez-moi une question sur vos dépenses, ou demandez-moi d'en enregistrer une :",
+  "How much did I spend on meals last month?": "Combien ai-je dépensé en repas le mois dernier ?",
+  "Record a 4.50 coffee at Starbeans today, category Meals": "Enregistre un café à 4,50 chez Starbeans aujourd'hui, catégorie Repas",
+  "Which receipts still have issues?": "Quels reçus ont encore des anomalies ?",
+  "I can only see and change YOUR receipts. Team and settings changes happen in Settings.": "Je ne vois et ne modifie que VOS reçus. L'équipe et les réglages se gèrent dans Réglages.",
+  "Confirm delete": "Confirmer la suppression",
+  "Done — moved to Trash (restorable for 30 days).": "C'est fait — déplacé dans la corbeille (restaurable pendant 30 jours).",
+  "Okay — cancelled, nothing was deleted.": "D'accord — annulé, rien n'a été supprimé.",
 };

@@ -354,6 +354,7 @@ export default function Dashboard() {
           <Link to="/settings" className="icon-link" aria-label={t("Settings")}>⚙</Link>
           <Link to="/reports" className="icon-link" aria-label={t("Reports")}>📄</Link>
           <Link to="/instructions" className="icon-link" aria-label={t("Help & FAQ")}>?</Link>
+          <Link to="/concierge" className="icon-link" aria-label={t("Concierge")}>💬</Link>
         </div>
         <div className="brand">
           <img src="/icons/icon-192.png" alt="" className="brand-logo" />

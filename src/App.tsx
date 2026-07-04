@@ -11,6 +11,7 @@ import PdfView from "./pages/PdfView";
 import UserSettings from "./pages/UserSettings";
 import Team from "./pages/Team";
 import Instructions from "./pages/Instructions";
+import Concierge from "./pages/Concierge";
 import { api } from "./lib/api";
 import { getLang, setLang } from "../shared/i18n";
 
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/settings/user" element={<UserSettings />} />
         <Route path="/settings/team" element={<Team />} />
         <Route path="/instructions" element={<Instructions />} />
+        <Route path="/concierge" element={<Concierge />} />
         <Route path="/companies/:name" element={<CompanyDetail />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/pdf" element={<PdfView />} />

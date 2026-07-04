@@ -707,6 +707,34 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
   border: none;
 }
 
+/* Concierge chat */
+.page.concierge { display: flex; flex-direction: column; min-height: 100dvh; }
+.chat-scroll { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px 0 12px; }
+.chat-msg {
+  max-width: 82%; padding: 9px 12px; border-radius: 14px;
+  font-size: 14.5px; line-height: 1.45; white-space: pre-wrap; word-break: break-word;
+}
+.chat-msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+.chat-msg.assistant { align-self: flex-start; background: #f0efee; color: var(--ink); border-bottom-left-radius: 4px; }
+.chat-typing { color: #6b6b6b; font-style: italic; }
+.chat-empty { color: #555; padding: 12px 4px; }
+.chat-examples { margin: 8px 0; padding-left: 1.1em; color: #444; }
+.chat-examples li { margin: 4px 0; }
+.chat-confirm {
+  align-self: flex-start; background: #fff7ed; border: 1px solid #fdba74;
+  border-radius: 10px; padding: 10px 12px; max-width: 82%;
+}
+.chat-confirm-summary { font-size: 13.5px; margin-bottom: 8px; }
+.chat-confirm-actions { display: flex; gap: 8px; }
+.chat-inputbar {
+  display: flex; gap: 8px; padding: 10px 0 14px; position: sticky; bottom: 0;
+  background: var(--bg);
+}
+.chat-inputbar input {
+  flex: 1; font-size: 15px; padding: 11px 13px;
+  border: 1px solid #d4d4d8; border-radius: 10px;
+}
+
 /* Help & FAQ page */
 .faq-search {
   width: 100%; box-sizing: border-box;
