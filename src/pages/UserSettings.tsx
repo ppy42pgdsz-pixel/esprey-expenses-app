@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { setLang } from "../../shared/i18n";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import type { UserProfile } from "../lib/types";
@@ -20,6 +21,8 @@ export default function UserSettings() {
   const [vat, setVat] = useState("");
   const [bankDetails, setBankDetails] = useState("");
   const [language, setLanguage] = useState<string>("en");
+  const [translating, setTranslating] = useState(false);
+  const [translateMsg, setTranslateMsg] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -66,6 +69,7 @@ export default function UserSettings() {
         language: language as any,
       };
       await api.updateUserProfile(patch);
+      setLang(language === "fr" ? "fr" : "en"); // apply UI language immediately
       navigate("/settings");
     } catch (e) {
       setErr((e as Error).message);
@@ -108,6 +112,32 @@ export default function UserSettings() {
             <div className="hint small">
               Receipt descriptions are also written in this language. / Les descriptions des reçus
               seront aussi rédigées dans cette langue.
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                className="ghost-btn small"
+                disabled={translating}
+                onClick={async () => {
+                  const langName = language === "fr" ? "French / français" : "English";
+                  if (!confirm(
+                    `Rewrite the descriptions of ALL your existing receipts in ${langName}? ` +
+                    `Vendor names, amounts and dates are never changed. This can't be undone.`
+                  )) return;
+                  setTranslating(true); setTranslateMsg(null);
+                  try {
+                    const res = await api.translateNotes(language);
+                    setTranslateMsg(`✅ ${res.translated} description${res.translated === 1 ? "" : "s"} translated.`);
+                  } catch (e) {
+                    setTranslateMsg(`Translation failed: ${(e as Error).message}`);
+                  } finally {
+                    setTranslating(false);
+                  }
+                }}
+              >
+                {translating ? "Translating…" : "Translate my existing receipt descriptions"}
+              </button>
+              {translateMsg && <div className="hint small" style={{ marginTop: 4 }}>{translateMsg}</div>}
             </div>
           </section>
 

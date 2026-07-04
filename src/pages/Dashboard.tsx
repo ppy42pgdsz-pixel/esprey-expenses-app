@@ -4,6 +4,7 @@ import { api, companyColor, formatAmount, formatDate, imageUrl } from "../lib/ap
 import type { Receipt } from "../lib/types";
 import { parseAttendees } from "../lib/types";
 import { billFromTotal, minorToAmount, toMinor } from "../../shared/money";
+import { t } from "../../shared/i18n";
 
 type SortKey = "date" | "vendor" | "amount" | "currency" | "category" | "company";
 type SortDir = "asc" | "desc";
@@ -282,11 +283,11 @@ export default function Dashboard() {
   // Used only when the Issues filter is active (otherwise the row is just a
   // normal row in the table).
   function issueReason(r: Receipt): string | null {
-    if (r.ocr_status === "failed") return "OCR failed";
-    if (duplicateIds.has(r.id)) return "Possible duplicate";
-    if (failedIds.has(r.id)) return "No amount";
-    if (overLimitIds.has(r.id)) return "Over category limit";
-    if (mismatchIds.has(r.id)) return "Edited values differ from OCR";
+    if (r.ocr_status === "failed") return t("OCR failed");
+    if (duplicateIds.has(r.id)) return t("Possible duplicate");
+    if (failedIds.has(r.id)) return t("No amount");
+    if (overLimitIds.has(r.id)) return t("Over category limit");
+    if (mismatchIds.has(r.id)) return t("Edited values differ from OCR");
     return null;
   }
 
@@ -350,17 +351,17 @@ export default function Dashboard() {
     <div className={"page dashboard " + (isWide ? "is-wide" : "is-narrow")}>
       <header className="topbar">
         <div className="header-actions icon-actions">
-          <Link to="/settings" className="icon-link" aria-label="Settings">⚙</Link>
-          <Link to="/reports" className="icon-link" aria-label="Reports">📄</Link>
-          <Link to="/instructions" className="icon-link" aria-label="Help & FAQ">?</Link>
+          <Link to="/settings" className="icon-link" aria-label={t("Settings")}>⚙</Link>
+          <Link to="/reports" className="icon-link" aria-label={t("Reports")}>📄</Link>
+          <Link to="/instructions" className="icon-link" aria-label={t("Help & FAQ")}>?</Link>
         </div>
         <div className="brand">
           <img src="/icons/icon-192.png" alt="" className="brand-logo" />
-          <h1>Expenses</h1>
+          <h1>{t("Expenses")}</h1>
         </div>
         <div className="header-actions">
-          <Link to="/capture-manual" className="ghost-btn">+ Manual</Link>
-          <Link to="/capture" className="primary-btn">+ Capture</Link>
+          <Link to="/capture-manual" className="ghost-btn">{t("+ Manual")}</Link>
+          <Link to="/capture" className="primary-btn">{t("+ Capture")}</Link>
         </div>
       </header>
 
@@ -368,20 +369,20 @@ export default function Dashboard() {
 
       <div className="dashboard-pills">
         <Pill
-          label="Receipts"
+          label={t("Receipts")}
           count={total}
           active={pillFilter === "all"}
           onClick={() => setPillFilter("all")}
         />
         <Pill
-          label="Uncategorized"
+          label={t("Uncategorized")}
           count={uncatCount}
           active={pillFilter === "uncategorized"}
           tint={uncatCount > 0 ? "orange" : undefined}
           onClick={() => setPillFilter((p) => (p === "uncategorized" ? "all" : "uncategorized"))}
         />
         <Pill
-          label="Issues"
+          label={t("Issues")}
           count={issuesCount}
           active={pillFilter === "issues"}
           tint={issuesCount > 0 ? "red" : undefined}
@@ -396,7 +397,7 @@ export default function Dashboard() {
           className="filter"
           aria-label="Filter by company"
         >
-          <option value="all">All companies</option>
+          <option value="all">{t("All companies")}</option>
           {companies.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <DateFilter
@@ -704,7 +705,7 @@ function DateFilter({
       {preset === "custom" && showCustom && (
         <div className="date-popover" role="dialog" aria-label="Custom date range">
           <label className="field">
-            <span className="label">From</span>
+            <span className="label">{t("From")}</span>
             <input
               type="date"
               value={customStart}
@@ -713,7 +714,7 @@ function DateFilter({
             />
           </label>
           <label className="field">
-            <span className="label">To</span>
+            <span className="label">{t("To")}</span>
             <input
               type="date"
               value={customEnd}
@@ -723,7 +724,7 @@ function DateFilter({
             />
           </label>
           <button type="button" className="primary-btn small" onClick={() => onShowCustom(false)}>
-            Done
+            {t("Done")}
           </button>
         </div>
       )}

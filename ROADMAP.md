@@ -11,7 +11,12 @@ Everything agreed or proposed, merged from the previous model's handover backlog
 ### New candidate items from Carl (2026-07-04, not yet scheduled)
 - Spending-limits master on/off toggle (limits currently "off" when no category has a value)
 - Per-company spending limits + delegated per-company policy admin (needs multi-admin auth — `team_members.is_admin` groundwork exists)
-- **#49 Multi-language (French first)** — for West African team members. Two halves:
+- **#49 Multi-language (French first)** — IN PROGRESS 2026-07-04.
+  ✅ 49a: `language` on user_profile (migration 0013), selector in My Profile, OCR notes in user's language (app + email worker), opt-in "translate my existing descriptions" button.
+  ✅ 49b: report-language dropdown; PDF labels via `_lib/pdfStrings.ts` (en/fr); notes+categories batch-translated (`_lib/translate.ts`); vendors/amounts/dates/attendees never translated; French month names.
+  🔨 49c: UI dictionary `shared/i18n.ts` (English-as-key, missing keys fall back to English — partial translation is safe). DONE: Dashboard, Capture, Manual entry, Receipt detail, Reports. REMAINING: Settings pages, Team, longer prose blocks (capture tips, offline warning, banner prose, confirm dialogs, JS error strings), French FAQ content (`shared/faq.ts` needs fr variants + help widget answering in French).
+  Adding pt-PT later = add a `pt` column to the dictionaries + dropdown entries (~1 hour).
+  Original plan: two halves:
   1. *App in the user's language*: per-user language preference (User Settings, default from browser). All UI strings via an i18n dictionary; OCR prompt told to write the receipt `notes` in the user's language, so a French user sees French descriptions. Shared category names get display labels per language (canonical value stays stable in the DB).
   2. *Report language dropdown*: on the Reports page, pick the output language (e.g. team member works in French, report generated in English). Template headings come from the same dictionary; receipt notes/descriptions are batch-translated with one Claude call at generation time. **Vendor/establishment names are NEVER translated** — they must match the underlying receipt. Same rule for amounts, dates, and currency codes.
   Estimate: UI half ~2 days (touches every page), report half ~half a day. Report half is independently shippable first if desired.

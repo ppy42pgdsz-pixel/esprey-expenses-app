@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { t } from "../../shared/i18n";
 
 export default function Capture() {
   const navigate = useNavigate();
@@ -142,8 +143,8 @@ export default function Capture() {
   return (
     <div className="page capture">
       <header className="topbar">
-        <Link to="/" className="back">← Back</Link>
-        <h1>Capture receipt</h1>
+        <Link to="/" className="back">{t("← Back")}</Link>
+        <h1>{t("Capture receipt")}</h1>
         <span />
       </header>
 
@@ -180,12 +181,12 @@ export default function Capture() {
 
       {files.length === 0 ? (
         <div className="capture-cta">
-          <p>Snap a photo of your receipt — Claude will read it.</p>
+          <p>{t("Snap a photo of your receipt — Claude will read it.")}</p>
           <button className="primary-btn big" onClick={startCamera}>
-            Open camera
+            {t("Open camera")}
           </button>
           <button className="ghost-btn" onClick={startLibraryPicker}>
-            Pick photo(s) or PDF from files
+            {t("Pick photo(s) or PDF from files")}
           </button>
           <div className="capture-tip">
             <strong>Multi-page invoice?</strong> Open camera, take the first page,
@@ -265,10 +266,10 @@ export default function Capture() {
               }}
               disabled={uploading}
             >
-              {isMultiPage || isBulk || isPdf ? "Start over" : "Retake"}
+              {isMultiPage || isBulk || isPdf ? t("Start over") : t("Retake")}
             </button>
 
-            {/* "Add another page" — available after a single camera image
+            {/* t("Add another page") — available after a single camera image
                 (single-document, possibly multi-page workflow) OR while
                 already in multi-page mode. Not shown for bulk/library
                 picks or for single PDFs. */}
@@ -287,13 +288,13 @@ export default function Capture() {
                 ? (isBulk
                     ? `Uploading ${progress?.done ?? 0}/${progress?.total ?? files.length}…`
                     : isMultiPage
-                      ? `Building PDF & uploading…`
-                      : "Uploading & reading…")
+                      ? t("Building PDF & uploading…")
+                      : t("Uploading & reading…"))
                 : isMultiPage
                   ? `Save as ${files.length}-page PDF`
                   : isBulk
                     ? `Upload ${files.length} files`
-                    : "Save"}
+                    : t("Save")}
             </button>
           </div>
         </div>

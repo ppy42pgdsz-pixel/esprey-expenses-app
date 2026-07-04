@@ -5,6 +5,7 @@ import type { Person } from "../lib/types";
 import CompanyPicker from "../components/CompanyPicker";
 import PeoplePicker from "../components/PeoplePicker";
 import CurrencyPicker, { type Currency } from "../components/CurrencyPicker";
+import { t } from "../../shared/i18n";
 
 function todayISO() {
   const d = new Date();
@@ -93,8 +94,8 @@ export default function CaptureManual() {
   return (
     <div className="page detail">
       <header className="topbar">
-        <Link to="/" className="back">← Back</Link>
-        <h1>Manual entry</h1>
+        <Link to="/" className="back">{t("← Back")}</Link>
+        <h1>{t("Manual entry")}</h1>
         <span />
       </header>
 
@@ -102,12 +103,12 @@ export default function CaptureManual() {
 
       <div className="detail-form">
         <label className="field">
-          <span className="label">Vendor</span>
-          <input value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="e.g. Cash taxi, Coffee shop" />
+          <span className="label">{t("Vendor")}</span>
+          <input value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder={t("e.g. Cash taxi, Coffee shop")} />
         </label>
         <div className="row">
           <label className="field">
-            <span className="label">Amount *</span>
+            <span className="label">{t("Amount *")}</span>
             <input
               value={amount}
               onChange={(e) => setAmount(sanitizeAmountInput(e.target.value))}
@@ -117,7 +118,7 @@ export default function CaptureManual() {
             />
           </label>
           <div className="field">
-            <span className="label">Currency</span>
+            <span className="label">{t("Currency")}</span>
             <CurrencyPicker
               currencies={currencies}
               value={currency}
@@ -128,7 +129,7 @@ export default function CaptureManual() {
           </div>
         </div>
         <label className="field">
-          <span className="label">Date</span>
+          <span className="label">{t("Date")}</span>
           <input
             type="date"
             value={receiptDate}
@@ -143,7 +144,7 @@ export default function CaptureManual() {
         </label>
 
         <div className="field">
-          <span className="label">Company</span>
+          <span className="label">{t("Company")}</span>
           <CompanyPicker
             companies={companies}
             value={company}
@@ -156,7 +157,7 @@ export default function CaptureManual() {
         </div>
 
         <div className="field">
-          <span className="label">Category</span>
+          <span className="label">{t("Category")}</span>
           <CompanyPicker
             companies={categories}
             value={category}
@@ -170,7 +171,7 @@ export default function CaptureManual() {
         </div>
 
         <div className="field">
-          <span className="label">People present</span>
+          <span className="label">{t("People present")}</span>
           <PeoplePicker
             people={people}
             selected={attendees}
@@ -180,12 +181,12 @@ export default function CaptureManual() {
         </div>
 
         <label className="field">
-          <span className="label">Notes</span>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="What was this for?" />
+          <span className="label">{t("Notes")}</span>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder={t("What was this for?")} />
         </label>
 
         <button className="primary-btn full" onClick={save} disabled={saving}>
-          {saving ? "Saving…" : "Save expense"}
+          {saving ? t("Saving…") : t("Save expense")}
         </button>
       </div>
     </div>

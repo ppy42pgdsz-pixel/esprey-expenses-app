@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { t } from "../../shared/i18n";
 
 function defaultMonth() {
   // Default to LAST month — reports are almost always generated for a
@@ -123,18 +124,18 @@ export default function Reports() {
   return (
     <div className="page reports">
       <header className="topbar">
-        <Link to="/" className="back">← Back</Link>
-        <h1>Monthly reports</h1>
+        <Link to="/" className="back">{t("← Back")}</Link>
+        <h1>{t("Monthly reports")}</h1>
         <span />
       </header>
 
       {err && <div className="err">{err}</div>}
 
       <section className="settings-section">
-        <h2>Generate a report</h2>
+        <h2>{t("Generate a report")}</h2>
         <div className="report-form">
           <label className="field">
-            <span className="label">Month</span>
+            <span className="label">{t("Month")}</span>
             <select
               className="picker-select"
               value={month}
@@ -146,41 +147,43 @@ export default function Reports() {
             </select>
           </label>
           <label className="field">
-            <span className="label">Company</span>
+            <span className="label">{t("Company")}</span>
             <select className="picker-select" value={company} onChange={(e) => setCompany(e.target.value)}>
-              <option value="">All companies (combined PDF)</option>
+              <option value="">{t("All companies (combined PDF)")}</option>
               <option value="Personal">Personal</option>
               {companies.filter((c) => c !== "Personal").map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
           <label className="field">
-            <span className="label">Currency</span>
+            <span className="label">{t("Currency")}</span>
             <select className="picker-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              <option value="">All currencies</option>
+              <option value="">{t("All currencies")}</option>
               {currencies.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
             </select>
           </label>
           <label className="field">
-            <span className="label">Report language</span>
+            <span className="label">{t("Report language")}</span>
             <select className="picker-select" value={reportLanguage} onChange={(e) => setReportLanguage(e.target.value)}>
               <option value="en">English</option>
               <option value="fr">Français</option>
             </select>
-            <span className="hint small">
-              Descriptions and categories are translated. Establishment names stay exactly as
-              printed on the receipts.
-            </span>
           </label>
           <button type="button" className="primary-btn" onClick={generate} disabled={busy}>
-            {busy ? "Generating…" : "Generate"}
+            {busy ? t("Generating…") : t("Generate")}
           </button>
         </div>
+        {reportLanguage !== "en" && (
+          <div className="hint small" style={{ marginTop: 6 }}>
+            Descriptions and categories are translated. Establishment names stay exactly as
+            printed on the receipts.
+          </div>
+        )}
         {lastResult && (
           <div className="report-result">
             <div>✅ Generated <strong>{lastResult.monthLabel}</strong> · {lastResult.receipts} receipts · {fmtSize(lastResult.sizeBytes)}</div>
             <div className="zip-actions">
-              <Link to={`/pdf?file=${encodeURIComponent(lastResult.file)}`}>Open PDF</Link>
-              <a href={lastResult.downloadUrl} download>Download PDF</a>
+              <Link to={`/pdf?file=${encodeURIComponent(lastResult.file)}`}>{t("Open PDF")}</Link>
+              <a href={lastResult.downloadUrl} download>{t("Download PDF")}</a>
               <button
                 type="button"
                 className="ghost-btn small"

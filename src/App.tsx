@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Capture from "./pages/Capture";
@@ -10,8 +11,27 @@ import PdfView from "./pages/PdfView";
 import UserSettings from "./pages/UserSettings";
 import Team from "./pages/Team";
 import Instructions from "./pages/Instructions";
+import { api } from "./lib/api";
+import { getLang, setLang } from "../shared/i18n";
 
 export default function App() {
+  // Language boot sync (#49c): the device cache (localStorage) wins instantly
+  // so there's no flash; the saved profile preference is fetched once and, if
+  // it differs (e.g. first login on a new phone), applied with a re-render.
+  const [, bump] = useState(0);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { profile } = await api.getUserProfile();
+        const want = profile.language === "fr" ? "fr" : "en";
+        if (want !== getLang()) {
+          setLang(want);
+          bump((n) => n + 1);
+        }
+      } catch { /* offline / not signed in — keep device cache */ }
+    })();
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>

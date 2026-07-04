@@ -7,6 +7,7 @@ import CompanyPicker from "../components/CompanyPicker";
 import PeoplePicker from "../components/PeoplePicker";
 import CurrencyPicker, { type Currency } from "../components/CurrencyPicker";
 import { billFromTotal, minorToAmount, toMinor, totalWithTipPct } from "../../shared/money";
+import { t } from "../../shared/i18n";
 
 export default function ReceiptDetail() {
   const { id = "" } = useParams();
@@ -187,8 +188,8 @@ export default function ReceiptDetail() {
     return (
       <div className="page detail">
         <header className="topbar">
-          <Link to="/" className="back">← Back</Link>
-          <h1>Receipt</h1>
+          <Link to="/" className="back">{t("← Back")}</Link>
+          <h1>{t("Receipt")}</h1>
           <span />
         </header>
         {err ? <div className="err">{err}</div> : <div className="empty">Loading…</div>}
@@ -199,9 +200,9 @@ export default function ReceiptDetail() {
   return (
     <div className="page detail">
       <header className="topbar">
-        <Link to="/" className="back">← Back</Link>
-        <h1>Receipt</h1>
-        <button className="danger-btn" onClick={remove}>Delete</button>
+        <Link to="/" className="back">{t("← Back")}</Link>
+        <h1>{t("Receipt")}</h1>
+        <button className="danger-btn" onClick={remove}>{t("Delete")}</button>
       </header>
 
       {err && <div className="err">{err}</div>}
@@ -285,11 +286,11 @@ export default function ReceiptDetail() {
         </div>
 
         <div className="detail-form">
-          <Field label="Vendor"   value={vendor}      onChange={setVendor} />
+          <Field label={t("Vendor")}   value={vendor}      onChange={setVendor} />
           <div className="row">
-            <Field label="Amount" value={amount} onChange={(v) => setAmount(sanitizeAmountInput(v))} inputMode="decimal" />
+            <Field label={t("Amount")} value={amount} onChange={(v) => setAmount(sanitizeAmountInput(v))} inputMode="decimal" />
             <div className="field">
-              <span className="label">Currency</span>
+              <span className="label">{t("Currency")}</span>
               <CurrencyPicker
                 currencies={currencies}
                 value={currency}
@@ -300,7 +301,7 @@ export default function ReceiptDetail() {
             </div>
           </div>
           <Field
-            label="Date"
+            label={t("Date")}
             value={receiptDate}
             onChange={(v) => {
               // Defensive clamp for iOS Safari, which doesn't always respect max=.
@@ -312,7 +313,7 @@ export default function ReceiptDetail() {
           />
 
           <div className="field">
-            <span className="label">Company</span>
+            <span className="label">{t("Company")}</span>
             <CompanyPicker
               companies={companies}
               value={company}
@@ -325,7 +326,7 @@ export default function ReceiptDetail() {
           </div>
 
           <div className="field">
-            <span className="label">Category</span>
+            <span className="label">{t("Category")}</span>
             <CompanyPicker
               companies={categories}
               value={category}
@@ -340,7 +341,7 @@ export default function ReceiptDetail() {
 
           {categoryTriggersTip(category) && (
             <div className="field">
-              <span className="label">Tip</span>
+              <span className="label">{t("Tip")}</span>
               <select
                 className="picker-select"
                 value={tipMode === "custom" ? "custom" : String(tipPct)}
@@ -362,24 +363,24 @@ export default function ReceiptDetail() {
                   }
                 }}
               >
-                <option value="0">No tip</option>
+                <option value="0">{t("No tip")}</option>
                 <option value="5">5%</option>
                 <option value="10">10%</option>
                 <option value="15">15%</option>
                 <option value="20">20%</option>
-                <option value="custom">Custom amount…</option>
+                <option value="custom">{t("Custom amount…")}</option>
               </select>
 
               {tipMode === "custom" && (
                 <div style={{ marginTop: 6 }}>
                   <label className="field" style={{ margin: 0 }}>
-                    <span className="label">Tip amount</span>
+                    <span className="label">{t("Tip amount")}</span>
                     <input
                       type="text"
                       inputMode="decimal"
                       value={tipCustomAmount}
                       onChange={(e) => setTipCustomAmount(sanitizeAmountInput(e.target.value))}
-                      placeholder="e.g. 5.00"
+                      placeholder={t("e.g. 5.00")}
                     />
                   </label>
                 </div>
@@ -407,9 +408,9 @@ export default function ReceiptDetail() {
                 const totalM = billM + tipM;
                 return (
                   <div className="tip-breakdown" style={{ marginTop: 6 }}>
-                    <div><span>Bill (from receipt):</span> <strong>{minorToAmount(billM)}</strong></div>
+                    <div><span>{t("Bill (from receipt):")}</span> <strong>{minorToAmount(billM)}</strong></div>
                     <div><span>{tipLabel}:</span> <strong>{minorToAmount(tipM)}</strong></div>
-                    <div className="tip-total"><span>Total (saved to report):</span> <strong>{minorToAmount(totalM)}</strong></div>
+                    <div className="tip-total"><span>{t("Total (saved to report):")}</span> <strong>{minorToAmount(totalM)}</strong></div>
                   </div>
                 );
               })()}
@@ -417,7 +418,7 @@ export default function ReceiptDetail() {
           )}
 
           <div className="field">
-            <span className="label">People present</span>
+            <span className="label">{t("People present")}</span>
             <PeoplePicker
               people={people}
               selected={attendees}
@@ -427,12 +428,12 @@ export default function ReceiptDetail() {
           </div>
 
           <label className="field">
-            <span className="label">Notes</span>
+            <span className="label">{t("Notes")}</span>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} />
           </label>
 
           <button className="primary-btn full" onClick={save} disabled={saving}>
-            {saving ? "Saving…" : "Save & close"}
+            {saving ? t("Saving…") : t("Save & close")}
           </button>
         </div>
       </div>
@@ -660,7 +661,7 @@ function IssuesBanner({
 
   return (
     <div className="ocr-mismatch" style={{ background: "#fff7ed", borderColor: "#fdba74" }}>
-      <div className="ocr-mismatch-title">Why this receipt is flagged</div>
+      <div className="ocr-mismatch-title">{t("Why this receipt is flagged")}</div>
       <ul style={{ margin: "6px 0 0", paddingLeft: "1.2em" }}>
         {ocrFailed && (
           <li>
@@ -688,7 +689,7 @@ function IssuesBanner({
             .
             <div className="ocr-mismatch-actions" style={{ marginTop: 8 }}>
               <button type="button" className="primary-btn small" onClick={onAcknowledgeDuplicate}>
-                Acknowledge — this is a separate expense
+                {t("Acknowledge — this is a separate expense")}
               </button>
               <span className="hint small">
                 Clicking confirms you're intentionally claiming this even though it matches another receipt.
@@ -732,7 +733,7 @@ function OverLimitBanner({
       </div>
       <div className="ocr-mismatch-actions" style={{ marginTop: 8 }}>
         <button type="button" className="primary-btn small" onClick={onAcknowledge}>
-          Acknowledge — I know this is over the limit
+          {t("Acknowledge — I know this is over the limit")}
         </button>
         <span className="hint small">
           Clicking records that you're knowingly claiming an over-limit expense and clears the
