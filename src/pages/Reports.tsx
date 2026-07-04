@@ -150,7 +150,7 @@ export default function Reports() {
             <span className="label">{t("Company")}</span>
             <select className="picker-select" value={company} onChange={(e) => setCompany(e.target.value)}>
               <option value="">{t("All companies (combined PDF)")}</option>
-              <option value="Personal">Personal</option>
+              <option value="Personal">{t("Personal")}</option>
               {companies.filter((c) => c !== "Personal").map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>

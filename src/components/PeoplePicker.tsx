@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import type { Person } from "../lib/types";
+import { t } from "../../shared/i18n";
 
 interface Props {
   people: Person[];                // full list from the server
@@ -73,7 +74,7 @@ export default function PeoplePicker({ people, selected, onChange, onPeopleAdded
       <input
         className="picker-search"
         type="text"
-        placeholder="Type a name — pick from the list, or hit Add to create"
+        placeholder={t("Type a name — pick from the list, or hit Add to create")}
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
         onKeyDown={(e) => {

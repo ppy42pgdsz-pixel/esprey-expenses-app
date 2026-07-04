@@ -212,10 +212,10 @@ function CompaniesSection({ isAdmin }: { isAdmin: boolean }) {
               reload();
             }}
           />
-          <div className="hint small">Tap a company name to edit address &amp; full legal name (used in invoices).</div>
+          <div className="hint small">{t("Tap a company name to edit address & full legal name (used in invoices).")}</div>
         </>
       ) : (
-        <div className="hint small">Companies are managed by the admin. Ask Carl to add a new one if you need it.</div>
+        <div className="hint small">{t("Companies are managed by the admin. Ask Carl to add a new one if you need it.")}</div>
       )}
     </Section>
   );
@@ -463,7 +463,7 @@ function CurrenciesSection({ isAdmin }: { isAdmin: boolean }) {
           </button>
         </div>
       ) : (
-        <div className="hint small">Currencies are managed by the admin. Ask Carl to add a new one (e.g. GHS for Ghanaian Cedis) if you need it.</div>
+        <div className="hint small">{t("Currencies are managed by the admin. Ask Carl to add a new one if you need it.")}</div>
       )}
     </Section>
   );

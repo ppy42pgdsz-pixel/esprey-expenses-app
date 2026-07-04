@@ -201,12 +201,12 @@ export default function Capture() {
           {isMultiPage ? (
             <div className="multipage-preview">
               <div className="multipage-title">
-                Multi-page document · {files.length} page{files.length === 1 ? "" : "s"}
+                {t("Multi-page document")} · {files.length} {files.length === 1 ? t("page") : t("pages")}
               </div>
               <ul className="multipage-list">
                 {files.map((f, i) => (
                   <li key={i}>
-                    <span className="multipage-num">Page {i + 1}</span>
+                    <span className="multipage-num">{t("Page")} {i + 1}</span>
                     <span className="multipage-name">{f.name || "(camera shot)"}</span>
                     <small>{(f.size / 1024).toFixed(0)} KB</small>
                   </li>
@@ -245,13 +245,13 @@ export default function Capture() {
               <div className="pdf-preview-meta">
                 <strong>{files[0].name || "PDF file"}</strong>
                 <small>{(files[0].size / 1024).toFixed(0)} KB · application/pdf</small>
-                <small>Claude will read the PDF contents.</small>
+                <small>{t("Claude will read the PDF contents.")}</small>
               </div>
             </div>
           ) : previewUrl ? (
             <img src={previewUrl} alt="preview" />
           ) : (
-            <div className="empty">No preview available.</div>
+            <div className="empty">{t("No preview available.")}</div>
           )}
 
           <div className="capture-actions">

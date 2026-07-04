@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { t } from "../../shared/i18n";
 
 interface Props {
   companies: string[];
@@ -60,7 +61,7 @@ export default function CompanyPicker({ companies, value, onChange, noun = "comp
       }}
     >
       <option value="">— pick a {noun} —</option>
-      {isCompanyPicker && <option value="Personal">Personal</option>}
+      {isCompanyPicker && <option value="Personal">{t("Personal")}</option>}
       {options.map((c) => (
         // Avoid duplicating Personal if it somehow ended up in the list.
         c === "Personal" && isCompanyPicker

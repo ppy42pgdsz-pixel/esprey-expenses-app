@@ -121,15 +121,14 @@ export default function UserSettings() {
                 onClick={async () => {
                   const langName = language === "fr" ? "French / français" : language === "pt" ? "Portuguese / português" : "English";
                   if (!confirm(
-                    `Rewrite the descriptions of ALL your existing receipts in ${langName}? ` +
-                    `Vendor names, amounts and dates are never changed. This can't be undone.`
+                    t("Rewrite the descriptions of ALL your existing receipts in this language? Vendor names, amounts and dates are never changed. This can't be undone.")
                   )) return;
                   setTranslating(true); setTranslateMsg(null);
                   try {
                     const res = await api.translateNotes(language);
-                    setTranslateMsg(`✅ ${res.translated} description${res.translated === 1 ? "" : "s"} translated.`);
+                    setTranslateMsg(`✅ ${res.translated} — ${t("descriptions translated.")}`);
                   } catch (e) {
-                    setTranslateMsg(`Translation failed: ${(e as Error).message}`);
+                    setTranslateMsg(`${t("Translation failed:")} ${(e as Error).message}`);
                   } finally {
                     setTranslating(false);
                   }
@@ -144,9 +143,9 @@ export default function UserSettings() {
           <section className="settings-section">
             <h2>{t("Identity")}</h2>
             <Field label={t("Full name")} value={name} onChange={setName} placeholder={t("Your full name")} />
-            <Field label={t("Business name")} value={businessName} onChange={setBusinessName} placeholder="Optional — if you invoice through a company" />
+            <Field label={t("Business name")} value={businessName} onChange={setBusinessName} placeholder={t("Optional — if you invoice through a company")} />
             <div className="row">
-              <Field label={t("Email")} value={email} onChange={setEmail} placeholder="contact email shown on invoice" />
+              <Field label={t("Email")} value={email} onChange={setEmail} placeholder={t("Contact email shown on invoice")} />
               <Field label={t("Phone")} value={phone} onChange={setPhone} placeholder={t("Optional")} />
             </div>
           </section>
@@ -156,13 +155,13 @@ export default function UserSettings() {
             <Field label={t("Address line 1")} value={addr1} onChange={setAddr1} placeholder={t("Street address")} />
             <Field label={t("Address line 2")} value={addr2} onChange={setAddr2} placeholder={t("City, region, postcode")} />
             <Field label={t("Country")} value={country} onChange={setCountry} placeholder={t("Your country")} />
-            <Field label={t("VAT / Tax number")} value={vat} onChange={setVat} placeholder="Optional — for tax-registered users" />
+            <Field label={t("VAT / Tax number")} value={vat} onChange={setVat} placeholder={t("Optional — for tax-registered users")} />
           </section>
 
           <section className="settings-section">
             <h2>{t("Payment details")}</h2>
             <div className="hint small" style={{ marginBottom: 8 }}>
-              Free-form text — printed verbatim in the <strong>PAYMENT DETAILS</strong> block of every invoice. Format it however your bank/country requires. Examples: IBAN + SWIFT for EU; sort code + account for UK; routing + account + correspondent bank for US wires.
+              {t("Free-form text — printed word-for-word in the PAYMENT DETAILS block of every invoice. Format it however your bank/country requires (IBAN + SWIFT, sort code + account, etc.).")}
             </div>
             <label className="field">
               <span className="label">{t("Payment instructions")}</span>

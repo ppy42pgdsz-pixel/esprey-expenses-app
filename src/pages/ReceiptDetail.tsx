@@ -558,7 +558,7 @@ function OcrMismatchBanner({
       <div className="ocr-mismatch-title">{t("OCR vs your edits — please review")}</div>
       <table className="ocr-mismatch-table">
         <thead>
-          <tr><th></th><th>OCR extracted</th><th>You entered</th></tr>
+          <tr><th></th><th>{t("OCR extracted")}</th><th>{t("You entered")}</th></tr>
         </thead>
         <tbody>
           {diffs.map((d) => (

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../lib/api";
+import { t } from "../../shared/i18n";
 
 export interface Currency {
   code: string;
@@ -40,7 +41,7 @@ export default function CurrencyPicker({ currencies, value, onChange, onCurrency
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Currency name"
+          placeholder={t("Currency name")}
         />
         <button type="button" className="primary-btn" disabled={busy || !code.trim() || !name.trim()} onClick={commit}>
           Add

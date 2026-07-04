@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { t } from "../../shared/i18n";
 
 // Mozilla's PDF.js — loaded dynamically from CDN the first time the viewer is opened.
 const PDFJS_VERSION = "3.11.174";
@@ -122,7 +123,7 @@ export default function PdfView() {
       {err && <div className="err" style={{ margin: 12 }}>{err}</div>}
 
       <div className="pdf-canvas-wrap">
-        {busy && <div className="pdf-loading">Loading PDF…</div>}
+        {busy && <div className="pdf-loading">{t("Loading PDF…")}</div>}
         <canvas ref={canvasRef} className="pdf-canvas" />
       </div>
 

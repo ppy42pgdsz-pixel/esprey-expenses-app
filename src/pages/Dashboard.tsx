@@ -454,7 +454,7 @@ export default function Dashboard() {
               e.target.value = "";
             }}
           >
-            <option value="">Reassign company…</option>
+            <option value="">{t("Reassign company…")}</option>
             {companies.map((c) => <option key={c} value={c}>{c}</option>)}
             <option value="__clear-company__">— Clear company —</option>
           </select>
@@ -470,7 +470,7 @@ export default function Dashboard() {
               e.target.value = "";
             }}
           >
-            <option value="">Reassign category…</option>
+            <option value="">{t("Reassign category…")}</option>
             {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             <option value="__clear-category__">— Clear category —</option>
           </select>
@@ -484,14 +484,14 @@ export default function Dashboard() {
       )}
 
       {sortedReceipts === null ? (
-        <div className="empty">Loading…</div>
+        <div className="empty">{t("Loading…")}</div>
       ) : sortedReceipts.length === 0 ? (
         (() => {
           const anyFilterActive = pillFilter !== "all" || companyFilter !== "all" || datePreset !== "all";
           return (
             <div className="empty">
-              No receipts {anyFilterActive ? "match these filters" : "yet"}.<br />
-              {!anyFilterActive && <Link to="/capture">Capture your first one →</Link>}
+              {anyFilterActive ? t("No receipts match these filters.") : t("No receipts yet.")}<br />
+              {!anyFilterActive && <Link to="/capture">{t("Capture your first one →")}</Link>}
             </div>
           );
         })()
@@ -601,7 +601,7 @@ export default function Dashboard() {
                     const att = parseAttendees(r.attendees);
                     return att.length > 0 ? <div className="row3">with {att.join(", ")}</div> : null;
                   })()}
-                  {r.ocr_status === "pending" && <span className="badge">Reading…</span>}
+                  {r.ocr_status === "pending" && <span className="badge">{t("Reading…")}</span>}
                   {r.ocr_status === "failed" && <span className="badge warn">OCR failed</span>}
                   {pillFilter === "issues" && issueReason(r) && r.ocr_status !== "failed" && (
                     <span className="badge warn">{issueReason(r)}</span>
@@ -878,7 +878,7 @@ function fieldDiffers(current: string | null | undefined, ocr: string | null, ki
 }
 
 function CompanyChip({ name }: { name: string | null }) {
-  if (!name) return <span className="company-chip company-chip-uncat">Uncategorized</span>;
+  if (!name) return <span className="company-chip company-chip-uncat">{t("Uncategorized")}</span>;
   const c = companyColor(name);
   if (!c) return <span className="company-chip company-chip-uncat">{name}</span>;
   return (
