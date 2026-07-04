@@ -4,7 +4,13 @@ Everything agreed or proposed, merged from the previous model's handover backlog
 
 ## 1. In progress (finish first)
 
-- **Spending-limits UI** — backend done (migration 0009). Remaining: limit input in Settings → Categories (admin), over-limit receipts in Dashboard Issues + orange highlight, detail-page banner with Acknowledge button (`policy_acknowledged`).
+- ✅ **Spending-limits UI** — DONE 2026-07-04. Settings limit input, Dashboard Issues + orange highlight, over-limit banner with Acknowledge. Also fixed PATCH bug where `policy_acknowledged` wrongly marked receipts content-edited.
+- ✅ **#44 Attendees in reports** — DONE 2026-07-04. Grey "with …" line per receipt on the category breakdown page (Carl's placement choice). #45 now unblocked.
+- ✅ **Report page UX** — DONE 2026-07-04. Generate no longer auto-emails; explicit Email PDF button (new `/api/reports/email-pdf`), Download PDF link, pre-emptive >28 MB warning. Date-popover white-on-white button fixed.
+
+### New candidate items from Carl (2026-07-04, not yet scheduled)
+- Spending-limits master on/off toggle (limits currently "off" when no category has a value)
+- Per-company spending limits + delegated per-company policy admin (needs multi-admin auth — `team_members.is_admin` groundwork exists)
 
 ## 2. Correctness fixes (new — from code review)
 

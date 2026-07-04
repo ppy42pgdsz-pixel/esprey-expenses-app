@@ -34,13 +34,17 @@ export default function Reports() {
   const [emailingZip, setEmailingZip] = useState(false);
   const [zipEmailMsg, setZipEmailMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [emailingPdf, setEmailingPdf] = useState(false);
+  const [pdfEmailMsg, setPdfEmailMsg] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<null | {
     file: string; monthLabel: string; receipts: number; sizeBytes: number;
     downloadUrl: string;
     zipFile: string | null; zipSizeBytes: number; zipFilesIncluded: number;
     zipError: string | null; zipDownloadUrl: string | null;
-    emailedTo: string | null; emailError: string | null;
   }>(null);
+
+  // Resend rejects attachments past ~28 MB — warn before the user even clicks.
+  const EMAIL_LIMIT_BYTES = 28 * 1024 * 1024;
 
   useEffect(() => {
     (async () => {
@@ -67,8 +71,20 @@ export default function Reports() {
     }
   }
 
+  async function emailPdf(file: string) {
+    setEmailingPdf(true); setPdfEmailMsg(null);
+    try {
+      const res = await api.emailReportPdf(file);
+      setPdfEmailMsg(`📧 PDF emailed to ${res.emailedTo}.`);
+    } catch (e) {
+      setPdfEmailMsg(`Email failed: ${(e as Error).message}`);
+    } finally {
+      setEmailingPdf(false);
+    }
+  }
+
   async function generate() {
-    setBusy(true); setErr(null); setLastResult(null); setZipEmailMsg(null);
+    setBusy(true); setErr(null); setLastResult(null); setZipEmailMsg(null); setPdfEmailMsg(null);
     try {
       const res = await api.generateReport(month, company || null, currency || null);
       setLastResult(res);
@@ -129,7 +145,22 @@ export default function Reports() {
             <div className="zip-actions">
               <Link to={`/pdf?file=${encodeURIComponent(lastResult.file)}`}>Open PDF</Link>
               <a href={lastResult.downloadUrl} download>Download PDF</a>
+              <button
+                type="button"
+                className="ghost-btn small"
+                onClick={() => emailPdf(lastResult.file)}
+                disabled={emailingPdf || lastResult.sizeBytes > EMAIL_LIMIT_BYTES}
+              >
+                {emailingPdf ? "Emailing…" : "📧 Email PDF"}
+              </button>
             </div>
+            {lastResult.sizeBytes > EMAIL_LIMIT_BYTES && (
+              <div className="warn-text">
+                This PDF is {fmtSize(lastResult.sizeBytes)} — too big to email (limit ~28 MB).
+                Use Download instead.
+              </div>
+            )}
+            {pdfEmailMsg && <div className="hint">{pdfEmailMsg}</div>}
             {lastResult.zipDownloadUrl && lastResult.zipFile && (
               <div className="zip-actions">
                 <a href={lastResult.zipDownloadUrl} download>
@@ -149,12 +180,6 @@ export default function Reports() {
             {lastResult.zipError && (
               <div className="warn-text">ZIP build failed: {lastResult.zipError}</div>
             )}
-            {lastResult.emailedTo
-              ? <div>📧 Emailed to {lastResult.emailedTo}</div>
-              : lastResult.emailError
-                ? <div className="warn-text">Email failed: {lastResult.emailError}</div>
-                : <div className="hint">Email not configured (RESEND_API_KEY missing).</div>
-            }
           </div>
         )}
       </section>

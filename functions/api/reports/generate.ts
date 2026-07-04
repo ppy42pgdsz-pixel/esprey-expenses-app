@@ -7,7 +7,6 @@ import type { Env, ReceiptRow } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
 import type { CompanyRow } from "../companies";
 import { buildMonthlyReport } from "../../_lib/pdf";
-import { sendReportEmail } from "../../_lib/resend";
 import { fetchLatestRates, getRatesForDate, type FxRates } from "../../_lib/fx";
 import { htmlToPdf } from "../../_lib/pdfshift";
 import { buildReceiptZip } from "../../_lib/zip";
@@ -241,25 +240,9 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
     console.error("ZIP build failed", e);
   }
 
-  // Email the PDF to the signed-in user. ZIP is sent separately via
-  // /api/reports/email-zip when the user explicitly asks for it.
-  let emailedTo: string | null = null;
-  let emailError: string | null = null;
-  if (env.RESEND_API_KEY && env.REPORT_FROM_ADDRESS) {
-    try {
-      await sendReportEmail({
-        apiKey: env.RESEND_API_KEY,
-        fromAddress: env.REPORT_FROM_ADDRESS,
-        toAddress: guard.userEmail,
-        replyTo: env.CARL_EMAIL,
-        monthLabel: reportLabel,
-        attachments: [{ filename, bytes: pdfBytes }],
-      });
-      emailedTo = guard.userEmail;
-    } catch (e) {
-      emailError = (e as Error).message;
-    }
-  }
+  // NOTE: generating no longer auto-emails. Emailing the PDF is an explicit
+  // user action via POST /api/reports/email-pdf — so a mail failure (e.g.
+  // attachment too big) can never make report *generation* look broken.
 
   return Response.json({
     month,
@@ -275,8 +258,6 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
     zipFilesIncluded,
     zipError,
     zipDownloadUrl: zipFile ? `/api/reports/download?file=${encodeURIComponent(zipFile)}` : null,
-    emailedTo,
-    emailError,
   });
 };
 

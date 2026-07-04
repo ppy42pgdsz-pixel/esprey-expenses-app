@@ -247,12 +247,16 @@ export const api = {
       zipFilesIncluded: number;
       zipError: string | null;
       zipDownloadUrl: string | null;
-      emailedTo: string | null;
-      emailError: string | null;
     }>("/api/reports/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ month, company, currency }),
+    }),
+  emailReportPdf: (file: string) =>
+    jsonFetch<{ emailedTo: string; sizeBytes: number }>("/api/reports/email-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file }),
     }),
 };
 
