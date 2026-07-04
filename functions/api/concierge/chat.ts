@@ -37,8 +37,8 @@ const TOOLS = [
       type: "object",
       properties: {
         vendor: { type: "string", description: "substring match, case-insensitive" },
-        category: { type: "string", description: "exact match, case-insensitive" },
-        company: { type: "string", description: "exact match, case-insensitive" },
+        category: { type: "string", description: "substring match, case-insensitive (e.g. 'meal' matches 'Meals')" },
+        company: { type: "string", description: "substring match, case-insensitive (e.g. 'waraba' matches 'Waraba Gold')" },
         text: { type: "string", description: "substring match against notes" },
         date_from: { type: "string", description: "YYYY-MM-DD inclusive" },
         date_to: { type: "string", description: "YYYY-MM-DD inclusive" },
@@ -146,13 +146,27 @@ const TOOLS = [
 /* ---------------- System prompt ---------------- */
 
 function systemPrompt(lang: "en" | "fr", isAdmin: boolean): string {
+  // Models don't know the current date — inject it, plus the ranges users
+  // mean by "this month" / "last month", so relative dates just work.
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const weekday = now.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", { weekday: "long", timeZone: "UTC" });
+  const monthStart = (y: number, m: number) => new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+  const monthEnd = (y: number, m: number) => new Date(Date.UTC(y, m + 1, 0)).toISOString().slice(0, 10);
+  const y = now.getUTCFullYear(), m = now.getUTCMonth();
+  const dateBlock = `Today is ${weekday} ${today}.
+This month: ${monthStart(y, m)} to ${monthEnd(y, m)}. Last month: ${monthStart(y, m - 1)} to ${monthEnd(y, m - 1)}.
+When the user says "today", "yesterday", "last month" etc., resolve them from these facts. When recording an expense "today", use ${today} as receipt_date.`;
+
   return `You are the Concierge for Esprey Expenses, a small-business receipt & expense app. You help the signed-in user query and manage THEIR OWN receipts through the tools provided.
+
+${dateBlock}
 
 Language: reply in ${lang === "fr" ? "French" : "English"} unless the user writes in another language — then match them.
 
 Hard rules:
 - You only have the tools listed. There are NO tools for team management, company access, spending-limit changes, or other admin actions${isAdmin ? " — even though this user is the admin, those live in Settings by design" : ""}. If asked, say it's done in Settings and briefly say where.
-- Never invent data. If a search returns nothing, say so.
+- Never invent data. If a search returns nothing, say so — but FIRST double-check your filters: category/company filters match substrings, so prefer short fragments ("waraba", "meal"), and when a search surprisingly returns nothing, call list_reference_data to see the real category/company names and retry once with the right ones before concluding there's nothing.
 - Amounts: never mix currencies in one total; present per-currency totals. Use the exact figures returned by tools.
 - Creating/updating receipts: validate company/category names against list_reference_data first when unsure; dates must be YYYY-MM-DD and not in the future.
 - Deleting: only via request_delete_receipt, which requires the user's explicit button confirmation. Tell them to press the confirm button that appears.
@@ -322,8 +336,9 @@ function buildFilters(userEmail: string, input: any): { where: string[]; args: u
   const where: string[] = [`user_email = ?`];
   const args: unknown[] = [userEmail];
   if (input.vendor) { where.push(`lower(vendor) LIKE ?`); args.push(`%${String(input.vendor).toLowerCase()}%`); }
-  if (input.category) { where.push(`lower(category) = ?`); args.push(String(input.category).toLowerCase()); }
-  if (input.company) { where.push(`lower(company) = ?`); args.push(String(input.company).toLowerCase()); }
+  // Substring matches: users say "meals"/"waraba", the DB says "Meals"/"Waraba Gold".
+  if (input.category) { where.push(`lower(category) LIKE ?`); args.push(`%${String(input.category).toLowerCase()}%`); }
+  if (input.company) { where.push(`lower(company) LIKE ?`); args.push(`%${String(input.company).toLowerCase()}%`); }
   if (input.text) { where.push(`lower(notes) LIKE ?`); args.push(`%${String(input.text).toLowerCase()}%`); }
   if (input.date_from) { where.push(`receipt_date >= ?`); args.push(String(input.date_from)); }
   if (input.date_to) { where.push(`receipt_date <= ?`); args.push(String(input.date_to)); }
