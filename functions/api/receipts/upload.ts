@@ -7,7 +7,7 @@ import { jsonError } from "../../_lib/types";
 import { extractReceipt } from "../../_lib/anthropic";
 import { arrayBufferToBase64, extFromMime, newId, r2KeyForReceipt } from "../../_lib/util";
 import { requireUser } from "../../_lib/auth";
-import { ensureTodayRates } from "../../_lib/fx";
+import { ensureRatesForReceiptDate } from "../../_lib/fx";
 import { getUserLanguage } from "../../_lib/lang";
 
 export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
@@ -94,11 +94,11 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
     )
     .run();
 
-  // FX snapshot (best-effort): stamp which day's rate table applies, so
-  // reports convert at capture-time rates rather than report-time rates.
-  // Never blocks the upload — pre-migration schema or FX downtime is fine.
+  // FX snapshot (best-effort): rates are locked to the RECEIPT's own date
+  // (Carl, 2026-07-04) — historical ECB rates, euro-peg derivation for XOF/XAF,
+  // capture-day fallback for exotic currencies. Never blocks the upload.
   try {
-    const fx = await ensureTodayRates(env.DB);
+    const fx = await ensureRatesForReceiptDate(env.DB, extracted?.receipt_date ?? null, extracted?.currency ?? null);
     if (fx) {
       await env.DB.prepare(`UPDATE receipts SET fx_rate_date = ? WHERE id = ?`)
         .bind(fx.date, id)

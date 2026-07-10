@@ -309,9 +309,8 @@ async function processAttachment(
     )
     .run();
 
-  // Stamp the capture-day FX table (best-effort) so reports convert at
-  // capture-time rates.
-  await stampFxDate(env.DB, id, userEmail);
+  // FX locked to the receipt's own date (best-effort) — see src/fx.ts.
+  await stampFxDate(env.DB, id, userEmail, extracted?.receipt_date ?? null, extracted?.currency ?? null);
 }
 
 async function processBody(
@@ -390,5 +389,5 @@ async function processBody(
     )
     .run();
 
-  await stampFxDate(env.DB, id, userEmail);
+  await stampFxDate(env.DB, id, userEmail, extracted?.receipt_date ?? null, extracted?.currency ?? null);
 }

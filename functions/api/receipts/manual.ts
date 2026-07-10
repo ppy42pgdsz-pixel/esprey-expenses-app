@@ -6,7 +6,7 @@ import { jsonError } from "../../_lib/types";
 import { newId } from "../../_lib/util";
 import { requireUser, isAdminEmail } from "../../_lib/auth";
 import { isPersonalCompany } from "../../_lib/const";
-import { ensureTodayRates } from "../../_lib/fx";
+import { ensureRatesForReceiptDate } from "../../_lib/fx";
 
 interface ManualBody {
   vendor?: string | null;
@@ -73,9 +73,9 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
     )
     .run();
 
-  // FX snapshot (best-effort) — see upload.ts for rationale.
+  // FX snapshot (best-effort): locked to the receipt's own date — see upload.ts.
   try {
-    const fx = await ensureTodayRates(env.DB);
+    const fx = await ensureRatesForReceiptDate(env.DB, body.receipt_date ?? null, body.currency ?? null);
     if (fx) {
       await env.DB.prepare(`UPDATE receipts SET fx_rate_date = ? WHERE id = ? AND user_email = ?`)
         .bind(fx.date, id, guard.userEmail)

@@ -27,3 +27,22 @@ describe("fx convert", () => {
     expect(convert(10, "", "GBP", rates)).toBeNull();
   });
 });
+
+import { augmentEurPegs } from "../functions/_lib/fx";
+
+describe("augmentEurPegs", () => {
+  const base: FxRates = { base: "USD", rates: { USD: 1, EUR: 0.9 }, date: "2026-06-20", source: "test" };
+  it("derives XOF/XAF from EUR at the legal peg", () => {
+    const out = augmentEurPegs(base);
+    expect(out.rates.XOF).toBeCloseTo(0.9 * 655.957, 6);
+    expect(out.rates.XAF).toBeCloseTo(0.9 * 655.957, 6);
+  });
+  it("never overwrites a real published rate", () => {
+    const withXof: FxRates = { ...base, rates: { ...base.rates, XOF: 600 } };
+    expect(augmentEurPegs(withXof).rates.XOF).toBe(600);
+  });
+  it("no EUR -> no pegs, table unchanged", () => {
+    const noEur: FxRates = { ...base, rates: { USD: 1 } };
+    expect(augmentEurPegs(noEur).rates.XOF).toBeUndefined();
+  });
+});

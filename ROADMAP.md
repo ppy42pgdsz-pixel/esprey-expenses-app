@@ -25,7 +25,7 @@ Everything agreed or proposed, merged from the previous model's handover backlog
 ## 2. Correctness fixes (new — from code review)
 
 1. ✅ **Money as floats** — DONE 2026-07-03. `shared/money.ts` (integer minor units), all arithmetic call sites in Dashboard/ReceiptDetail/pdf.ts converted. DB strings unchanged.
-2. ✅ **FX at purchase time** — DONE 2026-07-03. Migration 0011: `fx_rates` daily-table cache + `receipts.fx_rate_date` stamped on all three capture paths. Reports convert per-receipt at capture-day rates; pre-0011 rows fall back to live rates.
+2. ✅ **FX at purchase time** — DONE 2026-07-03, UPGRADED 2026-07-04 to RECEIPT-DATE rates (Carl's requirement): past dates use ECB historical rates (frankfurter.dev), XOF/XAF/KMF derived from the legal EUR peg, exotic-currency/provider-failure fallback to capture-day table, restamp when receipt date or currency is edited. All 4 capture paths incl. email worker (deployed).
 3. ⏸️ **Server-side + cross-user duplicate detection** — PARKED by Carl 2026-07-03.
 4. ✅ **Soft delete + trash** — DONE 2026-07-03. Migration 0012: `deleted_at`; DELETE soft-stamps (hard-delete fallback pre-migration); Trash section in Settings with Restore; lazy 30-day purge.
 5. ✅ **Tests + typecheck on deploy** — DONE 2026-07-03. `npm run deploy` = check → test → build → deploy. Vitest: 13 tests. Bonus: first-ever typecheck surfaced 11 latent errors, including a real bug — multi-page reports crashed on an undefined `billTo` variable (pdf.ts:366).

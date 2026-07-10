@@ -17,7 +17,7 @@ import type { Env, ReceiptRow } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
 import { requireUser } from "../../_lib/auth";
 import { getUserLanguage } from "../../_lib/lang";
-import { ensureTodayRates } from "../../_lib/fx";
+import { ensureRatesForReceiptDate } from "../../_lib/fx";
 import { newId } from "../../_lib/util";
 import { toMinor, minorToAmount } from "../../../shared/money";
 
@@ -467,9 +467,9 @@ async function createManual(env: Env, userEmail: string, input: any) {
     userEmail
   ).run();
 
-  // FX snapshot, same as the app's capture paths (best-effort).
+  // FX snapshot, locked to the receipt's own date like every capture path.
   try {
-    const fx = await ensureTodayRates(env.DB);
+    const fx = await ensureRatesForReceiptDate(env.DB, date, input.currency ? String(input.currency) : null);
     if (fx) {
       await env.DB.prepare(`UPDATE receipts SET fx_rate_date = ? WHERE id = ? AND user_email = ?`)
         .bind(fx.date, id, userEmail).run();

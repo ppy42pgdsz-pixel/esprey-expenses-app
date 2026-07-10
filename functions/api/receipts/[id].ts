@@ -9,6 +9,7 @@ import type { Env, ReceiptRow } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
 import { requireUser, isAdminEmail } from "../../_lib/auth";
 import { isPersonalCompany } from "../../_lib/const";
+import { ensureRatesForReceiptDate } from "../../_lib/fx";
 
 export const onRequestGet: PagesFunction<Env, "id", any> = async ({ request, env, data, params }) => {
   const guard = await requireUser(request, env, data);
@@ -122,6 +123,25 @@ export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, e
     .run();
 
   if (!success) return jsonError(500, "update failed");
+
+  // If the receipt's date or currency was corrected, re-lock the FX rate to
+  // the (new) receipt date so conversion follows the truth of the receipt,
+  // not the moment of capture (Carl, 2026-07-04). Best-effort.
+  if ("receipt_date" in body || "currency" in body) {
+    try {
+      const row = await env.DB.prepare(
+        `SELECT receipt_date, currency FROM receipts WHERE id = ? AND user_email = ?`
+      ).bind(id, guard.userEmail).first<{ receipt_date: string | null; currency: string | null }>();
+      if (row) {
+        const fx = await ensureRatesForReceiptDate(env.DB, row.receipt_date, row.currency);
+        if (fx) {
+          await env.DB.prepare(
+            `UPDATE receipts SET fx_rate_date = ? WHERE id = ? AND user_email = ?`
+          ).bind(fx.date, id, guard.userEmail).run();
+        }
+      }
+    } catch { /* pre-0011 schema or FX down — keep old stamp */ }
+  }
 
   const isAdmin = await isAdminEmail(env, guard.userEmail);
 
