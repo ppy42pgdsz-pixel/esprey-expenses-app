@@ -82,14 +82,28 @@ export default {
     //    "real" attachments the sender explicitly attached.
     const attachments = (parsed.attachments ?? []).filter((att) => {
       const mt = (att.mimeType ?? "").toLowerCase();
-      if (!mt.startsWith("image/") && mt !== "application/pdf") return false;
+      const name = ((att as any).filename ?? "").toString().toLowerCase();
+      // Forwarded files often arrive as application/octet-stream — trust the
+      // filename extension in that case (Carl's hotel invoice, 2026-07-04).
+      const isPdf = mt === "application/pdf" || name.endsWith(".pdf");
+      const isImage = mt.startsWith("image/") || /\.(jpe?g|png|gif|webp|heic)$/.test(name);
+      if (!isPdf && !isImage) return false;
 
+      // A PDF is NEVER a signature logo — always accept it, regardless of
+      // disposition/Content-ID (Apple Mail marks real PDFs inline).
+      if (isPdf) return true;
+
+      // Images: keep the signature-logo/tracking-pixel filter (the Lithium
+      // Africa incident), but only for SMALL inline/cid images. Real receipt
+      // photos are hundreds of KB; logos and pixels are tiny.
       const disposition = ((att as any).disposition ?? "").toString().toLowerCase();
       const contentId = (att as any).contentId;
-      // Inline images carry either disposition=inline or a Content-ID
-      // (referenced from the HTML body via cid:…). Treat both as inline.
-      if (disposition === "inline") return false;
-      if (contentId) return false;
+      const size =
+        typeof att.content === "string"
+          ? att.content.length
+          : ((att.content as ArrayBuffer | Uint8Array)?.byteLength ?? 0);
+      const inlineish = disposition === "inline" || !!contentId;
+      if (inlineish && size < 100_000) return false;
 
       return true;
     });
@@ -236,7 +250,17 @@ async function processAttachment(
   userEmail: string,
 ) {
   const id = newId();
-  const mime = (att.mimeType ?? "application/octet-stream").toLowerCase();
+  let mime = (att.mimeType ?? "application/octet-stream").toLowerCase();
+  const fname = (att.filename ?? "").toLowerCase();
+  // octet-stream with a telling filename → trust the extension so OCR and the
+  // in-app viewer treat it correctly.
+  if (mime === "application/octet-stream" || mime === "") {
+    if (fname.endsWith(".pdf")) mime = "application/pdf";
+    else if (/\.(jpe?g)$/.test(fname)) mime = "image/jpeg";
+    else if (fname.endsWith(".png")) mime = "image/png";
+    else if (fname.endsWith(".webp")) mime = "image/webp";
+    else if (fname.endsWith(".heic")) mime = "image/heic";
+  }
   const ext = extFromMime(mime);
   const r2Key = r2KeyForReceipt(id, ext);
 
