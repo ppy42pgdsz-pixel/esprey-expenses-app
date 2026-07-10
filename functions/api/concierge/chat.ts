@@ -517,6 +517,25 @@ async function updateReceipt(env: Env, userEmail: string, input: any) {
   await env.DB.prepare(
     `UPDATE receipts SET ${sets.join(", ")} WHERE id = ? AND user_email = ?`
   ).bind(...args, id, userEmail).run();
+
+  // Date or currency corrected → re-lock the FX rate to the receipt's (new)
+  // date, exactly like the app's edit form does (Carl, 2026-07-04).
+  if ("receipt_date" in input || "currency" in input) {
+    try {
+      const row = await env.DB.prepare(
+        `SELECT receipt_date, currency FROM receipts WHERE id = ? AND user_email = ?`
+      ).bind(id, userEmail).first<{ receipt_date: string | null; currency: string | null }>();
+      if (row) {
+        const fx = await ensureRatesForReceiptDate(env.DB, row.receipt_date, row.currency);
+        if (fx) {
+          await env.DB.prepare(
+            `UPDATE receipts SET fx_rate_date = ? WHERE id = ? AND user_email = ?`
+          ).bind(fx.date, id, userEmail).run();
+        }
+      }
+    } catch { /* best-effort */ }
+  }
+
   return { updated: true, id, fields: sets.map((s) => s.split(" ")[0]) };
 }
 
