@@ -24,6 +24,7 @@ const STRINGS = {
     amount: "Amount",
     currency: "Currency",
     original: "Original",
+    rate: "Rate",
     subtotal: "Subtotal",
     subtotalsByCurrency: "Subtotals by currency",
     tax: "Tax",
@@ -37,7 +38,7 @@ const STRINGS = {
     originalMissing: "(Original could not be loaded from storage)",
     fxAsOf: (source: string, date: string) => `Exchange rates: ${source} · as of ${date}`,
     fxCaptureLocked: (source: string, date: string) =>
-      `Exchange rates: ${source} · locked at each receipt's capture date (older receipts: as of ${date})`,
+      `Exchange rates: ${source} · locked to each receipt's own date (fallback: as of ${date})`,
     expenseReport: "Expense Report",
   },
   fr: {
@@ -59,6 +60,7 @@ const STRINGS = {
     amount: "Montant",
     currency: "Devise",
     original: "Original",
+    rate: "Taux",
     subtotal: "Sous-total",
     subtotalsByCurrency: "Sous-totaux par devise",
     tax: "Taxe",
@@ -72,7 +74,7 @@ const STRINGS = {
     originalMissing: "(L'original n'a pas pu être chargé)",
     fxAsOf: (source: string, date: string) => `Taux de change : ${source} · au ${date}`,
     fxCaptureLocked: (source: string, date: string) =>
-      `Taux de change : ${source} · figés à la date de capture de chaque reçu (anciens reçus : au ${date})`,
+      `Taux de change : ${source} · figés à la date de chaque reçu (à défaut : au ${date})`,
     expenseReport: "Note de frais",
   },
   pt: {
@@ -94,6 +96,7 @@ const STRINGS = {
     amount: "Montante",
     currency: "Moeda",
     original: "Original",
+    rate: "Taxa",
     subtotal: "Subtotal",
     subtotalsByCurrency: "Subtotais por moeda",
     tax: "Imposto",
@@ -107,7 +110,7 @@ const STRINGS = {
     originalMissing: "(Não foi possível carregar o original)",
     fxAsOf: (source: string, date: string) => `Taxas de câmbio: ${source} · em ${date}`,
     fxCaptureLocked: (source: string, date: string) =>
-      `Taxas de câmbio: ${source} · fixadas na data de captura de cada recibo (recibos antigos: em ${date})`,
+      `Taxas de câmbio: ${source} · fixadas na data de cada recibo (alternativa: em ${date})`,
     expenseReport: "Relatório de despesas",
   },
 } as const;

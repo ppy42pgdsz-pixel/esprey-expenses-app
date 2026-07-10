@@ -232,7 +232,15 @@ function drawInvoice(
   },
   S: PdfStrings
 ) {
-  let page = pdf.addPage(PageSizes.A4);
+  // Landscape when a currency conversion is active (Carl, 2026-07-04): the
+  // extra width fits the per-row exchange-rate column accountants reconcile
+  // against. Single-currency reports stay portrait. These locals shadow the
+  // module-level portrait constants for everything inside drawInvoice.
+  const landscape = !!(opts.currencyFilter && opts.fxRates);
+  const PAGE_W = landscape ? PageSizes.A4[1] : PageSizes.A4[0];
+  const PAGE_H = landscape ? PageSizes.A4[0] : PageSizes.A4[1];
+
+  let page = pdf.addPage([PAGE_W, PAGE_H]);
   let y = PAGE_H - MARGIN;
   const rightX = PAGE_W - MARGIN;
 
@@ -340,12 +348,14 @@ function drawInvoice(
   // Column layout depends on whether we're converting currencies.
   // Without conversion:  Date | Vendor | Category | Description | Amount
   // With conversion:     Date | Vendor | Description | Original | Code | Converted
+  // Landscape (842pt) FX layout: room for Rate between Code and Converted.
   const cols = useFx ? {
     date: MARGIN,
-    vendor: MARGIN + 60,
-    desc: MARGIN + 160,
-    origAmt: MARGIN + 305,
-    code: MARGIN + 360,
+    vendor: MARGIN + 62,
+    desc: MARGIN + 250,
+    origAmt: MARGIN + 500,
+    code: MARGIN + 560,
+    rate: MARGIN + 660,
     conv: PAGE_W - MARGIN,
   } : {
     date: MARGIN,
@@ -367,6 +377,7 @@ function drawInvoice(
       p.drawText(S.description, { x: cols.desc, y: yy, size: 9, font: fonts.bold, color: c });
       drawRight(p, S.original, (cols as any).origAmt + 40, yy, 9, fonts.bold, c);
       p.drawText(S.currency.slice(0,3) + ".",     { x: (cols as any).code, y: yy, size: 9, font: fonts.bold, color: c });
+      drawRight(p, S.rate, (cols as any).rate, yy, 9, fonts.bold, c);
       drawRight(p, `${targetCur}`, cols.conv, yy, 9, fonts.bold, c);
     } else {
       p.drawText(S.category,    { x: (cols as any).cat,  y: yy, size: 9, font: fonts.bold, color: c });
@@ -381,7 +392,7 @@ function drawInvoice(
 
   function ensureSpace(needed: number) {
     if (y - needed < MARGIN + 60) { // leave space for totals/footer
-      page = pdf.addPage(PageSizes.A4);
+      page = pdf.addPage([PAGE_W, PAGE_H]);
       y = PAGE_H - MARGIN;
       // Continuation header
       page.drawText(billToTitle, { x: MARGIN, y, size: 12, font: fonts.bold, color: rgb(0.3, 0.3, 0.3) });
@@ -419,10 +430,10 @@ function drawInvoice(
       ensureSpace(LINE);
       page.drawText(truncate(r.receipt_date ?? "—", 10), { x: cols.date,   y, size: 10, font: fonts.reg });
       if (useFx) {
-        page.drawText(truncate(r.vendor ?? "—",   16), { x: cols.vendor, y, size: 10, font: fonts.reg });
+        page.drawText(truncate(r.vendor ?? "—",   30), { x: cols.vendor, y, size: 10, font: fonts.reg });
         const descStr = r.notes && r.notes.trim()
-          ? truncate(r.notes, 24)
-          : truncate(r.category ?? "", 24);
+          ? truncate(r.notes, 40)
+          : truncate(r.category ?? "", 40);
         page.drawText(descStr, { x: cols.desc, y, size: 10, font: fonts.reg, color: rgb(0.35, 0.35, 0.35) });
         const origAmt = parseFloat((r.amount ?? "").replace(",", "."));
         if (isFinite(origAmt)) {
@@ -433,6 +444,14 @@ function drawInvoice(
         const code = (r.currency ?? "").toUpperCase().slice(0, 4);
         page.drawText(code, { x: (cols as any).code, y, size: 10, font: fonts.reg, color: rgb(0.35, 0.35, 0.35) });
         const rowRates = opts.fxRatesFor?.(r) ?? opts.fxRates ?? null;
+        // The unit rate actually applied (1 <code> = X <target>), so the
+        // accountant can reconcile every line: original x rate = converted.
+        const unitRate = rowRates ? convert(1, code, targetCur, rowRates) : null;
+        drawRight(
+          page,
+          unitRate !== null ? fmtRate(unitRate) : "—",
+          (cols as any).rate, y, 9, fonts.reg, rgb(0.35, 0.35, 0.35)
+        );
         const converted = isFinite(origAmt) && rowRates
           ? convert(origAmt, code, targetCur, rowRates)
           : null;
@@ -554,6 +573,9 @@ function drawPaymentDetailsAndFooter(
   opts: { bank: BankDetails; receipts: ReceiptRow[] },
   S: PdfStrings
 ) {
+  // Adapt to the actual page (invoice pages are landscape in FX mode).
+  const PAGE_W = page.getWidth();
+
   // Fixed position near the bottom of the current page.
   const bottomBlockY = MARGIN + 70; // leave room for "Thank you" line under it
 
@@ -796,6 +818,13 @@ function formatAmount(r: ReceiptRow): string {
   const amt = (r.amount ?? "").trim();
   if (!amt) return "—";
   return cur ? `${cur} ${amt}` : amt;
+}
+
+/** Unit exchange rate: sensible precision whether it's 0.00152 or 655.957. */
+function fmtRate(rate: number): string {
+  if (rate >= 100) return rate.toFixed(2);
+  if (rate >= 1) return rate.toFixed(4);
+  return rate.toPrecision(4);
 }
 
 function parseAttendeesJson(raw: string | null): string[] {
