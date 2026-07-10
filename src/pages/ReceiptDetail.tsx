@@ -210,6 +210,15 @@ export default function ReceiptDetail() {
       <IssuesBanner
         receipt={receipt}
         allReceipts={allReceipts}
+        onRetryOcr={async () => {
+          try {
+            const res = await api.reocrReceipt(id);
+            setReceipt(res.receipt);
+            await load(); // refresh form fields with newly-read values
+          } catch (e) {
+            setErr((e as Error).message);
+          }
+        }}
         onAcknowledgeDuplicate={async () => {
           try {
             const res = await api.patchReceipt(id, { duplicate_acknowledged: 1 as any });
@@ -619,10 +628,12 @@ function normalizeTipPct(n: unknown): number {
 function IssuesBanner({
   receipt,
   allReceipts,
+  onRetryOcr,
   onAcknowledgeDuplicate,
 }: {
   receipt: Receipt | null;
   allReceipts: Receipt[];
+  onRetryOcr: () => Promise<void> | void;
   onAcknowledgeDuplicate: () => Promise<void> | void;
 }) {
   if (!receipt) return null;
@@ -666,6 +677,11 @@ function IssuesBanner({
         {ocrFailed && (
           <li>
             {t("OCR failed to process this receipt. Fill in the amount, currency, and date manually below.")}
+            <div className="ocr-mismatch-actions" style={{ marginTop: 8 }}>
+              <button type="button" className="primary-btn small" onClick={onRetryOcr}>
+                🔄 {t("Try reading it again")}
+              </button>
+            </div>
           </li>
         )}
         {noAmount && !ocrFailed && (

@@ -3,6 +3,33 @@ import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { t } from "../../shared/i18n";
 
+
+// Normalize images before upload (Tolu's bulk-upload incident, 2026-07-04):
+// Claude's OCR accepts JPEG/PNG/WebP/GIF up to ~5MB, but desktop files are
+// often HEIC (iPhone exports) or multi-MB scans. Re-encode through a canvas
+// to a bounded JPEG — also a big mobile-data win. If the browser can't
+// decode the format (e.g. HEIC on Chrome), upload the original so the
+// server records a clear error.
+async function normalizeForUpload(file: File): Promise<File> {
+  const okTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!file.type.startsWith("image/")) return file; // PDFs go through untouched
+  if (okTypes.includes(file.type) && file.size < 1_500_000) return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const MAX = 2200; // plenty for OCR, small enough to stay well under limits
+    const scale = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bmp.width * scale));
+    canvas.height = Math.max(1, Math.round(bmp.height * scale));
+    canvas.getContext("2d")!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.85));
+    if (!blob) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 export default function Capture() {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -92,7 +119,7 @@ export default function Capture() {
     // Multi-page: combine images into a single PDF, upload as one receipt.
     if (isMultiPage) {
       try {
-        const pdfBytes = await imagesToPdf(files);
+        const pdfBytes = await imagesToPdf(await Promise.all(files.map(normalizeForUpload)));
         const pdfFile = new File(
           [new Blob([pdfBytes as unknown as BlobPart], { type: "application/pdf" })],
           `multi-page-${Date.now()}.pdf`,
@@ -111,7 +138,7 @@ export default function Capture() {
     // Single file: existing UX, lands on the receipt detail page.
     if (files.length === 1) {
       try {
-        const res = await api.uploadReceipt(files[0]);
+        const res = await api.uploadReceipt(await normalizeForUpload(files[0]));
         navigate(`/receipt/${res.id}`);
       } catch (e) {
         setErr((e as Error).message);
@@ -125,7 +152,7 @@ export default function Capture() {
     setProgress({ done: 0, total: files.length, failed: 0 });
     for (let i = 0; i < files.length; i++) {
       try {
-        await api.uploadReceipt(files[i]);
+        await api.uploadReceipt(await normalizeForUpload(files[i]));
         setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
       } catch (e) {
         console.error(`bulk upload failed for ${files[i].name}`, e);

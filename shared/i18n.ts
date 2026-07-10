@@ -280,6 +280,7 @@ const FR: Record<string, string> = {
   "Ask anything — \"how much did I spend on meals?\" — or tell it to record an expense for you. It only ever sees your own receipts.": "Posez n'importe quelle question — « combien ai-je dépensé en repas ? » — ou demandez-lui d'enregistrer une dépense. Il ne voit que vos propres reçus.",
   "Need help?": "Besoin d'aide ?",
   "The ? opens the FAQ with an ask-a-question box. You can rerun this tour from there anytime.": "Le ? ouvre la FAQ avec une boîte à questions. Vous pouvez relancer cette visite depuis là à tout moment.",
+  "Try reading it again": "Réessayer la lecture",
 };
 
 
@@ -534,4 +535,5 @@ const PT: Record<string, string> = {
   "Ask anything — \"how much did I spend on meals?\" — or tell it to record an expense for you. It only ever sees your own receipts.": "Pergunte o que quiser — «quanto gastei em refeições?» — ou peça-lhe para registar uma despesa. Só vê os seus próprios recibos.",
   "Need help?": "Precisa de ajuda?",
   "The ? opens the FAQ with an ask-a-question box. You can rerun this tour from there anytime.": "O ? abre a FAQ com uma caixa de perguntas. Pode repetir esta visita a partir daí em qualquer altura.",
+  "Try reading it again": "Tentar ler novamente",
 };

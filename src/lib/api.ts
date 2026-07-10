@@ -27,6 +27,12 @@ export const api = {
     }),
   deleteReceipt: (id: string) =>
     jsonFetch<{ deleted: string }>(`/api/receipts/${id}`, { method: "DELETE" }),
+  reocrReceipt: (id: string) =>
+    jsonFetch<{ receipt: Receipt }>("/api/receipts/reocr", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }),
   translateNotes: (language: string) =>
     jsonFetch<{ translated: number; total?: number; language: string }>(
       "/api/receipts/translate-notes",
