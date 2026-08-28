@@ -668,6 +668,19 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; lin
   border-color: #2563eb;
   font-weight: 600;
 }
+/* "Clear filters" — only rendered while a filter is on, so it reads as an
+   active-state control rather than a permanent button. More specific than
+   the generic `.toolbar button` rule, which would otherwise paint it white. */
+.toolbar .clear-filters, .empty .clear-filters {
+  background: #eff6ff;
+  border: 1px solid #2563eb;
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+}
+.toolbar .clear-filters:hover, .empty .clear-filters:hover { background: #dbeafe; }
+.empty .clear-filters { margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-size: 14px; }
+
 .date-active-badge {
   color: #2563eb;
   font-size: 12px;

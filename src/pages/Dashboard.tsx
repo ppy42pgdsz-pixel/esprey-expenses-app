@@ -28,6 +28,24 @@ function useIsWide(minWidth = 900): boolean {
 }
 
 type PillFilter = "all" | "uncategorized" | "issues";
+
+// Filters are mirrored into sessionStorage as well as the URL, so landing on
+// the dashboard from anywhere (Back from a receipt, a save or delete that
+// redirects to a bare "/", a reload) restores the view you left. Scoped to
+// the tab/app session: close it and you start clean again.
+const FILTER_KEY = "esprey.dashboard.filters";
+const FILTER_PARAMS = ["pill", "company", "date", "from", "to"] as const;
+type StoredFilters = Partial<Record<(typeof FILTER_PARAMS)[number], string>>;
+
+function readStoredFilters(): StoredFilters {
+  try {
+    const raw = sessionStorage.getItem(FILTER_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === "object" ? (parsed as StoredFilters) : {};
+  } catch {
+    return {};
+  }
+}
 type DatePreset =
   | "all" | "this_week" | "last_week" | "this_month" | "last_month"
   | "last_30" | "last_90" | "custom";
@@ -47,19 +65,35 @@ export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const PILLS: PillFilter[] = ["all", "uncategorized", "issues"];
   const PRESETS: DatePreset[] = ["all", "this_week", "last_week", "this_month", "last_month", "last_30", "last_90", "custom"];
+
+  // Where the opening values come from. If the URL carries any filter param
+  // it wins outright (a bookmarked or shared link should show what it says);
+  // otherwise we fall back to the filters stashed for this session.
+  const [initialFilters] = useState<StoredFilters>(() => {
+    if (FILTER_PARAMS.some((k) => searchParams.has(k))) {
+      const out: StoredFilters = {};
+      for (const k of FILTER_PARAMS) {
+        const v = searchParams.get(k);
+        if (v) out[k] = v;
+      }
+      return out;
+    }
+    return readStoredFilters();
+  });
+
   const [pillFilter, setPillFilter] = useState<PillFilter>(() => {
-    const v = searchParams.get("pill") as PillFilter | null;
+    const v = initialFilters.pill as PillFilter | undefined;
     return v && PILLS.includes(v) ? v : "all";
   });
   const [companyFilter, setCompanyFilter] = useState<string>(
-    () => searchParams.get("company") ?? "all"
+    () => initialFilters.company ?? "all"
   ); // "all" or a company name
   const [datePreset, setDatePreset] = useState<DatePreset>(() => {
-    const v = searchParams.get("date") as DatePreset | null;
+    const v = initialFilters.date as DatePreset | undefined;
     return v && PRESETS.includes(v) ? v : "all";
   });
-  const [customStart, setCustomStart] = useState<string>(() => searchParams.get("from") ?? "");
-  const [customEnd, setCustomEnd] = useState<string>(() => searchParams.get("to") ?? "");
+  const [customStart, setCustomStart] = useState<string>(() => initialFilters.from ?? "");
+  const [customEnd, setCustomEnd] = useState<string>(() => initialFilters.to ?? "");
   const [showCustomPopover, setShowCustomPopover] = useState(false);
 
   // Write filters back to the URL whenever they change. Defaults are omitted
@@ -74,7 +108,22 @@ export default function Dashboard() {
       if (customEnd) p.to = customEnd;
     }
     setSearchParams(p, { replace: true });
+    try {
+      if (Object.keys(p).length) sessionStorage.setItem(FILTER_KEY, JSON.stringify(p));
+      else sessionStorage.removeItem(FILTER_KEY);
+    } catch { /* ignore */ }
   }, [pillFilter, companyFilter, datePreset, customStart, customEnd, setSearchParams]);
+
+  // True whenever the list is showing something narrower than "everything".
+  const anyFilterActive = pillFilter !== "all" || companyFilter !== "all" || datePreset !== "all";
+  function clearFilters() {
+    setPillFilter("all");
+    setCompanyFilter("all");
+    setDatePreset("all");
+    setCustomStart("");
+    setCustomEnd("");
+    setShowCustomPopover(false);
+  }
 
   const [err, setErr] = useState<string | null>(null);
   const isWide = useIsWide(900);
@@ -452,6 +501,16 @@ export default function Dashboard() {
             setCustomEnd(e);
           }}
         />
+        {anyFilterActive && (
+          <button
+            type="button"
+            className="ghost-btn clear-filters"
+            onClick={clearFilters}
+            title={t("Show all receipts again")}
+          >
+            ✕ {t("Clear filters")}
+          </button>
+        )}
         <button className="ghost-btn" onClick={reload}>{t("Refresh")}</button>
       </div>
 
@@ -510,15 +569,12 @@ export default function Dashboard() {
       {sortedReceipts === null ? (
         <div className="empty">{t("Loading…")}</div>
       ) : sortedReceipts.length === 0 ? (
-        (() => {
-          const anyFilterActive = pillFilter !== "all" || companyFilter !== "all" || datePreset !== "all";
-          return (
-            <div className="empty">
-              {anyFilterActive ? t("No receipts match these filters.") : t("No receipts yet.")}<br />
-              {!anyFilterActive && <Link to="/capture">{t("Capture your first one →")}</Link>}
-            </div>
-          );
-        })()
+        <div className="empty">
+          {anyFilterActive ? t("No receipts match these filters.") : t("No receipts yet.")}<br />
+          {anyFilterActive
+            ? <button type="button" className="ghost-btn clear-filters" onClick={clearFilters}>✕ {t("Clear filters")}</button>
+            : <Link to="/capture">{t("Capture your first one →")}</Link>}
+        </div>
       ) : isWide ? (
         <table className="receipts-table">
           <thead>
