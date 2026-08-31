@@ -3,7 +3,7 @@
 
 import type { Env } from "../../_lib/types";
 import { requireUser } from "../../_lib/auth";
-import { userSlug } from "../../_lib/util";
+import { userSlug, reportDisplayName } from "../../_lib/util";
 
 export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
   const guard = await requireUser(request, env, data);
@@ -26,6 +26,7 @@ export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, en
       }
       return {
         file: filename,
+        displayName: reportDisplayName(filename),
         month,
         companySlug,
         sizeBytes: o.size,

@@ -14,9 +14,22 @@ import { htmlToPdf } from "../../_lib/pdfshift";
 import { buildReceiptZip } from "../../_lib/zip";
 import type { UserProfileRow } from "../user";
 import { requireUser } from "../../_lib/auth";
-import { reportR2Key } from "../../_lib/util";
+import { reportR2Key, reportDisplayName } from "../../_lib/util";
 
-export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
+export const onRequestPost: PagesFunction<Env, never, any> = async (ctx) => {
+  // Report generation touches R2, D1, PDFShift, the FX APIs and pdf-lib, and
+  // any of them can throw. Without this an exception escaped as a bare
+  // "HTTP 500" with no clue what went wrong — so surface the actual reason.
+  try {
+    return await generateReport(ctx);
+  } catch (e) {
+    const err = e as Error;
+    console.error("report generation failed", err?.stack ?? err);
+    return jsonError(500, `report generation failed: ${err?.message ?? String(e)}`);
+  }
+};
+
+const generateReport: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
   const guard = await requireUser(request, env, data);
   if (!guard.ok) return guard.response;
 
@@ -70,8 +83,9 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
   const parts = [monthLabel];
   if (company) parts.push(company);
   if (currency) parts.push(currency);
-  const filename = `Expense Report - ${parts.join(" - ")}.pdf`;
   const reportLabel = parts.join(" — ");
+  // The name this report carries wherever it leaves the app.
+  const displayName = reportDisplayName(file, { month, company: company ?? "", currency: currency ?? "" });
 
   // If a target currency was chosen, fetch live FX rates so we can convert each
   // line item into that currency. If the fetch fails, the PDF still generates —
@@ -273,6 +287,7 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
     company,
     currency,
     file,
+    displayName,
     monthLabel: reportLabel,
     receipts: receipts.length,
     sizeBytes: pdfBytes.length,
@@ -281,6 +296,9 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
     zipSizeBytes: zipBytes?.length ?? 0,
     zipFilesIncluded,
     zipError,
+    zipDisplayName: zipFile
+      ? reportDisplayName(zipFile, { month, company: company ?? "" })
+      : null,
     zipDownloadUrl: zipFile ? `/api/reports/download?file=${encodeURIComponent(zipFile)}` : null,
   });
 };

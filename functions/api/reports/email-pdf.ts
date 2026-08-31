@@ -8,7 +8,7 @@ import type { Env } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
 import { sendReportEmail } from "../../_lib/resend";
 import { requireUser } from "../../_lib/auth";
-import { reportR2Key } from "../../_lib/util";
+import { reportR2Key, reportDisplayName } from "../../_lib/util";
 
 export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
   const guard = await requireUser(request, env, data);
@@ -52,7 +52,8 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
       toAddress: guard.userEmail,
       replyTo: env.CARL_EMAIL,
       monthLabel,
-      attachments: [{ filename: file, bytes }],
+      // Attach under the same name Download gives it, not the raw R2 key.
+      attachments: [{ filename: reportDisplayName(file, obj.customMetadata), bytes }],
     });
   } catch (e) {
     return jsonError(500, `email failed: ${(e as Error).message}`);

@@ -6,7 +6,7 @@
 import type { Env } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
 import { requireUser } from "../../_lib/auth";
-import { reportR2Key } from "../../_lib/util";
+import { reportR2Key, reportDisplayName } from "../../_lib/util";
 
 export const onRequestGet: PagesFunction<Env, never, any> = async ({ env, request, data }) => {
   const guard = await requireUser(request, env, data);
@@ -23,6 +23,6 @@ export const onRequestGet: PagesFunction<Env, never, any> = async ({ env, reques
   const headers = new Headers();
   obj.writeHttpMetadata(headers);
   headers.set("Content-Type", "application/pdf");
-  headers.set("Content-Disposition", `inline; filename="${file}"`);
+  headers.set("Content-Disposition", `inline; filename="${reportDisplayName(file, obj.customMetadata)}"`);
   return new Response(obj.body, { headers });
 };

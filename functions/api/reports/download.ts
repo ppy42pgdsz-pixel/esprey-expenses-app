@@ -5,7 +5,7 @@
 import type { Env } from "../../_lib/types";
 import { jsonError } from "../../_lib/types";
 import { requireUser } from "../../_lib/auth";
-import { reportR2Key } from "../../_lib/util";
+import { reportR2Key, reportDisplayName } from "../../_lib/util";
 
 export const onRequestGet: PagesFunction<Env, never, any> = async ({ env, request, data }) => {
   const guard = await requireUser(request, env, data);
@@ -22,16 +22,10 @@ export const onRequestGet: PagesFunction<Env, never, any> = async ({ env, reques
   obj.writeHttpMetadata(headers);
   const isZip = /\.zip$/i.test(file);
   headers.set("Content-Type", isZip ? "application/zip" : "application/pdf");
-  const friendly = friendlyName(file);
+  // Single source of truth for the name the user actually sees — the same
+  // helper the email and viewer-Save paths use, so a report is called the
+  // same thing however it reaches them.
+  const friendly = reportDisplayName(file, obj.customMetadata);
   headers.set("Content-Disposition", `attachment; filename="${friendly}"`);
   return new Response(obj.body, { headers });
 };
-
-function friendlyName(file: string): string {
-  const m = file.match(/^(\d{4}-\d{2})__(.+)\.(pdf|zip)$/i);
-  if (!m) return file;
-  const [, month, slug, ext] = m;
-  const prefix = ext.toLowerCase() === "zip" ? "Receipts" : "Expense Report";
-  if (slug === "all") return `${prefix} - ${month}.${ext}`;
-  return `${prefix} - ${month} - ${slug.replace(/-/g, " ")}.${ext}`;
-}

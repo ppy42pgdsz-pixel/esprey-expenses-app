@@ -117,7 +117,9 @@ export default function PdfView() {
           onClick={() => (history.length > 1 ? navigate(-1) : navigate("/reports"))}
         >← Back</button>
         <span className="pdf-view-title">{file}</span>
-        <a href={downloadUrl} download={file} className="download-link">Save</a>
+        {/* No `download` value: the server sends the canonical filename in
+            Content-Disposition, and naming it here would override that. */}
+        <a href={downloadUrl} download className="download-link">Save</a>
       </header>
 
       {err && <div className="err" style={{ margin: 12 }}>{err}</div>}

@@ -44,6 +44,64 @@ interface OriginalLoader {
   (r2_key: string): Promise<{ mime: string; bytes: Uint8Array } | null>;
 }
 
+/* ------------------------------------------------------------------ *
+ * WinAnsi safety
+ *
+ * The report uses pdf-lib's built-in Helvetica, which can only encode
+ * WinAnsi (Latin-1 + the CP1252 punctuation block). Hand it anything
+ * outside that — a Chinese vendor name off a Hong Kong receipt, a Cyrillic
+ * note, an emoji — and drawText THROWS, which took the whole report down
+ * with an unexplained HTTP 500.
+ *
+ * So every string that reaches the page goes through winAnsiSafe first:
+ * accented characters are folded to their closest encodable form where
+ * possible ("Ō" → "O"), and anything genuinely unrepresentable becomes "?".
+ * A report with "?" in one vendor name beats no report at all.
+ *
+ * (Embedding a full Unicode font would render those names properly, but
+ * costs ~1 MB in the bundle for every report — worth revisiting only if
+ * non-Latin vendors become common.)
+ * ------------------------------------------------------------------ */
+
+// The CP1252 high block: characters WinAnsi can encode that sit outside Latin-1.
+const WINANSI_EXTRA = new Set([
+  0x20ac, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021, 0x02c6, 0x2030,
+  0x0160, 0x2039, 0x0152, 0x017d, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022,
+  0x2013, 0x2014, 0x02dc, 0x2122, 0x0161, 0x203a, 0x0153, 0x017e, 0x0178,
+]);
+
+function encodable(cp: number): boolean {
+  return (cp >= 0x20 && cp <= 0x7e) || (cp >= 0xa0 && cp <= 0xff) || WINANSI_EXTRA.has(cp);
+}
+
+export function winAnsiSafe<T extends string | null | undefined>(s: T): T {
+  if (!s) return s;
+  let out = "";
+  for (const ch of s as string) {
+    const cp = ch.codePointAt(0)!;
+    if (cp === 0x0a || cp === 0x0d || cp === 0x09) { out += ch; continue; }
+    if (encodable(cp)) { out += ch; continue; }
+    // Try to fold it down (decompose and drop the combining accents).
+    const folded = ch.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+    if (folded && [...folded].every((c) => encodable(c.codePointAt(0)!))) { out += folded; continue; }
+    out += "?";
+  }
+  return out as T;
+}
+
+/** Sanitise every user-supplied string on a receipt row. */
+function safeReceipt(r: ReceiptRow): ReceiptRow {
+  return {
+    ...r,
+    vendor: winAnsiSafe(r.vendor),
+    notes: winAnsiSafe(r.notes),
+    category: winAnsiSafe(r.category),
+    attendees: winAnsiSafe(r.attendees),
+    currency: winAnsiSafe(r.currency),
+    receipt_date: winAnsiSafe(r.receipt_date),
+  };
+}
+
 export async function buildMonthlyReport(opts: {
   monthLabel: string;          // e.g. "June 2026"
   reportLabel: string;         // e.g. "June 2026 — Waraba Gold — EUR"
@@ -62,6 +120,40 @@ export async function buildMonthlyReport(opts: {
   /** Output language for template labels (#49). Content translation happens in generate.ts. */
   language?: AppLanguage;
 }): Promise<Uint8Array> {
+  // Everything below draws with Helvetica, so scrub the inputs once here
+  // rather than trusting ~40 individual drawText calls to be safe.
+  opts = {
+    ...opts,
+    monthLabel: winAnsiSafe(opts.monthLabel),
+    reportLabel: winAnsiSafe(opts.reportLabel),
+    companyName: winAnsiSafe(opts.companyName),
+    billedToCompany: opts.billedToCompany
+      ? {
+          ...opts.billedToCompany,
+          name: winAnsiSafe(opts.billedToCompany.name),
+          full_name: winAnsiSafe(opts.billedToCompany.full_name),
+          address_line1: winAnsiSafe(opts.billedToCompany.address_line1),
+          address_line2: winAnsiSafe(opts.billedToCompany.address_line2),
+          address_country: winAnsiSafe(opts.billedToCompany.address_country),
+          vat_number: winAnsiSafe(opts.billedToCompany.vat_number),
+        }
+      : opts.billedToCompany,
+    billFrom: {
+      ...opts.billFrom,
+      name: winAnsiSafe(opts.billFrom.name),
+      business_name: winAnsiSafe(opts.billFrom.business_name),
+      line1: winAnsiSafe(opts.billFrom.line1),
+      line2: winAnsiSafe(opts.billFrom.line2),
+      country: winAnsiSafe(opts.billFrom.country),
+      vat_number: winAnsiSafe(opts.billFrom.vat_number),
+      email: winAnsiSafe(opts.billFrom.email),
+      phone: winAnsiSafe(opts.billFrom.phone),
+    },
+    bank: { ...opts.bank, details: winAnsiSafe(opts.bank.details) },
+    fxError: winAnsiSafe(opts.fxError),
+    receipts: opts.receipts.map(safeReceipt),
+  };
+
   const S = pdfStrings(opts.language ?? "en");
   const pdf = await PDFDocument.create();
   pdf.setTitle(`${S.expenseReport} — ${opts.reportLabel}`);
@@ -730,14 +822,16 @@ async function drawAppendix(
       } else {
         const p = pdf.addPage(PageSizes.A4);
         drawHeader(p, fonts, header);
-        p.drawText(`(Unsupported format: ${mime})`, {
+        p.drawText(winAnsiSafe(`(Unsupported format: ${mime})`), {
           x: MARGIN, y: PAGE_H / 2, size: 12, font: fonts.reg, color: rgb(0.6, 0.2, 0.2),
         });
       }
     } catch (e) {
       const p = pdf.addPage(PageSizes.A4);
       drawHeader(p, fonts, header);
-      p.drawText(`(Could not render: ${(e as Error).message})`, {
+      // pdf-lib quotes the offending glyph in its message, so scrub this too
+      // — otherwise the error handler throws the same error it is reporting.
+      p.drawText(winAnsiSafe(`(Could not render: ${(e as Error).message})`), {
         x: MARGIN, y: PAGE_H / 2, size: 12, font: fonts.reg, color: rgb(0.6, 0.2, 0.2),
       });
     }
@@ -782,6 +876,9 @@ function addImagePage(pdf: PDFDocument, fonts: Fonts, header: string, img: PDFIm
 }
 
 function addTextPage(pdf: PDFDocument, fonts: Fonts, header: string, text: string) {
+  // Raw email-body text straight off a receipt — the least predictable
+  // content in the whole report, so scrub it before it hits the page.
+  text = winAnsiSafe(text);
   let page = pdf.addPage(PageSizes.A4);
   drawHeader(page, fonts, header);
   const lines = wrapText(text, fonts.reg, 9, PAGE_W - 2 * MARGIN);
