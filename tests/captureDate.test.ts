@@ -139,13 +139,61 @@ describe("dateMismatch", () => {
     expect(dateMismatch(receipt({ receipt_date: "not a date" }))).toBeNull();
   });
 
-  it("still flags on the uploaded_at fallback, marked approximate", () => {
-    const m = dateMismatch(
+  it("flags on the uploaded_at fallback only when the day of the month matches", () => {
+    // The OCR fingerprint: day intact, month slipped. 391 of Carl's 585 rows
+    // flagged without this; 16 with it.
+    const slip = dateMismatch(
       receipt({ receipt_date: "2026-08-03", captured_at: null, captured_at_source: null, uploaded_at: at(2026, 9, 3) }),
     )!;
+    expect(slip.severity).toBe("month");
+    expect(slip.approximate).toBe(true);
+    expect(slip.source).toBe("upload");
+
+    // A receipt simply uploaded weeks late — different day, so not our bug.
+    const lateUpload = dateMismatch(
+      receipt({ receipt_date: "2026-08-19", captured_at: null, captured_at_source: null, uploaded_at: at(2026, 9, 3) }),
+    );
+    expect(lateUpload).toBeNull();
+  });
+
+  it("catches the year-default slip on the fallback too", () => {
+    const m = dateMismatch(
+      receipt({ receipt_date: "2025-09-03", captured_at: null, captured_at_source: null, uploaded_at: at(2026, 9, 3) }),
+    )!;
     expect(m.severity).toBe("month");
-    expect(m.approximate).toBe(true);
-    expect(m.source).toBe("upload");
+    expect(m.monthsApart).toBe(12);
+  });
+
+  it("never raises the day rule on a weak capture time", () => {
+    // Same month, 20 days after upload — just a late upload, not a date error.
+    const m = dateMismatch(
+      receipt({ receipt_date: "2026-09-03", captured_at: null, captured_at_source: null, uploaded_at: at(2026, 9, 23) }),
+    );
+    expect(m).toBeNull();
+  });
+
+  it("trusts an email date for the month but not for the day", () => {
+    // An invoice emailed 10 days after the stay is normal — no day flag.
+    const sameMonth = dateMismatch(
+      receipt({ receipt_date: "2026-09-03", captured_at: at(2026, 9, 13), captured_at_source: "email" }),
+    );
+    expect(sameMonth).toBeNull();
+
+    // But an August invoice arriving by email in September still matters:
+    // August's report may already have gone out.
+    const crossMonth = dateMismatch(
+      receipt({ receipt_date: "2026-08-19", captured_at: at(2026, 9, 3), captured_at_source: "email" }),
+    )!;
+    expect(crossMonth.severity).toBe("month");
+    expect(crossMonth.approximate).toBe(false);
+  });
+
+  it("keeps the full rule for a real shutter time", () => {
+    const m = dateMismatch(
+      receipt({ receipt_date: "2026-09-03", captured_at: at(2026, 9, 13), captured_at_source: "exif" }),
+    )!;
+    expect(m.severity).toBe("day");
+    expect(m.daysApart).toBe(10);
   });
 
   it("honours a custom tolerance", () => {

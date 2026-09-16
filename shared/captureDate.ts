@@ -20,6 +20,14 @@
 //   - Same month, more than DAY_TOLERANCE days apart → flagged quietly.
 //     Same-day and next-day photos are normal and stay silent.
 //
+// HOW HARD WE LEAN ON IT depends on where the capture time came from. Carl's
+// 585 existing receipts have no EXIF (the originals were re-encoded on the way
+// in), so they fall back to the upload time — and measured against the real
+// data, that fallback flagged 391 of 585. Almost all were simply uploaded in a
+// batch weeks later, which is not what we're looking for. So each source gets
+// the rule its evidence can carry; see `strengthOf` below. Narrowing the weak
+// case to the OCR bug's own fingerprint took that 391 down to 16.
+//
 // Everything here is pure — no DOM, no D1 — so the frontend and the Workers
 // runtime can both import it.
 
@@ -112,6 +120,37 @@ function normalizeSource(s: string | null | undefined): CaptureSource {
   return s === "exif" || s === "file" || s === "email" ? s : "upload";
 }
 
+/**
+ * How much weight the capture time can bear.
+ *
+ *  strong ('exif' | 'file') — the shutter fired that day. A receipt is
+ *    photographed on or within a day or two of being issued, so both the
+ *    month rule and the day rule hold.
+ *
+ *  medium ('email') — the Date header of the mail that carried it. Reliable
+ *    for the month (a September email rarely carries an August invoice by
+ *    accident) but not for the day: invoices legitimately arrive a week after
+ *    the stay. Month rule only.
+ *
+ *  weak ('upload') — when the file reached the server, which for an old or
+ *    bulk-uploaded receipt says nothing about when it was issued. Used ONLY to
+ *    catch the OCR bug's signature: the reader gets the day of the month right
+ *    and slips the month or the year ("03/08" read as 3 August on a receipt
+ *    photographed 3 September; a year defaulting to 2025 with day and month
+ *    intact). A late upload has no such alignment, so requiring the
+ *    day-of-month to match separates the two cleanly.
+ */
+function strengthOf(source: CaptureSource): "strong" | "medium" | "weak" {
+  if (source === "exif" || source === "file") return "strong";
+  if (source === "email") return "medium";
+  return "weak";
+}
+
+function dayOfMonth(iso: string): string {
+  const m = ISO_RE.exec(iso);
+  return m ? m[3] : "";
+}
+
 /** Best available "when was this photographed" for a receipt.
  *  Falls back to the upload timestamp for rows created before migration 0016,
  *  flagged approximate so the UI can say so. */
@@ -153,10 +192,21 @@ export function dateMismatch(
   const monthsApart = monthsBetween(receiptDate, info.iso);
   const daysApart = daysBetween(receiptDate, info.iso);
 
+  const strength = strengthOf(info.source);
+
   // Different calendar month always wins, regardless of how few days apart —
   // that's the one that changes which monthly report the receipt belongs to.
-  const severity: "month" | "day" | null =
-    monthsApart !== 0 ? "month" : daysApart > tolerance ? "day" : null;
+  // On a weak capture time we additionally require the OCR fingerprint: same
+  // day of the month, month or year slipped.
+  let severity: "month" | "day" | null = null;
+  if (monthsApart !== 0) {
+    const fingerprint = dayOfMonth(receiptDate) === dayOfMonth(info.iso);
+    if (strength !== "weak" || fingerprint) severity = "month";
+  } else if (strength === "strong" && daysApart > tolerance) {
+    // The day rule needs a real shutter time. An email or an upload can trail
+    // the receipt by a week for entirely innocent reasons.
+    severity = "day";
+  }
   if (!severity) return null;
 
   return {
