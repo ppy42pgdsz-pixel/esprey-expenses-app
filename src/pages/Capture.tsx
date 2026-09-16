@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { captureTimeForFile } from "../lib/exifDate";
 import { t } from "../../shared/i18n";
 
 
@@ -119,13 +120,17 @@ export default function Capture() {
     // Multi-page: combine images into a single PDF, upload as one receipt.
     if (isMultiPage) {
       try {
+        // Read the shutter time off the ORIGINAL first page before
+        // normalizeForUpload()'s canvas re-encode discards EXIF. Page 1 is the
+        // one that carries the receipt's date, so it's the right anchor.
+        const capture = await captureTimeForFile(files[0]);
         const pdfBytes = await imagesToPdf(await Promise.all(files.map(normalizeForUpload)));
         const pdfFile = new File(
           [new Blob([pdfBytes as unknown as BlobPart], { type: "application/pdf" })],
           `multi-page-${Date.now()}.pdf`,
           { type: "application/pdf" },
         );
-        const res = await api.uploadReceipt(pdfFile);
+        const res = await api.uploadReceipt(pdfFile, undefined, capture);
         navigate(`/receipt/${res.id}`);
       } catch (e) {
         setErr((e as Error).message);
@@ -138,7 +143,8 @@ export default function Capture() {
     // Single file: existing UX, lands on the receipt detail page.
     if (files.length === 1) {
       try {
-        const res = await api.uploadReceipt(await normalizeForUpload(files[0]));
+        const capture = await captureTimeForFile(files[0]);
+        const res = await api.uploadReceipt(await normalizeForUpload(files[0]), undefined, capture);
         navigate(`/receipt/${res.id}`);
       } catch (e) {
         setErr((e as Error).message);
@@ -152,7 +158,8 @@ export default function Capture() {
     setProgress({ done: 0, total: files.length, failed: 0 });
     for (let i = 0; i < files.length; i++) {
       try {
-        await api.uploadReceipt(await normalizeForUpload(files[i]));
+        const capture = await captureTimeForFile(files[i]);
+        await api.uploadReceipt(await normalizeForUpload(files[i]), undefined, capture);
         setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
       } catch (e) {
         console.error(`bulk upload failed for ${files[i].name}`, e);

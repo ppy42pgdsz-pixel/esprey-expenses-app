@@ -50,10 +50,22 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     }),
-  uploadReceipt: (file: File, company?: string) => {
+  // `capture` carries when the PHOTO was taken (EXIF shutter time, or the
+  // file's lastModified) — read client-side because the canvas re-encode in
+  // Capture.tsx strips EXIF before the bytes ever reach the server. The server
+  // uses it to flag receipts whose OCR-read date lands in the wrong month.
+  uploadReceipt: (
+    file: File,
+    company?: string,
+    capture?: { ms: number; source: "exif" | "file" } | null,
+  ) => {
     const fd = new FormData();
     fd.append("image", file);
     if (company) fd.append("company", company);
+    if (capture) {
+      fd.append("captured_at", String(capture.ms));
+      fd.append("captured_at_source", capture.source);
+    }
     return jsonFetch<{ id: string; ocr_status: string; extracted: any }>(
       "/api/receipts/upload",
       { method: "POST", body: fd }

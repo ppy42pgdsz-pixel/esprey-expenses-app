@@ -86,6 +86,9 @@ export interface ReceiptRow {
   policy_acknowledged: number; // 0/1 — user confirmed an over-limit (category spending policy) receipt
   duplicate_acknowledged: number; // 0/1 — user confirmed a possible duplicate is a separate expense
   fx_rate_date: string | null; // UTC date of the fx_rates table snapshotted at capture (null = pre-0011 row)
+  captured_at: number | null; // ms epoch the photo was taken (null = pre-0016 row)
+  captured_at_source: string | null; // 'exif' | 'file' | 'email' | 'upload'
+  date_mismatch_acknowledged: number; // 0/1 — user confirmed the photo/receipt date gap is genuine
   deleted_at: number | null; // ms epoch of soft delete; null = live. 30 days in Trash, then purged.
 }
 

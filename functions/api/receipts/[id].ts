@@ -22,7 +22,7 @@ export const onRequestGet: PagesFunction<Env, "id", any> = async ({ request, env
   return Response.json({ receipt: row });
 };
 
-const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category", "rotation", "tip_pct", "tip_amount", "override_acknowledged", "policy_acknowledged", "duplicate_acknowledged"] as const;
+const EDITABLE = ["vendor", "amount", "currency", "receipt_date", "company", "notes", "attendees", "category", "rotation", "tip_pct", "tip_amount", "override_acknowledged", "policy_acknowledged", "duplicate_acknowledged", "date_mismatch_acknowledged"] as const;
 type EditableField = (typeof EDITABLE)[number];
 
 export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, env, data, params }) => {
@@ -86,7 +86,7 @@ export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, e
         const allowed = [0, 5, 10, 15, 20];
         const clean = allowed.includes(n) ? n : 0;
         args.push(clean);
-      } else if (k === "override_acknowledged" || k === "duplicate_acknowledged" || k === "policy_acknowledged") {
+      } else if (k === "override_acknowledged" || k === "duplicate_acknowledged" || k === "policy_acknowledged" || k === "date_mismatch_acknowledged") {
         // Explicit-acknowledgement flags — 1/0 booleans. Not a "content edit"
         // since the amount/date/vendor on the receipt isn't changing; we're
         // just recording that the user knowingly accepted a flagged issue.

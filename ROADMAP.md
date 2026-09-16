@@ -22,6 +22,11 @@ Everything agreed or proposed, merged from the previous model's handover backlog
   2. *Report language dropdown*: on the Reports page, pick the output language (e.g. team member works in French, report generated in English). Template headings come from the same dictionary; receipt notes/descriptions are batch-translated with one Claude call at generation time. **Vendor/establishment names are NEVER translated** — they must match the underlying receipt. Same rule for amounts, dates, and currency codes.
   Estimate: UI half ~2 days (touches every page), report half ~half a day. Report half is independently shippable first if desired.
 
+## 1b. Date integrity (2026-09-16)
+
+- ✅ **Photo date vs receipt date ("Date check")** — DONE 2026-09-16. Carl's report: OCR occasionally reads the month/year wrong, the receipt files itself into a month whose report has already gone out, and it is missed entirely. Fix: migration 0016 records `captured_at` + `captured_at_source` (EXIF DateTimeOriginal read client-side before the canvas re-encode strips it → file `lastModified` → email `Date` header → upload clock) and `date_mismatch_acknowledged`. `shared/captureDate.ts` holds the rule: a different calendar month ALWAYS flags (however few days apart — it changes which monthly report the receipt belongs to), same month only past a 3-day tolerance. Surfaced in four places: a ⚠/• marker beside every flagged date in all dashboard views, a new red "Date check" pill (deliberately ignores the date filter), a receipt banner showing both dates with a one-click suggested correction (keep the receipt's day, take the month from the photo), and a red warning on the Reports page listing receipts in the month you are about to report that were photographed later. Manual entries exempt. Pre-0016 rows fall back to `uploaded_at`, marked approximate. 25 vitest cases in `tests/captureDate.test.ts`.
+  - Not done: back-filling `captured_at` for existing rows — R2 originals were re-encoded on the way in, so their EXIF is already gone. Old receipts rely on the `uploaded_at` fallback.
+
 ## 2. Correctness fixes (new — from code review)
 
 1. ✅ **Money as floats** — DONE 2026-07-03. `shared/money.ts` (integer minor units), all arithmetic call sites in Dashboard/ReceiptDetail/pdf.ts converted. DB strings unchanged.

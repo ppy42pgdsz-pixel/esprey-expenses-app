@@ -335,6 +335,7 @@ async function processAttachment(
 
   // FX locked to the receipt's own date (best-effort) — see src/fx.ts.
   await stampFxDate(env.DB, id, userEmail, extracted?.receipt_date ?? null, extracted?.currency ?? null);
+  await stampCapturedAt(env.DB, id, userEmail, sourceMeta);
 }
 
 async function processBody(
@@ -414,4 +415,36 @@ async function processBody(
     .run();
 
   await stampFxDate(env.DB, id, userEmail, extracted?.receipt_date ?? null, extracted?.currency ?? null);
+  await stampCapturedAt(env.DB, id, userEmail, sourceMeta);
+}
+
+/**
+ * Stamp captured_at from the EMAIL's own Date header (Carl, 2026-09-16).
+ *
+ * An emailed receipt has no shutter time, but the moment the mail was sent is
+ * the same kind of evidence: an invoice emailed on 3 September is very unlikely
+ * to be dated 3 August. shared/captureDate.ts compares the two and flags the
+ * gap, so a month-jumped OCR date can't quietly file itself into a month
+ * that's already been reported.
+ *
+ * Best-effort throughout: an unparseable header, or a database that hasn't had
+ * migration 0016 applied yet, just leaves the columns alone.
+ */
+async function stampCapturedAt(
+  db: D1Database,
+  id: string,
+  userEmail: string,
+  sourceMeta: string,
+): Promise<void> {
+  try {
+    const meta = JSON.parse(sourceMeta) as { date?: string };
+    const ms = meta?.date ? new Date(meta.date).getTime() : NaN;
+    const min = Date.UTC(2000, 0, 1);
+    const max = Date.now() + 24 * 60 * 60 * 1000;
+    if (!isFinite(ms) || ms <= min || ms >= max) return;
+    await db
+      .prepare(`UPDATE receipts SET captured_at = ?, captured_at_source = 'email' WHERE id = ? AND user_email = ?`)
+      .bind(ms, id, userEmail)
+      .run();
+  } catch { /* bad header or pre-0016 schema — leave captured_at null */ }
 }

@@ -5,6 +5,7 @@ import type { Receipt } from "../lib/types";
 import { parseAttendees } from "../lib/types";
 import { billFromTotal, minorToAmount, toMinor } from "../../shared/money";
 import { t } from "../../shared/i18n";
+import { dateMismatch, describeMismatch, type DateMismatch } from "../../shared/captureDate";
 import ConciergeChat from "../components/ConciergeChat";
 import Tour, { dashboardTourSteps } from "../components/Tour";
 
@@ -27,7 +28,7 @@ function useIsWide(minWidth = 900): boolean {
   return isWide;
 }
 
-type PillFilter = "all" | "uncategorized" | "issues";
+type PillFilter = "all" | "uncategorized" | "issues" | "datecheck";
 
 // Filters are mirrored into sessionStorage as well as the URL, so landing on
 // the dashboard from anywhere (Back from a receipt, a save or delete that
@@ -63,7 +64,7 @@ export default function Dashboard() {
   // refresh keeps your view, Back from a receipt restores it, and a filtered
   // view can be bookmarked.
   const [searchParams, setSearchParams] = useSearchParams();
-  const PILLS: PillFilter[] = ["all", "uncategorized", "issues"];
+  const PILLS: PillFilter[] = ["all", "uncategorized", "issues", "datecheck"];
   const PRESETS: DatePreset[] = ["all", "this_week", "last_week", "this_month", "last_month", "last_30", "last_90", "custom"];
 
   // Where the opening values come from. If the URL carries any filter param
@@ -273,6 +274,33 @@ export default function Dashboard() {
     );
   }, [receipts]);
 
+  // Photo date vs receipt date (migration 0016). The one Carl actually loses
+  // money on: OCR reads "03/08" as 3 August on a receipt photographed on
+  // 3 September, the receipt files itself into a month whose report has
+  // already gone out, and it's never claimed. Rules live in
+  // shared/captureDate.ts — different month ALWAYS flags (it changes which
+  // report the receipt belongs to), same month only past the day tolerance.
+  const dateMismatches = useMemo(() => {
+    const out = new Map<string, DateMismatch>();
+    if (!receipts) return out;
+    for (const r of receipts) {
+      const m = dateMismatch(r);
+      if (m) out.set(r.id, m);
+    }
+    return out;
+  }, [receipts]);
+
+  // Split by severity: month jumps are loud (red), stale photos are quiet
+  // (amber). Both land in Issues; only month jumps get their own pill.
+  const { monthJumpIds, dayGapIds } = useMemo(() => {
+    const month = new Set<string>();
+    const day = new Set<string>();
+    for (const [id, m] of dateMismatches) {
+      (m.severity === "month" ? month : day).add(id);
+    }
+    return { monthJumpIds: month, dayGapIds: day };
+  }, [dateMismatches]);
+
   // Over category spending limit (migration 0009) and not yet acknowledged.
   const overLimitIds = useMemo(() => {
     if (!receipts) return new Set<string>();
@@ -293,9 +321,14 @@ export default function Dashboard() {
   const uncatCount = scopedReceipts?.filter((r) => !r.company).length ?? 0;
   const issuesCount = useMemo(() => {
     if (!scopedReceipts) return 0;
-    const ids = new Set<string>([...failedIds, ...duplicateIds, ...mismatchIds, ...overLimitIds]);
+    const ids = new Set<string>([...failedIds, ...duplicateIds, ...mismatchIds, ...overLimitIds, ...monthJumpIds, ...dayGapIds]);
     return scopedReceipts.filter((r) => ids.has(r.id)).length;
-  }, [scopedReceipts, failedIds, duplicateIds, mismatchIds, overLimitIds]);
+  }, [scopedReceipts, failedIds, duplicateIds, mismatchIds, overLimitIds, monthJumpIds, dayGapIds]);
+
+  // Counted across ALL receipts, not the date-filtered subset: a receipt that
+  // jumped into the wrong month is by definition outside the window you're
+  // looking at, so scoping this count would hide exactly what it's for.
+  const dateCheckCount = monthJumpIds.size + dayGapIds.size;
 
   // In Issues view we override the user's sort and group duplicate siblings
   // adjacent to each other (anchored by the group's most recent date). This
@@ -317,11 +350,27 @@ export default function Dashboard() {
 
   const sortedReceipts = useMemo(() => {
     if (!scopedReceipts) return null;
+    // Date-check deliberately works off the UNSCOPED list: a receipt that
+    // landed in the wrong month is, by definition, outside the window you're
+    // currently looking at. Filtering it by that window would hide it.
+    if (pillFilter === "datecheck") {
+      const arr = (receipts ?? []).filter((r) => monthJumpIds.has(r.id) || dayGapIds.has(r.id));
+      // Worst first: month jumps (wrong report) above stale photos, then
+      // biggest gap first within each.
+      arr.sort((a, b) => {
+        const ma = dateMismatches.get(a.id);
+        const mb = dateMismatches.get(b.id);
+        const rank = (m?: DateMismatch) => (m?.severity === "month" ? 0 : 1);
+        if (rank(ma) !== rank(mb)) return rank(ma) - rank(mb);
+        return (mb?.daysApart ?? 0) - (ma?.daysApart ?? 0);
+      });
+      return arr;
+    }
     let arr = [...scopedReceipts];
     if (pillFilter === "uncategorized") {
       arr = arr.filter((r) => !r.company);
     } else if (pillFilter === "issues") {
-      arr = arr.filter((r) => failedIds.has(r.id) || duplicateIds.has(r.id) || mismatchIds.has(r.id) || overLimitIds.has(r.id));
+      arr = arr.filter((r) => failedIds.has(r.id) || duplicateIds.has(r.id) || mismatchIds.has(r.id) || overLimitIds.has(r.id) || monthJumpIds.has(r.id) || dayGapIds.has(r.id));
       // Custom sort: by group anchor desc, then keep group members together,
       // then by uploaded_at asc within a group for chronological order.
       arr.sort((a, b) => {
@@ -352,18 +401,41 @@ export default function Dashboard() {
       return cmp * dir;
     });
     return arr;
-  }, [scopedReceipts, sortKey, sortDir, pillFilter, failedIds, duplicateIds, mismatchIds, overLimitIds, duplicateGroupKey, issueGroupAnchors]);
+  }, [receipts, scopedReceipts, sortKey, sortDir, pillFilter, failedIds, duplicateIds, mismatchIds, overLimitIds, monthJumpIds, dayGapIds, dateMismatches, duplicateGroupKey, issueGroupAnchors]);
 
   // Helper — short label explaining why a receipt landed in the Issues bucket.
   // Used only when the Issues filter is active (otherwise the row is just a
   // normal row in the table).
   function issueReason(r: Receipt): string | null {
     if (r.ocr_status === "failed") return t("OCR failed");
+    // Month jumps rank above everything else that isn't an outright failure —
+    // the others make a receipt wrong, this one makes it disappear.
+    const dm = dateMismatches.get(r.id);
+    if (dm?.severity === "month") {
+      return dm.backdated
+        ? t("Wrong month? Filed earlier than the photo")
+        : t("Wrong month? Dated after the photo");
+    }
     if (duplicateIds.has(r.id)) return t("Possible duplicate");
     if (failedIds.has(r.id)) return t("No amount");
     if (overLimitIds.has(r.id)) return t("Over category limit");
     if (mismatchIds.has(r.id)) return t("Edited values differ from OCR");
+    if (dm) return t("Photographed days after the receipt date");
     return null;
+  }
+
+  /** Tooltip text for the ⚠ marker beside a flagged date. */
+  function dateWarningTitle(r: Receipt): string | null {
+    const m = dateMismatches.get(r.id);
+    if (!m) return null;
+    const head =
+      m.severity === "month"
+        ? t("This receipt is in a different month from the day it was photographed.")
+        : t("This receipt was photographed well after its date.");
+    const approx = m.approximate
+      ? " " + t("(photo date approximate — taken from the upload time)")
+      : "";
+    return `${head} ${describeMismatch(m)}.${approx}`;
   }
 
   function toggleSort(key: SortKey) {
@@ -463,7 +535,20 @@ export default function Dashboard() {
           tint={issuesCount > 0 ? "red" : undefined}
           onClick={() => setPillFilter((p) => (p === "issues" ? "all" : "issues"))}
         />
+        <Pill
+          label={t("Date check")}
+          count={dateCheckCount}
+          active={pillFilter === "datecheck"}
+          tint={monthJumpIds.size > 0 ? "red" : dateCheckCount > 0 ? "orange" : undefined}
+          onClick={() => setPillFilter((p) => (p === "datecheck" ? "all" : "datecheck"))}
+        />
       </div>
+
+      {pillFilter === "datecheck" && (
+        <div className="hint datecheck-hint">
+          {t("Receipts whose date doesn't match the day the photo was taken. The date filter is ignored here on purpose — a receipt that jumped months is outside the window you're looking at. Open one to correct the date or confirm it's genuine.")}
+        </div>
+      )}
 
       <div className="toolbar">
         <select
@@ -604,7 +689,9 @@ export default function Dashboard() {
                 (selected.has(r.id) ? "selected " : "") +
                 (failedIds.has(r.id) ? "row-failed " : "") +
                 ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? "row-duplicate " : "") +
-                (overLimitIds.has(r.id) ? "row-overlimit " : "")
+                (overLimitIds.has(r.id) ? "row-overlimit " : "") +
+                (monthJumpIds.has(r.id) ? "row-monthjump " : "") +
+                (dayGapIds.has(r.id) ? "row-daygap " : "")
               }>
                 <td className="col-check">
                   <input
@@ -622,10 +709,23 @@ export default function Dashboard() {
                       : <div className="row-thumb-icon">✉️</div>
                   }
                 </td>
-                <td>{formatDate(r.receipt_date ?? r.uploaded_at)}</td>
+                <td className="cell-date">
+                  {formatDate(r.receipt_date ?? r.uploaded_at)}
+                  {dateMismatches.has(r.id) && (
+                    <span
+                      className={
+                        "date-warn" + (monthJumpIds.has(r.id) ? " date-warn-month" : "")
+                      }
+                      title={dateWarningTitle(r) ?? ""}
+                      aria-label={dateWarningTitle(r) ?? ""}
+                    >
+                      {monthJumpIds.has(r.id) ? "⚠" : "•"}
+                    </span>
+                  )}
+                </td>
                 <td className="cell-vendor">{r.vendor ?? "—"}</td>
                 <td className="cell-desc">
-                  {pillFilter === "issues" && issueReason(r) && (
+                  {(pillFilter === "issues" || pillFilter === "datecheck") && issueReason(r) && (
                     <span className="issue-chip">{issueReason(r)}</span>
                   )}
                   {r.notes ?? ""}
@@ -654,7 +754,9 @@ export default function Dashboard() {
                 (r.company ? "cat" : "uncat") +
                 (failedIds.has(r.id) ? " row-failed" : "") +
                 ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? " row-duplicate" : "") +
-                (overLimitIds.has(r.id) ? " row-overlimit" : "")
+                (overLimitIds.has(r.id) ? " row-overlimit" : "") +
+                (monthJumpIds.has(r.id) ? " row-monthjump" : "") +
+                (dayGapIds.has(r.id) ? " row-daygap" : "")
               }
             >
               <Link to={`/receipt/${r.id}`} className="receipt-link">
@@ -671,7 +773,20 @@ export default function Dashboard() {
                     <span className="amt">{formatAmount(r)}</span>
                   </div>
                   <div className="row2">
-                    <span>{formatDate(r.receipt_date ?? r.uploaded_at)}</span>
+                    <span>
+                      {formatDate(r.receipt_date ?? r.uploaded_at)}
+                      {dateMismatches.has(r.id) && (
+                        <span
+                          className={
+                            "date-warn" + (monthJumpIds.has(r.id) ? " date-warn-month" : "")
+                          }
+                          title={dateWarningTitle(r) ?? ""}
+                          aria-label={dateWarningTitle(r) ?? ""}
+                        >
+                          {monthJumpIds.has(r.id) ? "⚠" : "•"}
+                        </span>
+                      )}
+                    </span>
                     <span className="pills">
                       {r.category && <span className="pill cat-pill">{r.category}</span>}
                       <CompanyChip name={r.company} />
@@ -683,7 +798,7 @@ export default function Dashboard() {
                   })()}
                   {r.ocr_status === "pending" && <span className="badge">{t("Reading…")}</span>}
                   {r.ocr_status === "failed" && <span className="badge warn">OCR failed</span>}
-                  {pillFilter === "issues" && issueReason(r) && r.ocr_status !== "failed" && (
+                  {(pillFilter === "issues" || pillFilter === "datecheck") && issueReason(r) && r.ocr_status !== "failed" && (
                     <span className="badge warn">{issueReason(r)}</span>
                   )}
                 </div>

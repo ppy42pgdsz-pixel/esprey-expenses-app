@@ -8,6 +8,7 @@ import PeoplePicker from "../components/PeoplePicker";
 import CurrencyPicker, { type Currency } from "../components/CurrencyPicker";
 import { billFromTotal, minorToAmount, toMinor, totalWithTipPct } from "../../shared/money";
 import { t } from "../../shared/i18n";
+import { dateMismatch, suggestCorrectedDate, captureInfo } from "../../shared/captureDate";
 
 export default function ReceiptDetail() {
   const { id = "" } = useParams();
@@ -206,6 +207,28 @@ export default function ReceiptDetail() {
       </header>
 
       {err && <div className="err">{err}</div>}
+
+      <DateMismatchBanner
+        receipt={receipt}
+        liveDate={receiptDate}
+        onUseDate={async (d) => {
+          try {
+            setReceiptDate(d);
+            const res = await api.patchReceipt(id, { receipt_date: d } as any);
+            setReceipt(res.receipt);
+          } catch (e) {
+            setErr((e as Error).message);
+          }
+        }}
+        onAcknowledge={async () => {
+          try {
+            const res = await api.patchReceipt(id, { date_mismatch_acknowledged: 1 as any });
+            setReceipt(res.receipt);
+          } catch (e) {
+            setErr((e as Error).message);
+          }
+        }}
+      />
 
       <IssuesBanner
         receipt={receipt}
@@ -618,6 +641,114 @@ function fieldDiffersText(cur: string, ocr: string): boolean {
 function normalizeTipPct(n: unknown): number {
   const v = typeof n === "number" ? n : parseInt(String(n ?? 0), 10);
   return [0, 5, 10, 15, 20].includes(v) ? v : 0;
+}
+
+/* ----- DateMismatchBanner: the receipt's date doesn't match its photo ----- */
+// The highest-stakes of the four banners. The other three make a receipt
+// wrong; this one makes it VANISH — a September receipt read as August files
+// itself into a month whose report has already been sent, and never gets
+// claimed. So it renders above the rest, and the month case is red rather
+// than the house amber.
+//
+// `liveDate` is the value currently in the date field, not the saved one, so
+// the banner clears the instant the user types a corrected date.
+function DateMismatchBanner({
+  receipt,
+  liveDate,
+  onUseDate,
+  onAcknowledge,
+}: {
+  receipt: Receipt | null;
+  liveDate: string;
+  onUseDate: (d: string) => Promise<void> | void;
+  onAcknowledge: () => Promise<void> | void;
+}) {
+  if (!receipt) return null;
+  const m = dateMismatch({ ...receipt, receipt_date: liveDate || receipt.receipt_date });
+  if (!m) return null;
+
+  const isMonth = m.severity === "month";
+  const suggestion = suggestCorrectedDate(m);
+  const info = captureInfo(receipt);
+
+  // Where the photo timestamp came from, in plain words — an EXIF shutter time
+  // is evidence, an upload time on an old receipt is only a hint.
+  const sourceNote = (() => {
+    switch (info?.source) {
+      case "exif":  return t("from the photo's own timestamp");
+      case "file":  return t("from the photo file's date");
+      case "email": return t("from the date the email was sent");
+      default:      return t("approximate — taken from when it was uploaded, not the photo itself");
+    }
+  })();
+
+  return (
+    <div
+      className="ocr-mismatch"
+      style={
+        isMonth
+          ? { background: "#fef2f2", borderColor: "#fca5a5" }
+          : { background: "#fffbeb", borderColor: "#fcd34d" }
+      }
+    >
+      <div className="ocr-mismatch-title">
+        {isMonth
+          ? (m.backdated
+              ? `⚠ ${t("This receipt is dated in an earlier month than its photo")}`
+              : `⚠ ${t("This receipt is dated in a later month than its photo")}`)
+          : t("This receipt was photographed well after its date")}
+      </div>
+
+      <table className="ocr-mismatch-table" style={{ marginTop: 6 }}>
+        <tbody>
+          <tr>
+            <td>{t("Photo taken")}</td>
+            <td><strong>{formatDate(m.photoDate)}</strong></td>
+          </tr>
+          <tr>
+            <td>{t("Date read from receipt")}</td>
+            <td><strong>{formatDate(m.receiptDate)}</strong></td>
+          </tr>
+          <tr>
+            <td>{t("Gap")}</td>
+            <td>
+              {isMonth
+                ? (Math.abs(m.monthsApart) === 1
+                    ? t("1 calendar month")
+                    : `${Math.abs(m.monthsApart)} ${t("calendar months")}`)
+                : `${m.daysApart} ${t("days")}`}
+              {isMonth && ` · ${m.daysApart} ${t("days")}`}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {isMonth && (
+        <div style={{ marginTop: 8 }}>
+          {m.backdated
+            ? t("Because expense reports are generated per month, a receipt in the wrong month lands in a report you may have already sent — and gets missed entirely. Worth a second look at the image.")
+            : t("A receipt can't be dated after the day it was photographed, so one of the two is wrong. Worth a second look at the image.")}
+        </div>
+      )}
+
+      <div className="ocr-mismatch-actions" style={{ marginTop: 8 }}>
+        {suggestion && (
+          <button type="button" className="primary-btn small" onClick={() => onUseDate(suggestion)}>
+            {t("Change to")} {formatDate(suggestion)}
+          </button>
+        )}
+        <button type="button" className="ghost-btn small" onClick={onAcknowledge}>
+          {t("The date is right — dismiss")}
+        </button>
+      </div>
+      <span className="hint small">
+        {suggestion
+          ? t("The suggested date keeps the day printed on the receipt and takes the month from the photo — the usual shape of this OCR slip. Check the image before accepting it.")
+          : t("Correct the date in the field below if it's wrong.")}
+        {" "}({sourceNote})
+      </span>
+    </div>
+  );
 }
 
 /* ----- IssuesBanner: explain WHY a receipt is flagged on the Dashboard ----- */

@@ -10,6 +10,25 @@ import { requireUser } from "../../_lib/auth";
 import { ensureRatesForReceiptDate } from "../../_lib/fx";
 import { getUserLanguage } from "../../_lib/lang";
 
+/** Validate the client-supplied capture timestamp. An untrusted number from a
+ *  phone with a wrong clock is worse than no number at all, so anything before
+ *  2000 or more than a day in the future is discarded and we fall back to the
+ *  server clock. */
+function parseCapturedAt(
+  raw: string | null,
+  rawSource: string | null,
+): { ms: number; source: "exif" | "file" } | null {
+  if (!raw) return null;
+  const ms = parseInt(raw, 10);
+  if (!isFinite(ms)) return null;
+  const min = Date.UTC(2000, 0, 1);
+  const max = Date.now() + 24 * 60 * 60 * 1000;
+  if (ms <= min || ms >= max) return null;
+  const source = rawSource === "exif" ? "exif" : rawSource === "file" ? "file" : null;
+  if (!source) return null;
+  return { ms, source };
+}
+
 export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {
   const guard = await requireUser(request, env, data);
   if (!guard.ok) return guard.response;
@@ -26,6 +45,15 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
     return jsonError(400, "missing 'image' file field");
   }
   const company = (form.get("company") as string | null) ?? null;
+
+  // When the photo was actually taken. The client reads it from EXIF (or the
+  // file's lastModified) BEFORE re-encoding the image, since the canvas pass
+  // strips EXIF. Used to flag receipts whose OCR-read date lands in a
+  // different month — see shared/captureDate.ts and migration 0016.
+  const capture = parseCapturedAt(
+    form.get("captured_at") as string | null,
+    form.get("captured_at_source") as string | null,
+  );
 
   const id = newId();
   const mime = file.type || "application/octet-stream";
@@ -105,6 +133,14 @@ export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, e
         .run();
     }
   } catch { /* fx_rate_date column not deployed yet — ignore */ }
+
+  // Stamp the capture time (best-effort, same pattern as fx_rate_date above:
+  // a pre-0016 database just skips it rather than failing the upload).
+  try {
+    await env.DB.prepare(`UPDATE receipts SET captured_at = ?, captured_at_source = ? WHERE id = ?`)
+      .bind(capture?.ms ?? uploadedAt, capture?.source ?? "upload", id)
+      .run();
+  } catch { /* captured_at columns not deployed yet — ignore */ }
 
   return Response.json({ id, ocr_status: ocrStatus, extracted });
 };

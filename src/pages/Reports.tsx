@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { t } from "../../shared/i18n";
+import type { Receipt } from "../lib/types";
+import { dateMismatch, monthKey, describeMismatch } from "../../shared/captureDate";
 
 function defaultMonth() {
   // Default to LAST month — reports are almost always generated for a
@@ -72,6 +74,10 @@ export default function Reports() {
   // Resend rejects attachments past ~28 MB — warn before the user even clicks.
   const EMAIL_LIMIT_BYTES = 28 * 1024 * 1024;
 
+  // Receipts are pulled here purely to run the back-dated check below. A
+  // failure is swallowed: the report itself doesn't depend on this.
+  const [allReceipts, setAllReceipts] = useState<Receipt[]>([]);
+
   useEffect(() => {
     (async () => {
       setErr(null);
@@ -82,8 +88,34 @@ export default function Reports() {
       } catch (e) {
         setErr((e as Error).message);
       }
+      try {
+        const r = await api.listReceipts();
+        setAllReceipts(r.receipts);
+      } catch { /* the back-dated warning is a nicety — never block the page */ }
     })();
   }, []);
+
+  // Receipts sitting IN the month about to be reported, but photographed in a
+  // LATER month (Carl, 2026-09-16). These are the ones that go missing: OCR
+  // read the month wrong, the receipt dropped into a month whose report may
+  // already have been sent, and nothing on the dashboard's default view says
+  // so. Surfacing them at the moment of generating that month's report is the
+  // last chance to catch it.
+  const backdatedIntoMonth = useMemo(() => {
+    return allReceipts
+      .map((r) => ({ receipt: r, m: dateMismatch(r) }))
+      .filter((x) => x.m && x.m.severity === "month" && x.m.backdated)
+      .filter((x) => monthKey(x.receipt.receipt_date) === month);
+  }, [allReceipts, month]);
+
+  // Everything flagged anywhere, so the user can see there's more to review
+  // than just this month's slice.
+  const backdatedTotal = useMemo(() => {
+    return allReceipts.filter((r) => {
+      const m = dateMismatch(r);
+      return m && m.severity === "month" && m.backdated;
+    }).length;
+  }, [allReceipts]);
 
   async function emailZip(file: string) {
     setEmailingZip(true); setZipEmailMsg(null);
@@ -130,6 +162,41 @@ export default function Reports() {
       </header>
 
       {err && <div className="err">{err}</div>}
+
+      {backdatedIntoMonth.length > 0 && (
+        <div className="ocr-mismatch" style={{ background: "#fef2f2", borderColor: "#fca5a5" }}>
+          <div className="ocr-mismatch-title">
+            ⚠ {backdatedIntoMonth.length}{" "}
+            {backdatedIntoMonth.length === 1
+              ? t("receipt in this month was photographed later")
+              : t("receipts in this month were photographed later")}
+          </div>
+          <div style={{ marginTop: 6 }}>
+            {t("Their date may have been misread, which would put them in the wrong report. Check each one before generating.")}
+          </div>
+          <ul style={{ margin: "8px 0 0", paddingLeft: "1.2em" }}>
+            {backdatedIntoMonth.slice(0, 8).map(({ receipt: r, m }) => (
+              <li key={r.id}>
+                <Link to={`/receipt/${r.id}`} style={{ textDecoration: "underline" }}>
+                  {r.vendor || t("(no vendor)")} · {r.amount ?? "—"} {r.currency ?? ""}
+                </Link>{" "}
+                <span className="hint small">— {describeMismatch(m!)}</span>
+              </li>
+            ))}
+          </ul>
+          {backdatedIntoMonth.length > 8 && (
+            <div className="hint small" style={{ marginTop: 6 }}>
+              {t("…and")} {backdatedIntoMonth.length - 8} {t("more.")}
+            </div>
+          )}
+          <div className="ocr-mismatch-actions" style={{ marginTop: 8 }}>
+            <Link to="/?pill=datecheck" className="ghost-btn small">
+              {t("Review all date mismatches")}
+              {backdatedTotal > backdatedIntoMonth.length ? ` (${backdatedTotal})` : ""}
+            </Link>
+          </div>
+        </div>
+      )}
 
       <section className="settings-section">
         <h2>{t("Generate a report")}</h2>
