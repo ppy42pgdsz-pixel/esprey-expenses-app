@@ -4,6 +4,7 @@
 import type { Env } from "../_lib/types";
 import { jsonError } from "../_lib/types";
 import { requireAdmin, requireUser } from "../_lib/auth";
+import { ensureTodayRates } from "../_lib/fx";
 
 export interface CurrencyRow {
   code: string;
@@ -16,7 +17,15 @@ export const onRequestGet: PagesFunction<Env, never, any> = async ({ request, en
   const { results } = await env.DB.prepare(
     `SELECT code, name FROM currencies ORDER BY code`
   ).all<CurrencyRow>();
-  return Response.json({ currencies: results ?? [] });
+  // Codes the report's FX conversion can actually handle (today's full table,
+  // which is also what receipt stamping falls back to for exotic currencies).
+  // A receipt in any other currency is silently left out of a converted
+  // report total, so the Dashboard flags it under Issues. null = rates
+  // unavailable right now — the client then skips the check rather than
+  // flagging everything.
+  const fx = await ensureTodayRates(env.DB);
+  const convertible = fx ? Object.keys(fx.rates.rates).map((c) => c.toUpperCase()).sort() : null;
+  return Response.json({ currencies: results ?? [], convertible });
 };
 
 export const onRequestPost: PagesFunction<Env, never, any> = async ({ request, env, data }) => {

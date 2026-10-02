@@ -116,11 +116,26 @@ export const onRequestPatch: PagesFunction<Env, "id", any> = async ({ request, e
   if (!sets.length) return jsonError(400, "no editable fields supplied");
 
   args.push(id, guard.userEmail);
-  const { success } = await env.DB.prepare(
-    `UPDATE receipts SET ${sets.join(", ")} WHERE id = ? AND user_email = ?`
-  )
-    .bind(...args)
-    .run();
+  // Surface the real D1 error instead of an uncaught throw (which reaches the
+  // client as a bare "HTTP 500"). The usual culprit is a migration that hasn't
+  // been run on the remote DB yet — say which column so it's obvious.
+  let success = false;
+  try {
+    ({ success } = await env.DB.prepare(
+      `UPDATE receipts SET ${sets.join(", ")} WHERE id = ? AND user_email = ?`
+    )
+      .bind(...args)
+      .run());
+  } catch (e) {
+    const msg = (e as Error)?.message ?? String(e);
+    const col = /no such column:\s*(\w+)/i.exec(msg)?.[1];
+    return jsonError(
+      500,
+      col
+        ? `update failed: database is missing column "${col}" — a migration hasn't been applied`
+        : `update failed: ${msg}`,
+    );
+  }
 
   if (!success) return jsonError(500, "update failed");
 

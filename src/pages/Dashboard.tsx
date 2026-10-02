@@ -58,6 +58,13 @@ export default function Dashboard() {
   const [categories, setCategories] = useState<string[]>([]);
   // category name -> spending limit (decimal string). Only categories WITH a limit.
   const [categoryLimits, setCategoryLimits] = useState<Map<string, string>>(new Map());
+  // Currency codes the report FX table can convert (null = unknown/offline).
+  const [convertible, setConvertible] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    api.listCurrencies()
+      .then((res) => setConvertible(res.convertible ? new Set(res.convertible) : null))
+      .catch(() => setConvertible(null));
+  }, []);
 
   // Three independent filters, AND-ed together at render time.
   // Filter state is mirrored into the URL (?pill=…&company=…&date=…) so
@@ -316,14 +323,30 @@ export default function Dashboard() {
     return out;
   }, [receipts, categoryLimits]);
 
+  // Currency the report can't convert: blank, misspelt, or not in the FX
+  // table. A converted report silently drops these rows from its total
+  // ("N row(s) could not be converted"), so surface them here first.
+  const unconvertibleIds = useMemo(() => {
+    const out = new Set<string>();
+    if (!receipts || !convertible) return out;
+    for (const r of receipts) {
+      if (r.ocr_status === "pending") continue;
+      const amtM = toMinor(r.amount);
+      if (amtM === null || amtM <= 0) continue; // already flagged as "No amount"
+      const code = (r.currency ?? "").trim().toUpperCase();
+      if (!code || !convertible.has(code)) out.add(r.id);
+    }
+    return out;
+  }, [receipts, convertible]);
+
   // Scope counts to the date-filtered subset.
   const total      = scopedReceipts?.length ?? 0;
   const uncatCount = scopedReceipts?.filter((r) => !r.company).length ?? 0;
   const issuesCount = useMemo(() => {
     if (!scopedReceipts) return 0;
-    const ids = new Set<string>([...failedIds, ...duplicateIds, ...mismatchIds, ...overLimitIds, ...monthJumpIds, ...dayGapIds]);
+    const ids = new Set<string>([...failedIds, ...duplicateIds, ...mismatchIds, ...overLimitIds, ...monthJumpIds, ...dayGapIds, ...unconvertibleIds]);
     return scopedReceipts.filter((r) => ids.has(r.id)).length;
-  }, [scopedReceipts, failedIds, duplicateIds, mismatchIds, overLimitIds, monthJumpIds, dayGapIds]);
+  }, [scopedReceipts, failedIds, duplicateIds, mismatchIds, overLimitIds, monthJumpIds, dayGapIds, unconvertibleIds]);
 
   // Counted across ALL receipts, not the date-filtered subset: a receipt that
   // jumped into the wrong month is by definition outside the window you're
@@ -370,7 +393,7 @@ export default function Dashboard() {
     if (pillFilter === "uncategorized") {
       arr = arr.filter((r) => !r.company);
     } else if (pillFilter === "issues") {
-      arr = arr.filter((r) => failedIds.has(r.id) || duplicateIds.has(r.id) || mismatchIds.has(r.id) || overLimitIds.has(r.id) || monthJumpIds.has(r.id) || dayGapIds.has(r.id));
+      arr = arr.filter((r) => failedIds.has(r.id) || duplicateIds.has(r.id) || mismatchIds.has(r.id) || overLimitIds.has(r.id) || monthJumpIds.has(r.id) || dayGapIds.has(r.id) || unconvertibleIds.has(r.id));
       // Custom sort: by group anchor desc, then keep group members together,
       // then by uploaded_at asc within a group for chronological order.
       arr.sort((a, b) => {
@@ -401,7 +424,7 @@ export default function Dashboard() {
       return cmp * dir;
     });
     return arr;
-  }, [receipts, scopedReceipts, sortKey, sortDir, pillFilter, failedIds, duplicateIds, mismatchIds, overLimitIds, monthJumpIds, dayGapIds, dateMismatches, duplicateGroupKey, issueGroupAnchors]);
+  }, [receipts, scopedReceipts, sortKey, sortDir, pillFilter, failedIds, duplicateIds, mismatchIds, overLimitIds, monthJumpIds, dayGapIds, unconvertibleIds, dateMismatches, duplicateGroupKey, issueGroupAnchors]);
 
   // Helper — short label explaining why a receipt landed in the Issues bucket.
   // Used only when the Issues filter is active (otherwise the row is just a
@@ -418,6 +441,7 @@ export default function Dashboard() {
     }
     if (duplicateIds.has(r.id)) return t("Possible duplicate");
     if (failedIds.has(r.id)) return t("No amount");
+    if (unconvertibleIds.has(r.id)) return t("Currency can't be converted — left out of report totals");
     if (overLimitIds.has(r.id)) return t("Over category limit");
     if (mismatchIds.has(r.id)) return t("Edited values differ from OCR");
     if (dm) return t("Photographed days after the receipt date");

@@ -137,7 +137,7 @@ export const api = {
   deleteCategory: (name: string) =>
     jsonFetch<{ deleted: string }>(`/api/categories/${encodeURIComponent(name)}`, { method: "DELETE" }),
 
-  listCurrencies: () => jsonFetch<{ currencies: Array<{ code: string; name: string }> }>("/api/currencies"),
+  listCurrencies: () => jsonFetch<{ currencies: Array<{ code: string; name: string }>; convertible?: string[] | null }>("/api/currencies"),
   addCurrency: (code: string, name: string) =>
     jsonFetch<{ currency: { code: string; name: string } }>("/api/currencies", {
       method: "POST",
