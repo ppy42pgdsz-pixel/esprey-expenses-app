@@ -212,6 +212,7 @@ const generateReport: PagesFunction<Env, never, any> = async ({ request, env, da
 
   // Build PDF.
   const pdfBytes = await buildMonthlyReport({
+    month,
     monthLabel,
     reportLabel,
     companyName: company,

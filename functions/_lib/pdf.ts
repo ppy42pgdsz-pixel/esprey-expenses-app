@@ -103,6 +103,8 @@ function safeReceipt(r: ReceiptRow): ReceiptRow {
 }
 
 export async function buildMonthlyReport(opts: {
+  /** Report period, YYYY-MM — the month the report is ABOUT. Drives the invoice number. */
+  month: string;
   monthLabel: string;          // e.g. "June 2026"
   reportLabel: string;         // e.g. "June 2026 — Waraba Gold — EUR"
   companyName: string | null;  // null = S.allCompanies
@@ -310,6 +312,7 @@ function drawInvoice(
   pdf: PDFDocument,
   fonts: Fonts,
   opts: {
+    month: string;
     monthLabel: string;
     companyName: string | null;
     billedToCompany?: BilledToCompany | null;
@@ -376,7 +379,7 @@ function drawInvoice(
     x: rightX - fonts.reg.widthOfTextAtSize(S.invoiceSpaced, 11),
     y: y - 16, size: 11, font: fonts.reg, color: rgb(0.4, 0.4, 0.4),
   });
-  const invoiceNo = buildInvoiceNumber(opts.companyName, opts.monthLabel, opts.generatedAt);
+  const invoiceNo = buildInvoiceNumber(opts.month, opts.companyName, opts.currencyFilter);
   drawRight(page, `No. ${invoiceNo}`, rightX, y - 38, 18, fonts.bold);
   drawRight(page, S.issueDate, rightX, y - 64, 9, fonts.reg, rgb(0.4, 0.4, 0.4));
   drawRight(page, opts.generatedAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
@@ -723,13 +726,17 @@ function drawPaymentDetailsAndFooter(
   });
 }
 
-function buildInvoiceNumber(company: string | null, monthLabel: string, when: Date): string {
-  // EX-YYYYMM-COMPANY  (short, deterministic-ish for one company per month)
-  const ym = `${when.getUTCFullYear()}${String(when.getUTCMonth() + 1).padStart(2, "0")}`;
+export function buildInvoiceNumber(month: string, company: string | null, currency: string | null = null): string {
+  // EX-YYYYMM-COMPANY[-CUR]. YYYYMM is the report PERIOD (the month the
+  // expenses belong to), not the date the PDF was generated — otherwise every
+  // report generated in the same month shares one number (Carl, 2026-10-07:
+  // June–Sept Waraba reports all came out as EX-202610-WARABAGOLD).
+  // Currency suffix keeps a EUR and a USD version of the same month distinct.
+  const ym = month.replace("-", "");
   const co = company
     ? slugifyShort(company).toUpperCase()
     : "ALL";
-  return `EX-${ym}-${co}`;
+  return `EX-${ym}-${co}${currency ? `-${currency.toUpperCase()}` : ""}`;
 }
 
 function slugifyShort(s: string): string {
