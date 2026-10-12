@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { captureTimeForFile } from "../lib/exifDate";
 import { t } from "../../shared/i18n";
+import { IconBack, IconFile, IconImage, IconOffline } from "../components/Icons";
 
 
 // Normalize images before upload (Tolu's bulk-upload incident, 2026-07-04):
@@ -177,7 +178,7 @@ export default function Capture() {
   return (
     <div className="page capture">
       <header className="topbar">
-        <Link to="/" className="back">{t("← Back")}</Link>
+        <Link to="/" className="back"><IconBack className="icon-sm" />{t("Back")}</Link>
         <h1>{t("Capture receipt")}</h1>
         <span />
       </header>
@@ -186,7 +187,7 @@ export default function Capture() {
 
       {!online && (
         <div className="offline-warn">
-          <strong>📡 {t("No internet detected.")}</strong>
+          <strong><IconOffline className="icon" /> {t("No internet detected.")}</strong>
           <p>
             {t("Photos taken in this app are not yet saved while offline — they'd be lost when the upload fails. As a fallback right now: take the photo with your phone's Camera app, then email it to")}{" "}
             <code>receipts@esprey.net</code>. {t("Your mail app's outbox will queue and send it when you're back online.")}
@@ -259,7 +260,7 @@ export default function Capture() {
                 {files.map((f, i) => (
                   <li key={i}>
                     <span className="bulk-preview-icon">
-                      {f.type === "application/pdf" ? "📄" : "🖼️"}
+                      {f.type === "application/pdf" ? <IconFile /> : <IconImage />}
                     </span>
                     <span className="bulk-preview-name">{f.name || "(no name)"}</span>
                     <small>{(f.size / 1024).toFixed(0)} KB</small>
@@ -275,7 +276,7 @@ export default function Capture() {
             </div>
           ) : isPdf ? (
             <div className="pdf-preview">
-              <div className="pdf-preview-icon">📄</div>
+              <div className="pdf-preview-icon"><IconFile /></div>
               <div className="pdf-preview-meta">
                 <strong>{files[0].name || "PDF file"}</strong>
                 <small>{(files[0].size / 1024).toFixed(0)} KB · application/pdf</small>

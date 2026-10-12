@@ -3,6 +3,7 @@ import { setLang, t } from "../../shared/i18n";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import type { UserProfile } from "../lib/types";
+import { IconBack } from "../components/Icons";
 
 export default function UserSettings() {
   const navigate = useNavigate();
@@ -81,7 +82,7 @@ export default function UserSettings() {
   return (
     <div className="page detail">
       <header className="topbar">
-        <Link to="/settings" className="back">{t("← Back")}</Link>
+        <Link to="/settings" className="back"><IconBack className="icon-sm" />{t("Back")}</Link>
         <h1>{t("My profile")}</h1>
         <span />
       </header>
@@ -126,7 +127,7 @@ export default function UserSettings() {
                   setTranslating(true); setTranslateMsg(null);
                   try {
                     const res = await api.translateNotes(language);
-                    setTranslateMsg(`✅ ${res.translated} — ${t("descriptions translated.")}`);
+                    setTranslateMsg(`${res.translated} — ${t("descriptions translated.")}`);
                   } catch (e) {
                     setTranslateMsg(`${t("Translation failed:")} ${(e as Error).message}`);
                   } finally {

@@ -53,6 +53,8 @@ const FR: Record<string, string> = {
   "Save & back": "Enregistrer et retour",
   "+ Manual": "+ Saisie",
   "+ Capture": "+ Photo",
+  "Manual": "Saisie",
+  "Capture": "Photo",
 
   // ----- Dashboard -----
   "Receipts": "Reçus",
@@ -94,6 +96,7 @@ const FR: Record<string, string> = {
   "Reassign company…": "Réaffecter la société…",
   "Reassign category…": "Réaffecter la catégorie…",
   "Capture your first one →": "Photographiez votre premier reçu →",
+  "Capture your first one": "Photographiez votre premier reçu",
 
   // ----- Capture -----
   "Capture receipt": "Photographier un reçu",
@@ -305,6 +308,8 @@ const PT: Record<string, string> = {
   "Save & back": "Guardar e voltar",
   "+ Manual": "+ Manual",
   "+ Capture": "+ Foto",
+  "Manual": "Manual",
+  "Capture": "Foto",
 
   // ----- Dashboard -----
   "Receipts": "Recibos",
@@ -346,6 +351,7 @@ const PT: Record<string, string> = {
   "Reassign company…": "Reatribuir empresa…",
   "Reassign category…": "Reatribuir categoria…",
   "Capture your first one →": "Fotografe o seu primeiro recibo →",
+  "Capture your first one": "Fotografe o seu primeiro recibo",
 
   // ----- Capture -----
   "Capture receipt": "Fotografar recibo",

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api, formatDate } from "../lib/api";
 import type { Person, Receipt } from "../lib/types";
 import { t } from "../../shared/i18n";
+import { IconBack, IconStar } from "../components/Icons";
 
 export default function Settings() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -20,7 +21,7 @@ export default function Settings() {
   return (
     <div className="page settings">
       <header className="topbar">
-        <Link to="/" className="back">{t("← Back")}</Link>
+        <Link to="/" className="back"><IconBack className="icon-sm" />{t("Back")}</Link>
         <h1>{t("Settings")}</h1>
         <span />
       </header>
@@ -74,13 +75,13 @@ function TrashSection() {
             <div className="manage-row" key={r.id}>
               <span className="manage-name">
                 <strong>{r.vendor || t("Unknown vendor")}</strong>
-                <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
+                <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 6 }}>
                   · {r.currency ? `${r.currency} ` : ""}{r.amount ?? "—"}
                   {r.receipt_date ? ` · ${formatDate(r.receipt_date)}` : ""}
                 </span>
               </span>
               <button
-                className="primary-btn small"
+                className="ghost-btn small"
                 disabled={busy === r.id}
                 onClick={() => restore(r.id)}
               >
@@ -103,11 +104,11 @@ function HelpSection() {
         <div className="manage-row">
           <Link to="/instructions" className="manage-name manage-link">
             <strong>{t("Help & FAQ")}</strong>
-            <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
+            <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 6 }}>
               · {t("Searchable answers + ask-a-question box")}
             </span>
           </Link>
-          <Link to="/instructions" className="primary-btn small">{t("Open")}</Link>
+          <Link to="/instructions" className="ghost-btn small">{t("Open")}</Link>
         </div>
       </div>
     </section>
@@ -123,11 +124,11 @@ function TeamSection() {
         <div className="manage-row">
           <Link to="/settings/team" className="manage-name manage-link">
             <strong>{t("Manage team members")}</strong>
-            <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
+            <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 6 }}>
               · {t("Add or remove people who can sign in")}
             </span>
           </Link>
-          <Link to="/settings/team" className="primary-btn small">{t("Open")}</Link>
+          <Link to="/settings/team" className="ghost-btn small">{t("Open")}</Link>
         </div>
       </div>
     </section>
@@ -143,11 +144,11 @@ function UserSection() {
         <div className="manage-row">
           <Link to="/settings/user" className="manage-name manage-link">
             <strong>{t("Personal details")}</strong>
-            <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
+            <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 6 }}>
               · {t("Name, address, bank details (used on invoices)")}
             </span>
           </Link>
-          <Link to="/settings/user" className="primary-btn small">{t("Edit")}</Link>
+          <Link to="/settings/user" className="ghost-btn small">{t("Edit")}</Link>
         </div>
       </div>
     </section>
@@ -178,14 +179,14 @@ function CompaniesSection({ isAdmin }: { isAdmin: boolean }) {
               <Link to={`/companies/${encodeURIComponent(c.name)}`} className="manage-name manage-link">
                 <strong>{c.name}</strong>
                 {c.full_name && c.full_name !== c.name && (
-                  <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>· {c.full_name}</span>
+                  <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 6 }}>· {c.full_name}</span>
                 )}
               </Link>
             ) : (
               <span className="manage-name">
                 <strong>{c.name}</strong>
                 {c.full_name && c.full_name !== c.name && (
-                  <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>· {c.full_name}</span>
+                  <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 6 }}>· {c.full_name}</span>
                 )}
               </span>
             )}
@@ -246,7 +247,7 @@ function PeopleSection() {
                 await api.setPersonFavorite(p.name, !p.is_favorite);
                 reload();
               }}
-            >★</button>
+            ><IconStar /></button>
             <span className="manage-name">{p.name}</span>
             <button
               type="button"
@@ -333,7 +334,7 @@ function CategoriesSection({ isAdmin }: { isAdmin: boolean }) {
             <span className="manage-name">
               <strong>{it.name}</strong>
               {!isAdmin && it.spending_limit && (
-                <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>
+                <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 6 }}>
                   · limit {it.spending_limit}
                 </span>
               )}
@@ -379,7 +380,7 @@ function CategoriesSection({ isAdmin }: { isAdmin: boolean }) {
             onChange={(e) => setAddName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") add(); }}
           />
-          <button type="button" className="primary-btn small" disabled={busy === "__add__"} onClick={add}>
+          <button type="button" className="ghost-btn small" disabled={busy === "__add__"} onClick={add}>
             {t("+ Add category")}
           </button>
         </div>
@@ -458,7 +459,7 @@ function CurrenciesSection({ isAdmin }: { isAdmin: boolean }) {
             onKeyDown={(e) => { if (e.key === "Enter") add(); }}
             placeholder={t("Currency name")}
           />
-          <button type="button" className="primary-btn" disabled={busy || !addCode.trim() || !addName.trim()} onClick={add}>
+          <button type="button" className="ghost-btn" disabled={busy || !addCode.trim() || !addName.trim()} onClick={add}>
             Add
           </button>
         </div>
@@ -527,7 +528,7 @@ function AddInput({ onAdd, placeholder }: { onAdd: (name: string) => Promise<voi
         placeholder={placeholder}
         disabled={busy}
       />
-      <button type="button" className="primary-btn" onClick={commit} disabled={busy || !v.trim()}>{t("Add")}</button>
+      <button type="button" className="ghost-btn" onClick={commit} disabled={busy || !v.trim()}>{t("Add")}</button>
     </div>
   );
 }

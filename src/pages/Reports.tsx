@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { t } from "../../shared/i18n";
 import type { Receipt } from "../lib/types";
 import { dateMismatch, monthKey, describeMismatch } from "../../shared/captureDate";
+import { IconBack, IconCheck, IconMail, IconWarning } from "../components/Icons";
 
 function defaultMonth() {
   // Default to LAST month — reports are almost always generated for a
@@ -121,7 +122,7 @@ export default function Reports() {
     setEmailingZip(true); setZipEmailMsg(null);
     try {
       const res = await api.emailReportZip(file);
-      setZipEmailMsg(`📧 ZIP emailed to ${res.emailedTo}.`);
+      setZipEmailMsg(`ZIP emailed to ${res.emailedTo}.`);
     } catch (e) {
       setZipEmailMsg(`Email failed: ${(e as Error).message}`);
     } finally {
@@ -133,7 +134,7 @@ export default function Reports() {
     setEmailingPdf(true); setPdfEmailMsg(null);
     try {
       const res = await api.emailReportPdf(file);
-      setPdfEmailMsg(`📧 PDF emailed to ${res.emailedTo}.`);
+      setPdfEmailMsg(`PDF emailed to ${res.emailedTo}.`);
     } catch (e) {
       setPdfEmailMsg(`Email failed: ${(e as Error).message}`);
     } finally {
@@ -156,7 +157,7 @@ export default function Reports() {
   return (
     <div className="page reports">
       <header className="topbar">
-        <Link to="/" className="back">{t("← Back")}</Link>
+        <Link to="/" className="back"><IconBack className="icon-sm" />{t("Back")}</Link>
         <h1>{t("Monthly reports")}</h1>
         <span />
       </header>
@@ -164,9 +165,9 @@ export default function Reports() {
       {err && <div className="err">{err}</div>}
 
       {backdatedIntoMonth.length > 0 && (
-        <div className="ocr-mismatch" style={{ background: "#fef2f2", borderColor: "#fca5a5" }}>
+        <div className="ocr-mismatch" style={{ background: "var(--err-bg)", borderColor: "var(--err-line)" }}>
           <div className="ocr-mismatch-title">
-            ⚠ {backdatedIntoMonth.length}{" "}
+            <IconWarning className="icon" /> {backdatedIntoMonth.length}{" "}
             {backdatedIntoMonth.length === 1
               ? t("receipt in this month was photographed later")
               : t("receipts in this month were photographed later")}
@@ -247,7 +248,7 @@ export default function Reports() {
         )}
         {lastResult && (
           <div className="report-result">
-            <div>✅ Generated <strong>{lastResult.monthLabel}</strong> · {lastResult.receipts} receipts · {fmtSize(lastResult.sizeBytes)}</div>
+            <div><IconCheck className="icon" /> Generated <strong>{lastResult.monthLabel}</strong> · {lastResult.receipts} receipts · {fmtSize(lastResult.sizeBytes)}</div>
             <div className="zip-actions">
               <Link to={`/pdf?file=${encodeURIComponent(lastResult.file)}`}>{t("Open PDF")}</Link>
               <a href={lastResult.downloadUrl} download>{t("Download PDF")}</a>
@@ -257,7 +258,7 @@ export default function Reports() {
                 onClick={() => emailPdf(lastResult.file)}
                 disabled={emailingPdf || lastResult.sizeBytes > EMAIL_LIMIT_BYTES}
               >
-                {emailingPdf ? "Emailing…" : "📧 Email PDF"}
+                {emailingPdf ? "Emailing…" : <><IconMail className="icon-sm" /> Email PDF</>}
               </button>
             </div>
             {lastResult.sizeBytes > EMAIL_LIMIT_BYTES && (
@@ -278,7 +279,7 @@ export default function Reports() {
                   onClick={() => emailZip(lastResult.zipFile!)}
                   disabled={emailingZip}
                 >
-                  {emailingZip ? "Emailing…" : "📧 Email ZIP"}
+                  {emailingZip ? "Emailing…" : <><IconMail className="icon-sm" /> Email ZIP</>}
                 </button>
               </div>
             )}

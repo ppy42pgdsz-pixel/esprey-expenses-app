@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
+import { IconBack, IconCheck, IconSub } from "../components/Icons";
 
 interface Alias {
   alias_email: string;
@@ -156,7 +157,7 @@ export default function Team() {
   return (
     <div className="page settings">
       <header className="topbar">
-        <Link to="/settings" className="back">← Back</Link>
+        <Link to="/settings" className="back"><IconBack className="icon-sm" />Back</Link>
         <h1>Team</h1>
         <span />
       </header>
@@ -215,7 +216,7 @@ export default function Team() {
             {adding ? "Adding…" : "Add member"}
           </button>
         </div>
-        {addResult && <div className="report-result"><div>✅ {addResult}</div></div>}
+        {addResult && <div className="report-result"><div><IconCheck className="icon" /> {addResult}</div></div>}
       </section>
 
       <section className="settings-section">
@@ -334,7 +335,7 @@ function MemberCard({
         <span className="manage-name">
           <strong>{member.display_name || member.email}</strong>
           {member.display_name && (
-            <span style={{ color: "#6b6b6b", fontSize: 12, marginLeft: 6 }}>· {member.email}</span>
+            <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 6 }}>· {member.email}</span>
           )}
           {member.is_admin === 1 && <span className="role-badge admin">admin</span>}
           {isMe && <span className="role-badge me">you</span>}
@@ -362,7 +363,7 @@ function MemberCard({
             const inCf = cfSet.has(a.alias_email.toLowerCase());
             return (
               <li key={a.alias_email} className="alias-row">
-                <span className="alias-email">↳ {a.alias_email}</span>
+                <span className="alias-email"><IconSub className="icon-sm" /> {a.alias_email}</span>
                 {!inCf && <span className="role-badge warn">not in CF</span>}
                 <button
                   type="button"
@@ -388,7 +389,7 @@ function MemberCard({
             onKeyDown={(e) => { if (e.key === "Enter") addAlias(); }}
             disabled={adding}
           />
-          <button type="button" className="primary-btn small" onClick={addAlias} disabled={adding || !aliasInput.trim()}>
+          <button type="button" className="ghost-btn small" onClick={addAlias} disabled={adding || !aliasInput.trim()}>
             {adding ? "Adding…" : "Add alias"}
           </button>
           <button
@@ -510,7 +511,7 @@ function CompanyAccess({
           </div>
           {dirty && (
             <div className="company-access-actions">
-              <button type="button" className="primary-btn small" onClick={save} disabled={saving}>
+              <button type="button" className="ghost-btn small" onClick={save} disabled={saving}>
                 {saving ? "Saving…" : "Save access"}
               </button>
               <button

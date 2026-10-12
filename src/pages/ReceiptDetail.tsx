@@ -9,6 +9,7 @@ import CurrencyPicker, { type Currency } from "../components/CurrencyPicker";
 import { billFromTotal, minorToAmount, toMinor, totalWithTipPct } from "../../shared/money";
 import { t } from "../../shared/i18n";
 import { dateMismatch, suggestCorrectedDate, captureInfo } from "../../shared/captureDate";
+import { IconBack, IconMail, IconPencil, IconRefresh, IconWarning } from "../components/Icons";
 
 export default function ReceiptDetail() {
   const { id = "" } = useParams();
@@ -189,7 +190,7 @@ export default function ReceiptDetail() {
     return (
       <div className="page detail">
         <header className="topbar">
-          <Link to="/" className="back">{t("← Back")}</Link>
+          <Link to="/" className="back"><IconBack className="icon-sm" />{t("Back")}</Link>
           <h1>{t("Receipt")}</h1>
           <span />
         </header>
@@ -201,7 +202,7 @@ export default function ReceiptDetail() {
   return (
     <div className="page detail">
       <header className="topbar">
-        <Link to="/" className="back">{t("← Back")}</Link>
+        <Link to="/" className="back"><IconBack className="icon-sm" />{t("Back")}</Link>
         <h1>{t("Receipt")}</h1>
         <button className="danger-btn" onClick={remove}>{t("Delete")}</button>
       </header>
@@ -489,8 +490,8 @@ function isPdfLikeReceipt(r: Receipt): boolean {
 function ManualPlaceholder() {
   return (
     <div className="email-body-view">
-      <div className="email-body-header">✏️ Manual entry</div>
-      <p style={{ margin: 0, color: "#6b6b6b", fontSize: 13 }}>
+      <div className="email-body-header"><IconPencil className="icon-sm" /> Manual entry</div>
+      <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
         No receipt image — entered manually. Fill in details on the right.
       </p>
     </div>
@@ -507,7 +508,7 @@ function EmailBodyView({ id }: { id: string }) {
   }, [id]);
   return (
     <div className="email-body-view">
-      <div className="email-body-header">✉️ Email receipt</div>
+      <div className="email-body-header"><IconMail className="icon-sm" /> Email receipt</div>
       <pre className="email-body-text">{text ?? "Loading…"}</pre>
     </div>
   );
@@ -603,7 +604,7 @@ function OcrMismatchBanner({
         </tbody>
       </table>
       <div className="ocr-mismatch-actions">
-        <button type="button" className="primary-btn small" onClick={onAcknowledged}>
+        <button type="button" className="ghost-btn small" onClick={onAcknowledged}>
           Acknowledge override
         </button>
         <span className="hint small">
@@ -684,18 +685,14 @@ function DateMismatchBanner({
 
   return (
     <div
-      className="ocr-mismatch"
-      style={
-        isMonth
-          ? { background: "#fef2f2", borderColor: "#fca5a5" }
-          : { background: "#fffbeb", borderColor: "#fcd34d" }
-      }
+      className={"ocr-mismatch" + (isMonth ? " is-err" : "")}
     >
       <div className="ocr-mismatch-title">
+        <IconWarning className="icon-sm" />{" "}
         {isMonth
           ? (m.backdated
-              ? `⚠ ${t("This receipt is dated in an earlier month than its photo")}`
-              : `⚠ ${t("This receipt is dated in a later month than its photo")}`)
+              ? t("This receipt is dated in an earlier month than its photo")
+              : t("This receipt is dated in a later month than its photo"))
           : t("This receipt was photographed well after its date")}
       </div>
 
@@ -733,7 +730,7 @@ function DateMismatchBanner({
 
       <div className="ocr-mismatch-actions" style={{ marginTop: 8 }}>
         {suggestion && (
-          <button type="button" className="primary-btn small" onClick={() => onUseDate(suggestion)}>
+          <button type="button" className="ghost-btn small" onClick={() => onUseDate(suggestion)}>
             {t("Change to")} {formatDate(suggestion)}
           </button>
         )}
@@ -802,15 +799,15 @@ function IssuesBanner({
   if (!duplicateIssue && !noAmount && !ocrFailed) return null;
 
   return (
-    <div className="ocr-mismatch" style={{ background: "#fff7ed", borderColor: "#fdba74" }}>
+    <div className="ocr-mismatch">
       <div className="ocr-mismatch-title">{t("Why this receipt is flagged")}</div>
       <ul style={{ margin: "6px 0 0", paddingLeft: "1.2em" }}>
         {ocrFailed && (
           <li>
             {t("OCR failed to process this receipt. Fill in the amount, currency, and date manually below.")}
             <div className="ocr-mismatch-actions" style={{ marginTop: 8 }}>
-              <button type="button" className="primary-btn small" onClick={onRetryOcr}>
-                🔄 {t("Try reading it again")}
+              <button type="button" className="ghost-btn small" onClick={onRetryOcr}>
+                <IconRefresh className="icon-sm" /> {t("Try reading it again")}
               </button>
             </div>
           </li>
@@ -835,7 +832,7 @@ function IssuesBanner({
             ))}
             .
             <div className="ocr-mismatch-actions" style={{ marginTop: 8 }}>
-              <button type="button" className="primary-btn small" onClick={onAcknowledgeDuplicate}>
+              <button type="button" className="ghost-btn small" onClick={onAcknowledgeDuplicate}>
                 {t("Acknowledge — this is a separate expense")}
               </button>
               <span className="hint small">
@@ -871,13 +868,13 @@ function OverLimitBanner({
   const cur = receipt.currency ? `${receipt.currency} ` : "";
 
   return (
-    <div className="ocr-mismatch" style={{ background: "#fff7ed", borderColor: "#fdba74" }}>
+    <div className="ocr-mismatch">
       <div className="ocr-mismatch-title">{t("Over the spending limit")} — {receipt.category}</div>
       <div style={{ marginTop: 6 }}>
         {t("This receipt is")} {cur}{minorToAmount(amtM)} — {t("over the")} {cur}{minorToAmount(limM)} {t("limit for")} {receipt.category}.
       </div>
       <div className="ocr-mismatch-actions" style={{ marginTop: 8 }}>
-        <button type="button" className="primary-btn small" onClick={onAcknowledge}>
+        <button type="button" className="ghost-btn small" onClick={onAcknowledge}>
           {t("Acknowledge — I know this is over the limit")}
         </button>
         <span className="hint small">

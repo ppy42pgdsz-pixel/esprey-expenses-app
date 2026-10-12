@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import type { Company } from "../lib/types";
+import { IconBack } from "../components/Icons";
 
 export default function CompanyDetail() {
   const { name = "" } = useParams();
@@ -54,7 +55,7 @@ export default function CompanyDetail() {
   return (
     <div className="page detail">
       <header className="topbar">
-        <Link to="/settings" className="back">← Back</Link>
+        <Link to="/settings" className="back"><IconBack className="icon-sm" />Back</Link>
         <h1>{name}</h1>
         <span />
       </header>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../lib/api";
 import type { Person } from "../lib/types";
 import { t } from "../../shared/i18n";
+import { IconStar } from "./Icons";
 
 interface Props {
   people: Person[];                // full list from the server
@@ -89,7 +90,7 @@ export default function PeoplePicker({ people, selected, onChange, onPeopleAdded
         <div className="people-inline-add">
           <button
             type="button"
-            className="primary-btn small"
+            className="ghost-btn small"
             disabled={busyAdding}
             onClick={addFromSearch}
           >
@@ -133,7 +134,7 @@ function PersonButton({ p, selected, onClick }: { p: Person; selected: boolean; 
       className={"person-btn " + (selected ? "selected" : "")}
       onClick={onClick}
     >
-      {p.is_favorite ? "★ " : ""}{p.name}
+      {p.is_favorite ? <><IconStar className="icon-sm" />{" "}</> : null}{p.name}
     </button>
   );
 }

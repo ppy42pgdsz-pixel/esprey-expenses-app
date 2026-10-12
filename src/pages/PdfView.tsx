@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { t } from "../../shared/i18n";
+import { IconBack } from "../components/Icons";
 
 // Mozilla's PDF.js — loaded dynamically from CDN the first time the viewer is opened.
 const PDFJS_VERSION = "3.11.174";
@@ -115,7 +116,7 @@ export default function PdfView() {
           type="button"
           className="back-btn"
           onClick={() => (history.length > 1 ? navigate(-1) : navigate("/reports"))}
-        >← Back</button>
+        ><IconBack className="icon-sm" /> Back</button>
         <span className="pdf-view-title">{file}</span>
         {/* No `download` value: the server sends the canonical filename in
             Content-Disposition, and naming it here would override that. */}

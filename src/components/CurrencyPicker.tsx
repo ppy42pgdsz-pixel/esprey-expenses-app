@@ -43,7 +43,7 @@ export default function CurrencyPicker({ currencies, value, onChange, onCurrency
           onChange={(e) => setName(e.target.value)}
           placeholder={t("Currency name")}
         />
-        <button type="button" className="primary-btn" disabled={busy || !code.trim() || !name.trim()} onClick={commit}>
+        <button type="button" className="ghost-btn" disabled={busy || !code.trim() || !name.trim()} onClick={commit}>
           Add
         </button>
         <button type="button" className="ghost-btn" onClick={() => { setAdding(false); setCode(""); setName(""); }}>

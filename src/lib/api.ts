@@ -1,3 +1,4 @@
+import { formatMoney } from "../../shared/format";
 import type { Company, Person, Receipt, UserProfile } from "./types";
 
 async function jsonFetch<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
@@ -291,45 +292,38 @@ export function imageUrl(id: string): string {
   return `/api/receipts/${id}/image`;
 }
 
+/** "EUR 1,284.60" as plain text. Use <Amount> from components/Amount for markup. */
 export function formatAmount(r: Receipt): string {
-  if (!r.amount) return "—";
-  const cur = r.currency ?? "";
-  return cur ? `${cur} ${r.amount}` : r.amount;
+  return formatMoney(r.amount, r.currency);
 }
 
 /**
- * Deterministic colour for a company name — same input always yields the
- * same palette slot. Special-cases Personal so it always looks the same.
+ * Deterministic dot colour for a company name — same input always yields the
+ * same palette slot. Muted so it reads as a marker, never as a status.
+ * Personal is a fixed neutral so "no business company" always looks the same.
  */
-const COMPANY_PALETTE: Array<{ bg: string; fg: string }> = [
-  { bg: "#dcfce7", fg: "#166534" }, // green
-  { bg: "#dbeafe", fg: "#1e40af" }, // blue
-  { bg: "#fce7f3", fg: "#9f1239" }, // pink
-  { bg: "#fef3c7", fg: "#92400e" }, // amber
-  { bg: "#f3e8ff", fg: "#6b21a8" }, // purple
-  { bg: "#cffafe", fg: "#155e75" }, // cyan
-  { bg: "#fee2e2", fg: "#991b1b" }, // red
-  { bg: "#e0e7ff", fg: "#3730a3" }, // indigo
-  { bg: "#ecfccb", fg: "#3f6212" }, // lime
-  { bg: "#ffe4e6", fg: "#9f1239" }, // rose
+const COMPANY_PALETTE: string[] = [
+  "#6E7FA3", // slate blue
+  "#5E8C7E", // sea green
+  "#A3786E", // clay
+  "#8C7A5E", // olive brown
+  "#7D6E9E", // dusk violet
+  "#5E8A9E", // steel teal
+  "#9E6E7A", // rose brown
+  "#6E9E6E", // moss
+  "#9E8A5E", // ochre
+  "#7A7A7A", // graphite
 ];
-export function companyColor(name: string | null | undefined): { bg: string; fg: string } | null {
+export function companyColor(name: string | null | undefined): { dot: string } | null {
   if (!name) return null;
   const trimmed = name.trim();
   if (!trimmed) return null;
-  // Personal always gets a soft neutral slate so it visually distinguishes
-  // "no business company" from real billable companies.
-  if (trimmed.toLowerCase() === "personal") return { bg: "#e2e8f0", fg: "#334155" };
+  if (trimmed.toLowerCase() === "personal") return { dot: "#B7B3AA" };
   let hash = 0;
   for (let i = 0; i < trimmed.length; i++) {
     hash = (hash * 31 + trimmed.charCodeAt(i)) >>> 0;
   }
-  return COMPANY_PALETTE[hash % COMPANY_PALETTE.length];
+  return { dot: COMPANY_PALETTE[hash % COMPANY_PALETTE.length] };
 }
 
-export function formatDate(iso: string | null | number): string {
-  if (!iso) return "";
-  const d = typeof iso === "number" ? new Date(iso) : new Date(iso);
-  if (isNaN(d.getTime())) return String(iso);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
+export { formatDate, formatMoney, formatNumber } from "../../shared/format";

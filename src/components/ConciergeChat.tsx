@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { t } from "../../shared/i18n";
+import { IconWarning } from "./Icons";
 
 interface Msg {
   role: "user" | "assistant";
@@ -84,7 +85,7 @@ export default function ConciergeChat({ embedded = false }: { embedded?: boolean
       });
       setMessages((m) => [...m, {
         role: "assistant",
-        content: `✅ ${t("Done — moved to Trash (restorable for 30 days).")}`,
+        content: `${t("Done — moved to Trash (restorable for 30 days).")}`,
       }]);
       setPending(null);
       void r;
@@ -127,7 +128,7 @@ export default function ConciergeChat({ embedded = false }: { embedded?: boolean
         {busy && <div className="chat-msg assistant chat-typing">{t("Thinking…")}</div>}
         {pending && (
           <div className="chat-confirm">
-            <div className="chat-confirm-summary">⚠️ {pending.summary}</div>
+            <div className="chat-confirm-summary"><IconWarning className="icon-sm" /> {pending.summary}</div>
             <div className="chat-confirm-actions">
               <button type="button" className="danger-btn small" disabled={confirmBusy} onClick={confirmPending}>
                 {confirmBusy ? t("Working…") : t("Confirm delete")}
@@ -151,7 +152,7 @@ export default function ConciergeChat({ embedded = false }: { embedded?: boolean
           onKeyDown={(e) => { if (e.key === "Enter") send(); }}
           disabled={busy}
         />
-        <button type="button" className="primary-btn" onClick={send} disabled={busy || !input.trim()}>
+        <button type="button" className="ghost-btn" onClick={send} disabled={busy || !input.trim()}>
           {t("Send")}
         </button>
       </div>

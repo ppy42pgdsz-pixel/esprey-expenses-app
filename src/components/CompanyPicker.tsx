@@ -31,7 +31,7 @@ export default function CompanyPicker({ companies, value, onChange, noun = "comp
           }}
           placeholder={`New ${noun} name`}
         />
-        <button type="button" className="primary-btn" onClick={commit}>Add</button>
+        <button type="button" className="ghost-btn" onClick={commit}>Add</button>
         <button type="button" className="ghost-btn" onClick={cancel}>Cancel</button>
       </div>
     );

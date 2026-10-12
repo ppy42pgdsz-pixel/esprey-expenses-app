@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { api, companyColor, formatAmount, formatDate, imageUrl } from "../lib/api";
+import { api, companyColor, formatDate, imageUrl } from "../lib/api";
+import Amount from "../components/Amount";
 import type { Receipt } from "../lib/types";
 import { parseAttendees } from "../lib/types";
 import { billFromTotal, minorToAmount, toMinor } from "../../shared/money";
@@ -8,6 +9,7 @@ import { t } from "../../shared/i18n";
 import { dateMismatch, describeMismatch, type DateMismatch } from "../../shared/captureDate";
 import ConciergeChat from "../components/ConciergeChat";
 import Tour, { dashboardTourSteps } from "../components/Tour";
+import { BrandMark, IconCamera, IconClose, IconDocument, IconForward, IconHelp, IconMail, IconPencil, IconSettings, IconSparkle, IconWarning } from "../components/Icons";
 
 type SortKey = "date" | "vendor" | "amount" | "currency" | "category" | "company";
 type SortDir = "asc" | "desc";
@@ -522,17 +524,17 @@ export default function Dashboard() {
     <div className={"page dashboard " + (isWide ? "is-wide" : "is-narrow")}>
       <header className="topbar">
         <div className="header-actions icon-actions">
-          <Link to="/settings" className="icon-link" aria-label={t("Settings")}>⚙</Link>
-          <Link to="/reports" className="icon-link" aria-label={t("Reports")} data-tour="reports">📄</Link>
-          <Link to="/instructions" className="icon-link" aria-label={t("Help & FAQ")} data-tour="help">?</Link>
+          <Link to="/settings" className="icon-link" aria-label={t("Settings")}><IconSettings /></Link>
+          <Link to="/reports" className="icon-link" aria-label={t("Reports")} data-tour="reports"><IconDocument /></Link>
+          <Link to="/instructions" className="icon-link" aria-label={t("Help & FAQ")} data-tour="help"><IconHelp /></Link>
         </div>
         <div className="brand">
-          <img src="/icons/icon-192.png" alt="" className="brand-logo" />
+          <BrandMark className="brand-logo" />
           <h1>{t("Expenses")}</h1>
         </div>
         <div className="header-actions">
-          <Link to="/capture-manual" className="ghost-btn">{t("+ Manual")}</Link>
-          <Link to="/capture" className="primary-btn" data-tour="capture">{t("+ Capture")}</Link>
+          <Link to="/capture-manual" className="ghost-btn"><IconPencil className="icon-sm" />{t("Manual")}</Link>
+          <Link to="/capture" className="primary-btn" data-tour="capture"><IconCamera className="icon-sm" />{t("Capture")}</Link>
         </div>
       </header>
 
@@ -617,7 +619,7 @@ export default function Dashboard() {
             onClick={clearFilters}
             title={t("Show all receipts again")}
           >
-            ✕ {t("Clear filters")}
+            <IconClose className="icon-sm" /> {t("Clear filters")}
           </button>
         )}
         <button className="ghost-btn" onClick={reload}>{t("Refresh")}</button>
@@ -681,8 +683,8 @@ export default function Dashboard() {
         <div className="empty">
           {anyFilterActive ? t("No receipts match these filters.") : t("No receipts yet.")}<br />
           {anyFilterActive
-            ? <button type="button" className="ghost-btn clear-filters" onClick={clearFilters}>✕ {t("Clear filters")}</button>
-            : <Link to="/capture">{t("Capture your first one →")}</Link>}
+            ? <button type="button" className="ghost-btn clear-filters" onClick={clearFilters}><IconClose className="icon-sm" /> {t("Clear filters")}</button>
+            : <Link to="/capture">{t("Capture your first one")} <IconForward className="icon-sm" /></Link>}
         </div>
       ) : isWide ? (
         <table className="receipts-table">
@@ -701,7 +703,6 @@ export default function Dashboard() {
               <ThHeader label={t("Vendor")}   sortKey="vendor"   curKey={sortKey} dir={sortDir} onClick={toggleSort} />
               <th className="col-desc">{t("Description")}</th>
               <ThHeader label={t("Amount")}   sortKey="amount"   curKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-              <ThHeader label={t("Cur")}      sortKey="currency" curKey={sortKey} dir={sortDir} onClick={toggleSort} />
               <ThHeader label={t("Category")} sortKey="category" curKey={sortKey} dir={sortDir} onClick={toggleSort} />
               <ThHeader label={t("Company")}  sortKey="company"  curKey={sortKey} dir={sortDir} onClick={toggleSort} />
               <th />
@@ -727,10 +728,10 @@ export default function Dashboard() {
                 </td>
                 <td className="col-thumb">
                   {r.source === "manual"
-                    ? <div className="row-thumb-icon">✏️</div>
+                    ? <div className="row-thumb-icon"><IconPencil /></div>
                     : isImageReceipt(r)
                       ? <img src={imageUrl(r.id)} alt="" className="row-thumb" loading="lazy" />
-                      : <div className="row-thumb-icon">✉️</div>
+                      : <div className="row-thumb-icon"><IconMail /></div>
                   }
                 </td>
                 <td className="cell-date">
@@ -743,7 +744,7 @@ export default function Dashboard() {
                       title={dateWarningTitle(r) ?? ""}
                       aria-label={dateWarningTitle(r) ?? ""}
                     >
-                      {monthJumpIds.has(r.id) ? "⚠" : "•"}
+                      <IconWarning />
                     </span>
                   )}
                 </td>
@@ -754,8 +755,7 @@ export default function Dashboard() {
                   )}
                   {r.notes ?? ""}
                 </td>
-                <td className="cell-amt">{r.amount ?? "—"}</td>
-                <td>{r.currency ?? ""}</td>
+                <td className="cell-amt"><Amount amount={r.amount} currency={r.currency} /></td>
                 <td>{r.category ?? ""}</td>
                 <td><CompanyChip name={r.company} /></td>
                 <td className="cell-open">
@@ -785,16 +785,16 @@ export default function Dashboard() {
             >
               <Link to={`/receipt/${r.id}`} className="receipt-link">
                 {r.source === "manual" ? (
-                  <div className="thumb thumb-icon" aria-hidden>✏️</div>
+                  <div className="thumb thumb-icon" aria-hidden><IconPencil /></div>
                 ) : isImageReceipt(r) ? (
                   <img src={imageUrl(r.id)} alt="" className="thumb" loading="lazy" />
                 ) : (
-                  <div className="thumb thumb-icon" aria-hidden>✉️</div>
+                  <div className="thumb thumb-icon" aria-hidden><IconMail /></div>
                 )}
                 <div className="meta">
                   <div className="row1">
                     <strong>{r.vendor ?? "(unknown vendor)"}</strong>
-                    <span className="amt">{formatAmount(r)}</span>
+                    <Amount amount={r.amount} currency={r.currency} />
                   </div>
                   <div className="row2">
                     <span>
@@ -807,7 +807,7 @@ export default function Dashboard() {
                           title={dateWarningTitle(r) ?? ""}
                           aria-label={dateWarningTitle(r) ?? ""}
                         >
-                          {monthJumpIds.has(r.id) ? "⚠" : "•"}
+                          <IconWarning />
                         </span>
                       )}
                     </span>
@@ -844,13 +844,13 @@ export default function Dashboard() {
       {/* Floating Smart AI (Concierge) — Carl's preferred entry point */}
       {!smartAiOpen && (
         <button type="button" className="smart-ai-fab" data-tour="smartai" onClick={() => setSmartAiOpen(true)}>
-          ✨ {t("Smart AI")}
+          <IconSparkle className="icon" /> {t("Smart AI")}
         </button>
       )}
       {smartAiOpen && (
         <div className="smart-ai-panel">
           <div className="smart-ai-head">
-            <span>✨ {t("Smart AI")}</span>
+            <span><IconSparkle className="icon" /> {t("Smart AI")}</span>
             <button type="button" className="smart-ai-close" aria-label={t("Cancel")} onClick={() => setSmartAiOpen(false)}>×</button>
           </div>
           <ConciergeChat embedded />
@@ -922,14 +922,14 @@ function DateFilter({
         aria-label="Filter by date range"
         className="filter"
       >
-        <option value="all">📅 {t("Date")}: {t("All time")}</option>
-        <option value="this_week">📅 {t("This week")}</option>
-        <option value="last_week">📅 {t("Last week")}</option>
-        <option value="this_month">📅 {t("This month")}</option>
-        <option value="last_month">📅 {t("Last month")}</option>
-        <option value="last_30">📅 {t("Last 30 days")}</option>
-        <option value="last_90">📅 {t("Last 90 days")}</option>
-        <option value="custom">📅 {t("Custom range…")}</option>
+        <option value="all">{t("Date")}: {t("All time")}</option>
+        <option value="this_week">{t("This week")}</option>
+        <option value="last_week">{t("Last week")}</option>
+        <option value="this_month">{t("This month")}</option>
+        <option value="last_month">{t("Last month")}</option>
+        <option value="last_30">{t("Last 30 days")}</option>
+        <option value="last_90">{t("Last 90 days")}</option>
+        <option value="custom">{t("Custom range…")}</option>
       </select>
       {preset === "custom" && (
         <button
@@ -938,7 +938,7 @@ function DateFilter({
           onClick={() => onShowCustom(!showCustom)}
           aria-label="Edit custom date range"
         >
-          {customStart && customEnd ? `${customStart} → ${customEnd}` : "Pick dates"}
+          {customStart && customEnd ? `${customStart} – ${customEnd}` : "Pick dates"}
         </button>
       )}
       {preset === "custom" && showCustom && (
@@ -1103,7 +1103,7 @@ function CompanyChip({ name }: { name: string | null }) {
   const c = companyColor(name);
   if (!c) return <span className="company-chip company-chip-uncat">{name}</span>;
   return (
-    <span className="company-chip" style={{ background: c.bg, color: c.fg }}>
+    <span className="company-chip" style={{ "--chip-dot": c.dot } as React.CSSProperties}>
       {name}
     </span>
   );

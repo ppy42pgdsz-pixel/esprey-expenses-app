@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FAQ } from "../../shared/faq";
 import { getLang, t } from "../../shared/i18n";
+import { IconBack, IconTour } from "../components/Icons";
 
 export default function Instructions() {
   const [query, setQuery] = useState("");
@@ -40,14 +41,14 @@ export default function Instructions() {
   return (
     <div className="page instructions">
       <header className="topbar">
-        <Link to="/" className="back">{t("← Back")}</Link>
+        <Link to="/" className="back"><IconBack className="icon-sm" />{t("Back")}</Link>
         <h1>{t("Help & FAQ")}</h1>
         <span />
       </header>
 
       <div className="instructions-body">
         <div style={{ marginBottom: 10 }}>
-          <Link to="/?tour=1" className="ghost-btn small">🚀 {t("Show me around again")}</Link>
+          <Link to="/?tour=1" className="ghost-btn small"><IconTour className="icon" /> {t("Show me around again")}</Link>
         </div>
         <AskWidget />
 
@@ -126,7 +127,7 @@ function AskWidget() {
           onKeyDown={(e) => { if (e.key === "Enter") ask(); }}
           aria-label="Ask a question about using the app"
         />
-        <button type="button" className="primary-btn" onClick={ask} disabled={busy || !question.trim()}>
+        <button type="button" className="ghost-btn" onClick={ask} disabled={busy || !question.trim()}>
           {busy ? t("Thinking…") : t("Ask")}
         </button>
       </div>

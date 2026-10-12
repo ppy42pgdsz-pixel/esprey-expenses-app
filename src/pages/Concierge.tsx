@@ -4,12 +4,13 @@
 import { Link } from "react-router-dom";
 import ConciergeChat from "../components/ConciergeChat";
 import { t } from "../../shared/i18n";
+import { IconBack } from "../components/Icons";
 
 export default function Concierge() {
   return (
     <div className="page concierge">
       <header className="topbar">
-        <Link to="/" className="back">{t("← Back")}</Link>
+        <Link to="/" className="back"><IconBack className="icon-sm" />{t("Back")}</Link>
         <h1>{t("Concierge")}</h1>
         <span />
       </header>

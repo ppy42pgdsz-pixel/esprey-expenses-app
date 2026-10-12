@@ -6,6 +6,7 @@ import CompanyPicker from "../components/CompanyPicker";
 import PeoplePicker from "../components/PeoplePicker";
 import CurrencyPicker, { type Currency } from "../components/CurrencyPicker";
 import { t } from "../../shared/i18n";
+import { IconBack } from "../components/Icons";
 
 function todayISO() {
   const d = new Date();
@@ -94,7 +95,7 @@ export default function CaptureManual() {
   return (
     <div className="page detail">
       <header className="topbar">
-        <Link to="/" className="back">{t("← Back")}</Link>
+        <Link to="/" className="back"><IconBack className="icon-sm" />{t("Back")}</Link>
         <h1>{t("Manual entry")}</h1>
         <span />
       </header>
