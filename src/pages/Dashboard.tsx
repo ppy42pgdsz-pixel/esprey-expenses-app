@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, companyColor, formatDate, imageUrl } from "../lib/api";
+import { formatMonth, formatNumber } from "../../shared/format";
 import Amount from "../components/Amount";
 import type { Receipt } from "../lib/types";
 import { parseAttendees } from "../lib/types";
 import { billFromTotal, minorToAmount, toMinor } from "../../shared/money";
 import { t } from "../../shared/i18n";
-import { dateMismatch, describeMismatch, type DateMismatch } from "../../shared/captureDate";
+import { dateMismatch, describeMismatch, isoFromMs, type DateMismatch } from "../../shared/captureDate";
 import ConciergeChat from "../components/ConciergeChat";
 import Tour, { dashboardTourSteps } from "../components/Tour";
 import { BrandMark, IconCamera, IconClose, IconDocument, IconForward, IconHelp, IconMail, IconPencil, IconSettings, IconWarning } from "../components/Icons";
@@ -524,6 +525,154 @@ export default function Dashboard() {
     }
   }
 
+  // ---- Month groups + totals ------------------------------------------------
+  // The list is split by month (the month a receipt belongs to = its report),
+  // each with a total per currency. Only when the list is in date order; a
+  // list sorted by vendor or amount, or the Issues/Date-check views, stays flat.
+  const grouped = sortKey === "date" && (pillFilter === "all" || pillFilter === "uncategorized");
+  const groups = useMemo(() => {
+    const list = sortedReceipts ?? [];
+    if (!grouped) return [{ key: "all", label: "", totalText: "", items: list }];
+    const map = new Map<string, Receipt[]>();
+    for (const r of list) {
+      const iso = r.receipt_date ?? isoFromMs(r.uploaded_at);
+      const key = (iso ?? "").slice(0, 7) || "none";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(r);
+    }
+    return Array.from(map.entries()).map(([key, items]) => ({
+      key,
+      label: key === "none" ? t("No date") : formatMonth(key),
+      totalText: totalsText(items),
+      items,
+    }));
+  }, [sortedReceipts, grouped]);
+
+  // Per-currency totals of everything in view, for the strip above the list.
+  const viewTotals = useMemo(() => currencyTotals(sortedReceipts ?? []), [sortedReceipts]);
+
+  function renderTableRow(r: Receipt) {
+    return (
+              <tr key={r.id} className={
+                (selected.has(r.id) ? "selected " : "") +
+                (failedIds.has(r.id) ? "row-failed " : "") +
+                ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? "row-duplicate " : "") +
+                (overLimitIds.has(r.id) ? "row-overlimit " : "") +
+                (monthJumpIds.has(r.id) ? "row-monthjump " : "") +
+                (dayGapIds.has(r.id) ? "row-daygap " : "")
+              }>
+                <td className="col-check">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(r.id)}
+                    onChange={() => toggleSelect(r.id)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </td>
+                <td className="col-thumb">
+                  {r.source === "manual"
+                    ? <div className="row-thumb-icon"><IconPencil /></div>
+                    : isImageReceipt(r)
+                      ? <img src={imageUrl(r.id)} alt="" className="row-thumb" loading="lazy" />
+                      : <div className="row-thumb-icon"><IconMail /></div>
+                  }
+                </td>
+                <td className="cell-date">
+                  {formatDate(r.receipt_date ?? r.uploaded_at)}
+                  {dateMismatches.has(r.id) && (
+                    <span
+                      className={
+                        "date-warn" + (monthJumpIds.has(r.id) ? " date-warn-month" : "")
+                      }
+                      title={dateWarningTitle(r) ?? ""}
+                      aria-label={dateWarningTitle(r) ?? ""}
+                    >
+                      <IconWarning />
+                    </span>
+                  )}
+                </td>
+                <td className="cell-vendor">{r.vendor ?? "—"}</td>
+                <td className="cell-desc">
+                  {(pillFilter === "issues" || pillFilter === "datecheck") && issueReason(r) && (
+                    <span className="issue-chip">{issueReason(r)}</span>
+                  )}
+                  {r.notes ?? ""}
+                </td>
+                <td className="cell-amt"><Amount amount={r.amount} currency={r.currency} /></td>
+                <td>{r.category ?? ""}</td>
+                <td><CompanyChip name={r.company} /></td>
+                <td className="cell-open">
+                  <button
+                    type="button"
+                    className="ghost-btn small"
+                    onClick={() => navigate(`/receipt/${r.id}`)}
+                  >Open</button>
+                </td>
+              </tr>
+    );
+  }
+
+  function renderCard(r: Receipt) {
+    return (
+            <li
+              key={r.id}
+              className={
+                (r.company ? "cat" : "uncat") +
+                (failedIds.has(r.id) ? " row-failed" : "") +
+                ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? " row-duplicate" : "") +
+                (overLimitIds.has(r.id) ? " row-overlimit" : "") +
+                (monthJumpIds.has(r.id) ? " row-monthjump" : "") +
+                (dayGapIds.has(r.id) ? " row-daygap" : "")
+              }
+            >
+              <Link to={`/receipt/${r.id}`} className="receipt-link">
+                {r.source === "manual" ? (
+                  <div className="thumb thumb-icon" aria-hidden><IconPencil /></div>
+                ) : isImageReceipt(r) ? (
+                  <img src={imageUrl(r.id)} alt="" className="thumb" loading="lazy" />
+                ) : (
+                  <div className="thumb thumb-icon" aria-hidden><IconMail /></div>
+                )}
+                <div className="meta">
+                  <div className="row1">
+                    <strong>{r.vendor ?? "(unknown vendor)"}</strong>
+                    <Amount amount={r.amount} currency={r.currency} />
+                  </div>
+                  <div className="row2">
+                    <span>
+                      {formatDate(r.receipt_date ?? r.uploaded_at)}
+                      {dateMismatches.has(r.id) && (
+                        <span
+                          className={
+                            "date-warn" + (monthJumpIds.has(r.id) ? " date-warn-month" : "")
+                          }
+                          title={dateWarningTitle(r) ?? ""}
+                          aria-label={dateWarningTitle(r) ?? ""}
+                        >
+                          <IconWarning />
+                        </span>
+                      )}
+                    </span>
+                    <span className="pills">
+                      {r.category && <span className="pill cat-pill">{r.category}</span>}
+                      <CompanyChip name={r.company} />
+                    </span>
+                  </div>
+                  {(() => {
+                    const att = parseAttendees(r.attendees);
+                    return att.length > 0 ? <div className="row3">with {att.join(", ")}</div> : null;
+                  })()}
+                  {r.ocr_status === "pending" && <span className="badge">{t("Reading…")}</span>}
+                  {r.ocr_status === "failed" && <span className="badge warn">OCR failed</span>}
+                  {(pillFilter === "issues" || pillFilter === "datecheck") && issueReason(r) && r.ocr_status !== "failed" && (
+                    <span className="badge warn">{issueReason(r)}</span>
+                  )}
+                </div>
+              </Link>
+            </li>
+    );
+  }
+
   return (
     <div className={"page dashboard " + (isWide ? "is-wide" : "is-narrow")}>
       <header className="app-header">
@@ -698,6 +847,26 @@ export default function Dashboard() {
         </div>
       )}
 
+      {sortedReceipts && sortedReceipts.length > 0 && (
+        <div className="totals-strip">
+          <div className="totals-caption">
+            {t("Total of")} <span className="mono">{sortedReceipts.length}</span> {t("receipts in view · one line per currency")}
+          </div>
+          <div className="totals-amounts mono">
+            {viewTotals.lines.map((l) => (
+              <span key={l.code}><span className="cur-code">{l.code || "—"}</span>{l.text}</span>
+            ))}
+          </div>
+          {viewTotals.missing > 0 && (
+            <div className="totals-note">
+              {viewTotals.missing === 1
+                ? t("1 receipt has no amount and is not counted.")
+                : `${viewTotals.missing} ${t("receipts have no amount and are not counted.")}`}
+            </div>
+          )}
+        </div>
+      )}
+
       {sortedReceipts === null ? (
         <div className="empty">{t("Loading…")}</div>
       ) : sortedReceipts.length === 0 ? (
@@ -730,127 +899,37 @@ export default function Dashboard() {
             </tr>
           </thead>
           <tbody>
-            {sortedReceipts.map((r) => (
-              <tr key={r.id} className={
-                (selected.has(r.id) ? "selected " : "") +
-                (failedIds.has(r.id) ? "row-failed " : "") +
-                ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? "row-duplicate " : "") +
-                (overLimitIds.has(r.id) ? "row-overlimit " : "") +
-                (monthJumpIds.has(r.id) ? "row-monthjump " : "") +
-                (dayGapIds.has(r.id) ? "row-daygap " : "")
-              }>
-                <td className="col-check">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(r.id)}
-                    onChange={() => toggleSelect(r.id)}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </td>
-                <td className="col-thumb">
-                  {r.source === "manual"
-                    ? <div className="row-thumb-icon"><IconPencil /></div>
-                    : isImageReceipt(r)
-                      ? <img src={imageUrl(r.id)} alt="" className="row-thumb" loading="lazy" />
-                      : <div className="row-thumb-icon"><IconMail /></div>
-                  }
-                </td>
-                <td className="cell-date">
-                  {formatDate(r.receipt_date ?? r.uploaded_at)}
-                  {dateMismatches.has(r.id) && (
-                    <span
-                      className={
-                        "date-warn" + (monthJumpIds.has(r.id) ? " date-warn-month" : "")
-                      }
-                      title={dateWarningTitle(r) ?? ""}
-                      aria-label={dateWarningTitle(r) ?? ""}
-                    >
-                      <IconWarning />
-                    </span>
-                  )}
-                </td>
-                <td className="cell-vendor">{r.vendor ?? "—"}</td>
-                <td className="cell-desc">
-                  {(pillFilter === "issues" || pillFilter === "datecheck") && issueReason(r) && (
-                    <span className="issue-chip">{issueReason(r)}</span>
-                  )}
-                  {r.notes ?? ""}
-                </td>
-                <td className="cell-amt"><Amount amount={r.amount} currency={r.currency} /></td>
-                <td>{r.category ?? ""}</td>
-                <td><CompanyChip name={r.company} /></td>
-                <td className="cell-open">
-                  <button
-                    type="button"
-                    className="ghost-btn small"
-                    onClick={() => navigate(`/receipt/${r.id}`)}
-                  >Open</button>
-                </td>
-              </tr>
+            {groups.map((g) => (
+              <React.Fragment key={g.key}>
+                {g.label && (
+                  <tr className="month-row">
+                    <td colSpan={9}>
+                      <span className="month-label">{g.label}</span>
+                      <span className="month-total mono">{g.totalText}</span>
+                    </td>
+                  </tr>
+                )}
+                {g.items.map((r) => renderTableRow(r))}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
       ) : (
-        <ul className="receipts">
-          {sortedReceipts.map((r) => (
-            <li
-              key={r.id}
-              className={
-                (r.company ? "cat" : "uncat") +
-                (failedIds.has(r.id) ? " row-failed" : "") +
-                ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? " row-duplicate" : "") +
-                (overLimitIds.has(r.id) ? " row-overlimit" : "") +
-                (monthJumpIds.has(r.id) ? " row-monthjump" : "") +
-                (dayGapIds.has(r.id) ? " row-daygap" : "")
-              }
-            >
-              <Link to={`/receipt/${r.id}`} className="receipt-link">
-                {r.source === "manual" ? (
-                  <div className="thumb thumb-icon" aria-hidden><IconPencil /></div>
-                ) : isImageReceipt(r) ? (
-                  <img src={imageUrl(r.id)} alt="" className="thumb" loading="lazy" />
-                ) : (
-                  <div className="thumb thumb-icon" aria-hidden><IconMail /></div>
-                )}
-                <div className="meta">
-                  <div className="row1">
-                    <strong>{r.vendor ?? "(unknown vendor)"}</strong>
-                    <Amount amount={r.amount} currency={r.currency} />
-                  </div>
-                  <div className="row2">
-                    <span>
-                      {formatDate(r.receipt_date ?? r.uploaded_at)}
-                      {dateMismatches.has(r.id) && (
-                        <span
-                          className={
-                            "date-warn" + (monthJumpIds.has(r.id) ? " date-warn-month" : "")
-                          }
-                          title={dateWarningTitle(r) ?? ""}
-                          aria-label={dateWarningTitle(r) ?? ""}
-                        >
-                          <IconWarning />
-                        </span>
-                      )}
-                    </span>
-                    <span className="pills">
-                      {r.category && <span className="pill cat-pill">{r.category}</span>}
-                      <CompanyChip name={r.company} />
-                    </span>
-                  </div>
-                  {(() => {
-                    const att = parseAttendees(r.attendees);
-                    return att.length > 0 ? <div className="row3">with {att.join(", ")}</div> : null;
-                  })()}
-                  {r.ocr_status === "pending" && <span className="badge">{t("Reading…")}</span>}
-                  {r.ocr_status === "failed" && <span className="badge warn">OCR failed</span>}
-                  {(pillFilter === "issues" || pillFilter === "datecheck") && issueReason(r) && r.ocr_status !== "failed" && (
-                    <span className="badge warn">{issueReason(r)}</span>
-                  )}
+        <div className="receipt-groups">
+          {groups.map((g) => (
+            <section key={g.key} className="receipt-group">
+              {g.label && (
+                <div className="month-head">
+                  <span className="month-label">{g.label}</span>
+                  <span className="month-total mono">{g.totalText}</span>
                 </div>
-              </Link>
-            </li>
+              )}
+              <ul className="receipts">
+                {g.items.map((r) => renderCard(r))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       )}
 
       {(() => {
@@ -1131,6 +1210,30 @@ function initialsOf(name: string | null | undefined, email: string | null | unde
   if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (email ?? "").trim().slice(0, 1).toUpperCase();
+}
+
+/** Sum a list per currency: [{code, text}] plus how many had no amount. */
+function currencyTotals(list: Receipt[]): { lines: Array<{ code: string; text: string }>; missing: number } {
+  const sums = new Map<string, number>();
+  let missing = 0;
+  for (const r of list) {
+    const m = toMinor(r.amount);
+    if (m === null) { if (r.ocr_status !== "pending") missing++; continue; }
+    const code = (r.currency ?? "").toUpperCase();
+    sums.set(code, (sums.get(code) ?? 0) + m);
+  }
+  const lines = Array.from(sums.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([code, m]) => ({ code, text: formatNumber(minorToAmount(m), code) }));
+  return { lines, missing };
+}
+
+/** "EUR 278.17 · XOF 85,000 · 1 without amount" for a month header. */
+function totalsText(list: Receipt[]): string {
+  const { lines, missing } = currencyTotals(list);
+  const parts = lines.map((l) => `${l.code} ${l.text}`.trim());
+  if (missing > 0) parts.push(missing === 1 ? t("1 without amount") : `${missing} ${t("without amount")}`);
+  return parts.join(" · ");
 }
 
 function CompanyChip({ name }: { name: string | null }) {
