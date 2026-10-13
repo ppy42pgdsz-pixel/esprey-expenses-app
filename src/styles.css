@@ -88,11 +88,76 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   padding: 8px 0 14px; gap: 12px;
 }
 .topbar h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
-.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.brand-logo { width: 28px; height: 28px; flex: 0 0 28px; display: block; }
-@media (min-width: 900px) {
-  .brand-logo { width: 32px; height: 32px; flex-basis: 32px; }
+
+/* ---------- App header (Dashboard) ----------
+   Phone:   mark · Expenses ·········· reports · help · avatar
+   Desktop: mark · Esprey Expenses · Receipts Reports Help ···· Ask Manual Capture avatar */
+.app-header {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card); border-bottom: 1px solid var(--line);
+  margin: -12px -16px 14px; padding: 8px 8px 8px 16px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  position: sticky; top: 0; z-index: 20;
 }
+.app-header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 0; white-space: nowrap; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; text-decoration: none; color: inherit; flex-grow: 1; }
+.brand-logo { width: 28px; height: 28px; flex: 0 0 28px; display: block; }
+.main-nav { display: flex; gap: 4px; flex-grow: 1; }
+.main-nav a {
+  display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 14px;
+  font-size: 15px; font-weight: 600; color: var(--ink-2); text-decoration: none; border-radius: var(--r-sm);
+}
+.main-nav a:hover { color: var(--ink); background: var(--surface-1); }
+.main-nav a[aria-current="page"] { color: var(--ink); font-weight: 700; box-shadow: inset 0 -3px 0 var(--ink); border-radius: 0; }
+.app-header .header-actions { gap: 4px; }
+.avatar-link {
+  width: var(--tap); height: var(--tap); display: inline-flex; align-items: center; justify-content: center;
+  text-decoration: none; color: var(--ink); border-radius: var(--r-md); -webkit-tap-highlight-color: transparent;
+}
+.avatar-link svg { width: 22px; height: 22px; }
+.avatar {
+  width: 34px; height: 34px; border-radius: 17px; background: var(--ink); color: var(--accent);
+  font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; letter-spacing: 0.02em;
+}
+@media (min-width: 900px) {
+  /* Full-width white bar; the content inside stays on the page grid */
+  .app-header { margin: -12px calc(50% - 50vw) 18px; padding: 12px max(24px, calc(50vw - 640px + 24px)); gap: 28px; }
+  .app-header h1 { font-size: 19px; }
+  .app-header .header-actions { gap: 10px; }
+  .brand { flex-grow: 0; }
+  .avatar { width: 36px; height: 36px; border-radius: 18px; }
+}
+
+/* Ask: the assistant. Its icon is the mark, which breathes while Claude thinks. */
+.ask-btn { gap: 8px; }
+.ask-mark { border-radius: 22%; display: block; flex-shrink: 0; transform-origin: center; }
+.ask-btn-square {
+  width: 52px; height: 52px; flex-shrink: 0; padding: 0;
+  border-radius: 14px; border: 1.5px solid var(--ink); background: var(--card);
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ask-btn-square:active { background: var(--surface-1); }
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.22); }
+}
+.is-thinking .ask-mark, .ask-mark.is-thinking { animation: breathe 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .is-thinking .ask-mark, .ask-mark.is-thinking { animation: none; opacity: 0.7; }
+}
+
+/* Phone action bar: Ask · Manual · Capture, pinned to the bottom */
+.action-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: flex; gap: 10px; align-items: center;
+  background: var(--card); border-top: 1px solid var(--line);
+  padding: 10px 16px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+}
+.action-bar .ghost-btn { flex: 1; min-height: 52px; border-radius: 14px; font-size: 15px; }
+.action-bar .primary-btn { flex: 1.6; min-height: 52px; border-radius: 14px; font-size: 16px; }
+.ask-title { display: inline-flex; align-items: center; gap: 8px; }
 .topbar .back {
   display: inline-flex; align-items: center; gap: 4px;
   color: var(--ink); text-decoration: none; font-size: 14px; font-weight: 600;
@@ -818,17 +883,10 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .concierge-embedded { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .concierge-embedded .chat-inputbar { padding: 8px 0 4px; }
 
-/* Floating Smart AI button + panel (Carl's task-app pattern) */
-.smart-ai-fab {
-  position: fixed; right: 18px; bottom: 18px; z-index: 60;
-  display: inline-flex; align-items: center; gap: 6px;
-  background: var(--card); color: var(--ink); border: 1.5px solid var(--ink); cursor: pointer;
-  font-size: 14.5px; font-weight: 700; min-height: 48px; padding: 0 18px; border-radius: var(--r-lg);
-  box-shadow: 0 6px 20px rgba(27,27,31,0.18);
-}
-.smart-ai-fab:hover { background: var(--surface-1); }
+/* The Ask (Concierge) panel */
 .smart-ai-panel {
   position: fixed; right: 16px; bottom: 16px; z-index: 61;
+  /* (phones: see the mobile pass — it sits above the action bar) */
   width: min(400px, calc(100vw - 32px));
   height: min(560px, calc(100dvh - 80px));
   background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg);
@@ -1057,15 +1115,8 @@ a { color: var(--ink); }
      everywhere — it's the single biggest mobile-feel improvement. */
   input, select, textarea { font-size: 16px !important; }
 
-  /* Topbar: 3 nav icons + title + two action buttons must fit 375px. */
-  .icon-link { width: 40px; height: 40px; }
-  .icon-actions { gap: 2px; }
   .topbar { gap: 6px; padding: 6px 0 12px; }
-  .topbar h1 { font-size: 16px; }
-  .header-actions { gap: 4px; }
-  .header-actions .ghost-btn, .header-actions .primary-btn {
-    font-size: 13px; padding: 0 10px; min-height: 40px;
-  }
+  .topbar h1 { font-size: 17px; }
   .topbar > span { width: 0; }
 
   /* Forms: stack every field full-width instead of squeezing columns. */
@@ -1082,11 +1133,10 @@ a { color: var(--ink); }
 
   /* Floating Smart AI button: keep it clear of list content and thumbs. */
   .page { padding-bottom: 96px; }
-  .smart-ai-fab { right: 12px; bottom: 12px; padding: 0 16px; }
   .smart-ai-panel {
-    right: 8px; left: 8px; bottom: 8px;
+    right: 8px; left: 8px; bottom: calc(80px + env(safe-area-inset-bottom));
     width: auto;
-    height: min(70dvh, 560px);
+    height: min(66dvh, 560px);
   }
 
   /* Pills: three across without wrapping, slightly tighter. */
@@ -1104,10 +1154,9 @@ a { color: var(--ink); }
   .instructions-body, .detail-form { padding-bottom: 24px; }
 }
 
-/* Phones: the dashboard header holds three icons, the mark and two buttons.
-   The word "Expenses" is the first thing to go; the mark says it. */
-@media (max-width: 520px) {
-  .page.dashboard .topbar h1 { display: none; }
+/* Very narrow phones: keep the header to the mark and the icons. */
+@media (max-width: 340px) {
+  .page.dashboard .app-header h1 { display: none; }
 }
 
 

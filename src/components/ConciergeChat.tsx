@@ -23,7 +23,7 @@ async function jsonFetch<T>(input: RequestInfo, init?: RequestInit): Promise<T> 
   return data as T;
 }
 
-export default function ConciergeChat({ embedded = false }: { embedded?: boolean }) {
+export default function ConciergeChat({ embedded = false, onBusyChange }: { embedded?: boolean; onBusyChange?: (busy: boolean) => void }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -31,6 +31,9 @@ export default function ConciergeChat({ embedded = false }: { embedded?: boolean
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  // Let the host (the Ask button) show that Claude is thinking.
+  useEffect(() => { onBusyChange?.(busy || confirmBusy); }, [busy, confirmBusy, onBusyChange]);
 
   useEffect(() => {
     (async () => {
@@ -147,7 +150,7 @@ export default function ConciergeChat({ embedded = false }: { embedded?: boolean
         <input
           type="text"
           value={input}
-          placeholder={t("Message the Concierge…")}
+          placeholder={t("Ask about your receipts…")}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") send(); }}
           disabled={busy}

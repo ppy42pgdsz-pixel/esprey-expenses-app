@@ -9,7 +9,7 @@ import { t } from "../../shared/i18n";
 import { dateMismatch, describeMismatch, type DateMismatch } from "../../shared/captureDate";
 import ConciergeChat from "../components/ConciergeChat";
 import Tour, { dashboardTourSteps } from "../components/Tour";
-import { BrandMark, IconCamera, IconClose, IconDocument, IconForward, IconHelp, IconMail, IconPencil, IconSettings, IconSparkle, IconWarning } from "../components/Icons";
+import { BrandMark, IconCamera, IconClose, IconDocument, IconForward, IconHelp, IconMail, IconPencil, IconSettings, IconWarning } from "../components/Icons";
 
 type SortKey = "date" | "vendor" | "amount" | "currency" | "category" | "company";
 type SortDir = "asc" | "desc";
@@ -143,16 +143,20 @@ export default function Dashboard() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
-  const [smartAiOpen, setSmartAiOpen] = useState(false); // floating Concierge panel
+  const [askOpen, setAskOpen] = useState(false);   // the "Ask" (Concierge) panel
+  const [askBusy, setAskBusy] = useState(false);   // Claude is thinking — the mark breathes
+  const [initials, setInitials] = useState("");    // avatar in the header
 
   // Guided tour (#48a). ?tour=1 (from Help & FAQ) must be read at mount,
   // because the URL-filter sync effect rewrites the query string.
   const [showTour, setShowTour] = useState<boolean>(() => searchParams.get("tour") === "1");
   useEffect(() => {
-    if (showTour) return; // explicit relaunch
-    try { if (localStorage.getItem("esprey.tour.seen")) return; } catch { /* ignore */ }
+    let tourSeenLocally = false;
+    try { tourSeenLocally = !!localStorage.getItem("esprey.tour.seen"); } catch { /* ignore */ }
     api.getUserProfile()
       .then(({ profile }) => {
+        setInitials(initialsOf(profile.name, profile.email));
+        if (showTour || tourSeenLocally) return; // explicit relaunch, or already seen
         if ((profile as any).tour_seen) {
           try { localStorage.setItem("esprey.tour.seen", "1"); } catch { /* ignore */ }
         } else {
@@ -522,19 +526,36 @@ export default function Dashboard() {
 
   return (
     <div className={"page dashboard " + (isWide ? "is-wide" : "is-narrow")}>
-      <header className="topbar">
-        <div className="header-actions icon-actions">
-          <Link to="/settings" className="icon-link" aria-label={t("Settings")}><IconSettings /></Link>
-          <Link to="/reports" className="icon-link" aria-label={t("Reports")} data-tour="reports"><IconDocument /></Link>
-          <Link to="/instructions" className="icon-link" aria-label={t("Help & FAQ")} data-tour="help"><IconHelp /></Link>
-        </div>
-        <div className="brand">
+      <header className="app-header">
+        <Link to="/" className="brand" aria-label="Esprey Expenses">
           <BrandMark className="brand-logo" />
-          <h1>{t("Expenses")}</h1>
-        </div>
+          <h1>{isWide ? "Esprey Expenses" : t("Expenses")}</h1>
+        </Link>
+        {isWide && (
+          <nav className="main-nav" aria-label="Main">
+            <Link to="/" aria-current="page">{t("Receipts")}</Link>
+            <Link to="/reports" data-tour="reports">{t("Reports")}</Link>
+            <Link to="/instructions" data-tour="help">{t("Help")}</Link>
+          </nav>
+        )}
         <div className="header-actions">
-          <Link to="/capture-manual" className="ghost-btn"><IconPencil className="icon-sm" />{t("Manual")}</Link>
-          <Link to="/capture" className="primary-btn" data-tour="capture"><IconCamera className="icon-sm" />{t("Capture")}</Link>
+          {isWide ? (
+            <>
+              <button type="button" className={"ghost-btn ask-btn" + (askBusy ? " is-thinking" : "")} data-tour="smartai" onClick={() => setAskOpen((o) => !o)} aria-expanded={askOpen}>
+                <BrandMark size={20} className="ask-mark" />{t("Ask")}
+              </button>
+              <Link to="/capture-manual" className="ghost-btn"><IconPencil className="icon-sm" />{t("Manual")}</Link>
+              <Link to="/capture" className="primary-btn" data-tour="capture"><IconCamera className="icon-sm" />{t("Capture")}</Link>
+            </>
+          ) : (
+            <>
+              <Link to="/reports" className="icon-link" aria-label={t("Reports")} data-tour="reports"><IconDocument /></Link>
+              <Link to="/instructions" className="icon-link" aria-label={t("Help & FAQ")} data-tour="help"><IconHelp /></Link>
+            </>
+          )}
+          <Link to="/settings" className="avatar-link" aria-label={t("Settings")}>
+            {initials ? <span className="avatar">{initials}</span> : <IconSettings />}
+          </Link>
         </div>
       </header>
 
@@ -841,19 +862,25 @@ export default function Dashboard() {
 
       {showTour && <Tour steps={dashboardTourSteps()} onClose={closeTour} />}
 
-      {/* Floating Smart AI (Concierge) — Carl's preferred entry point */}
-      {!smartAiOpen && (
-        <button type="button" className="smart-ai-fab" data-tour="smartai" onClick={() => setSmartAiOpen(true)}>
-          <IconSparkle className="icon" /> {t("Smart AI")}
-        </button>
+      {/* Phone action bar: Ask · Manual · Capture */}
+      {!isWide && (
+        <div className="action-bar">
+          <button type="button" className={"ask-btn ask-btn-square" + (askBusy ? " is-thinking" : "")} data-tour="smartai" aria-label={t("Ask")} aria-expanded={askOpen} onClick={() => setAskOpen((o) => !o)}>
+            <BrandMark size={24} className="ask-mark" />
+          </button>
+          <Link to="/capture-manual" className="ghost-btn"><IconPencil className="icon-sm" />{t("Manual")}</Link>
+          <Link to="/capture" className="primary-btn" data-tour="capture"><IconCamera className="icon-sm" />{t("Capture")}</Link>
+        </div>
       )}
-      {smartAiOpen && (
-        <div className="smart-ai-panel">
+
+      {/* The Ask (Concierge) panel */}
+      {askOpen && (
+        <div className="smart-ai-panel" role="dialog" aria-label={t("Ask")}>
           <div className="smart-ai-head">
-            <span><IconSparkle className="icon" /> {t("Smart AI")}</span>
-            <button type="button" className="smart-ai-close" aria-label={t("Cancel")} onClick={() => setSmartAiOpen(false)}>×</button>
+            <span className="ask-title"><BrandMark size={22} className={"ask-mark" + (askBusy ? " is-thinking" : "")} /> {t("Ask")}</span>
+            <button type="button" className="smart-ai-close" aria-label={t("Cancel")} onClick={() => setAskOpen(false)}><IconClose className="icon" /></button>
           </div>
-          <ConciergeChat embedded />
+          <ConciergeChat embedded onBusyChange={setAskBusy} />
         </div>
       )}
     </div>
@@ -1096,6 +1123,14 @@ function fieldDiffers(current: string | null | undefined, ocr: string | null, ki
   if (kind === "currency") return cur.toUpperCase() !== ext.toUpperCase();
   if (kind === "date")     return cur !== ext;
   return false;
+}
+
+/** "Carl Esprey" → "CE"; falls back to the first letter of the email. */
+function initialsOf(name: string | null | undefined, email: string | null | undefined): string {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (email ?? "").trim().slice(0, 1).toUpperCase();
 }
 
 function CompanyChip({ name }: { name: string | null }) {
