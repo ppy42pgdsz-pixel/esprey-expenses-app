@@ -455,6 +455,22 @@ export default function Dashboard() {
     return null;
   }
 
+  /** The one short label a row carries, if anything is wrong or needs a look.
+   *  Red = wrong (fix before the report goes out). Orange = needs a look.
+   *  Neutral = still being read. One label per row: worst wins. */
+  function statusTag(r: Receipt): { text: string; cls: "err" | "warn" | "neutral" } | null {
+    if (r.ocr_status === "pending") return { text: t("Reading…"), cls: "neutral" };
+    if (r.ocr_status === "failed") return { text: t("OCR failed"), cls: "err" };
+    if (monthJumpIds.has(r.id)) return { text: t("Wrong month?"), cls: "err" };
+    if (duplicateIds.has(r.id) && r.duplicate_acknowledged !== 1) return { text: t("Duplicate?"), cls: "warn" };
+    if (failedIds.has(r.id)) return { text: t("No amount"), cls: "warn" };
+    if (unconvertibleIds.has(r.id)) return { text: t("Can't convert"), cls: "warn" };
+    if (overLimitIds.has(r.id)) return { text: t("Over limit"), cls: "warn" };
+    if (mismatchIds.has(r.id)) return { text: t("Edited vs OCR"), cls: "warn" };
+    if (dayGapIds.has(r.id)) return { text: t("Late photo"), cls: "warn" };
+    return null;
+  }
+
   /** Tooltip text for the ⚠ marker beside a flagged date. */
   function dateWarningTitle(r: Receipt): string | null {
     const m = dateMismatches.get(r.id);
@@ -548,6 +564,13 @@ export default function Dashboard() {
     }));
   }, [sortedReceipts, grouped]);
 
+  // The month the next report is for: the newest month with receipts in view.
+  const readyMonth = useMemo(() => {
+    const first = (sortedReceipts ?? []).find((r) => r.receipt_date);
+    const iso = first?.receipt_date ?? isoFromMs(Date.now());
+    return formatMonth(iso).replace(/ \d{4}$/, "");
+  }, [sortedReceipts]);
+
   // Per-currency totals of everything in view, for the strip above the list.
   const viewTotals = useMemo(() => currencyTotals(sortedReceipts ?? []), [sortedReceipts]);
 
@@ -555,11 +578,7 @@ export default function Dashboard() {
     return (
               <tr key={r.id} className={
                 (selected.has(r.id) ? "selected " : "") +
-                (failedIds.has(r.id) ? "row-failed " : "") +
-                ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? "row-duplicate " : "") +
-                (overLimitIds.has(r.id) ? "row-overlimit " : "") +
-                (monthJumpIds.has(r.id) ? "row-monthjump " : "") +
-                (dayGapIds.has(r.id) ? "row-daygap " : "")
+                (statusTag(r)?.cls === "err" ? "edge-err" : statusTag(r)?.cls === "warn" ? "edge-warn" : "")
               }>
                 <td className="col-check">
                   <input
@@ -592,15 +611,13 @@ export default function Dashboard() {
                   )}
                 </td>
                 <td className="cell-vendor">{r.vendor ?? "—"}</td>
-                <td className="cell-desc">
-                  {(pillFilter === "issues" || pillFilter === "datecheck") && issueReason(r) && (
-                    <span className="issue-chip">{issueReason(r)}</span>
-                  )}
-                  {r.notes ?? ""}
-                </td>
-                <td className="cell-amt"><Amount amount={r.amount} currency={r.currency} /></td>
+                <td className="cell-desc" title={issueReason(r) ?? undefined}>{r.notes ?? ""}</td>
                 <td>{r.category ?? ""}</td>
                 <td><CompanyChip name={r.company} /></td>
+                <td className="cell-status">
+                  {(() => { const st = statusTag(r); return st ? <span className={"tag " + st.cls} title={issueReason(r) ?? undefined}>{st.text}</span> : null; })()}
+                </td>
+                <td className="cell-amt"><Amount amount={r.amount} currency={r.currency} /></td>
                 <td className="cell-open">
                   <button
                     type="button"
@@ -617,12 +634,7 @@ export default function Dashboard() {
             <li
               key={r.id}
               className={
-                (r.company ? "cat" : "uncat") +
-                (failedIds.has(r.id) ? " row-failed" : "") +
-                ((duplicateIds.has(r.id) || mismatchIds.has(r.id)) ? " row-duplicate" : "") +
-                (overLimitIds.has(r.id) ? " row-overlimit" : "") +
-                (monthJumpIds.has(r.id) ? " row-monthjump" : "") +
-                (dayGapIds.has(r.id) ? " row-daygap" : "")
+                statusTag(r)?.cls === "err" ? "edge-err" : statusTag(r)?.cls === "warn" || !r.company ? "edge-warn" : ""
               }
             >
               <Link to={`/receipt/${r.id}`} className="receipt-link">
@@ -653,20 +665,16 @@ export default function Dashboard() {
                         </span>
                       )}
                     </span>
-                    <span className="pills">
-                      {r.category && <span className="pill cat-pill">{r.category}</span>}
-                      <CompanyChip name={r.company} />
-                    </span>
+                    {(() => { const st = statusTag(r); return st ? <span className={"tag " + st.cls} title={issueReason(r) ?? undefined}>{st.text}</span> : null; })()}
+                  </div>
+                  <div className="row2b">
+                    {r.category && <span className="card-cat">{r.category}</span>}
+                    <CompanyChip name={r.company} />
                   </div>
                   {(() => {
                     const att = parseAttendees(r.attendees);
                     return att.length > 0 ? <div className="row3">with {att.join(", ")}</div> : null;
                   })()}
-                  {r.ocr_status === "pending" && <span className="badge">{t("Reading…")}</span>}
-                  {r.ocr_status === "failed" && <span className="badge warn">OCR failed</span>}
-                  {(pillFilter === "issues" || pillFilter === "datecheck") && issueReason(r) && r.ocr_status !== "failed" && (
-                    <span className="badge warn">{issueReason(r)}</span>
-                  )}
                 </div>
               </Link>
             </li>
@@ -709,6 +717,21 @@ export default function Dashboard() {
       </header>
 
       {err && <div className="err">{err}</div>}
+
+      {pillFilter === "all" && (issuesCount > 0 || uncatCount > 0) && (
+        <div className="ready-card">
+          <div className="ready-text">
+            <b>{t("Before you send")} {readyMonth}{t("'s reports")}:</b>{" "}
+            {issuesCount > 0 && <><span className="mono">{issuesCount}</span> {issuesCount === 1 ? t("receipt needs a look") : t("receipts need a look")}</>}
+            {issuesCount > 0 && uncatCount > 0 && ` ${t("and")} `}
+            {uncatCount > 0 && <><span className="mono">{uncatCount}</span> {uncatCount === 1 ? t("has no company yet") : t("have no company yet")}</>}.
+          </div>
+          <div className="ready-actions">
+            {issuesCount > 0 && <button type="button" className="ghost-btn" onClick={() => setPillFilter("issues")}>{t("Resolve")} <span className="mono">{issuesCount}</span></button>}
+            {uncatCount > 0 && <button type="button" className="ghost-btn" onClick={() => setPillFilter("uncategorized")}>{t("Assign")} <span className="mono">{uncatCount}</span></button>}
+          </div>
+        </div>
+      )}
 
       <div className="dashboard-pills" data-tour="pills">
         <Pill
@@ -892,9 +915,10 @@ export default function Dashboard() {
               <ThHeader label={t("Date")}     sortKey="date"     curKey={sortKey} dir={sortDir} onClick={toggleSort} />
               <ThHeader label={t("Vendor")}   sortKey="vendor"   curKey={sortKey} dir={sortDir} onClick={toggleSort} />
               <th className="col-desc">{t("Description")}</th>
-              <ThHeader label={t("Amount")}   sortKey="amount"   curKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
               <ThHeader label={t("Category")} sortKey="category" curKey={sortKey} dir={sortDir} onClick={toggleSort} />
               <ThHeader label={t("Company")}  sortKey="company"  curKey={sortKey} dir={sortDir} onClick={toggleSort} />
+              <th>{t("Status")}</th>
+              <ThHeader label={t("Amount")}   sortKey="amount"   curKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
               <th />
             </tr>
           </thead>
@@ -903,7 +927,7 @@ export default function Dashboard() {
               <React.Fragment key={g.key}>
                 {g.label && (
                   <tr className="month-row">
-                    <td colSpan={9}>
+                    <td colSpan={10}>
                       <span className="month-label">{g.label}</span>
                       <span className="month-total mono">{g.totalText}</span>
                     </td>
