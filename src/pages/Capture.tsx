@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { captureTimeForFile } from "../lib/exifDate";
 import { t } from "../../shared/i18n";
-import { IconBack, IconFile, IconImage, IconOffline } from "../components/Icons";
+import { IconBack, IconCamera, IconFile, IconImage, IconOffline } from "../components/Icons";
 
 
 // Normalize images before upload (Tolu's bulk-upload incident, 2026-07-04):
@@ -171,16 +171,25 @@ export default function Capture() {
     navigate("/");
   }
 
+  const [copied, setCopied] = useState(false);
+  async function copyAddress() {
+    try {
+      await navigator.clipboard.writeText("receipts@esprey.net");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* no clipboard (old browser) — the address is still shown */ }
+  }
+
   const isPdf = !isMultiPage && files.length === 1 && files[0].type === "application/pdf";
   const isSingleImage = !isMultiPage && files.length === 1 && files[0].type.startsWith("image/");
   const isBulk = !isMultiPage && files.length > 1;
 
   return (
     <div className="page capture">
-      <header className="topbar">
-        <Link to="/" className="back"><IconBack className="icon-sm" />{t("Back")}</Link>
-        <h1>{t("Capture receipt")}</h1>
-        <span />
+      <header className="topbar page-head">
+        <Link to="/" className="back icon-link" aria-label={t("Back")}><IconBack /></Link>
+        <h1>{files.length === 0 ? t("Capture") : isMultiPage ? `${t("Page")} ${files.length}` : t("Check the photo")}</h1>
+        {files.length > 0 && !isMultiPage && !isBulk && !isPdf ? <span className="mono page-count">{t("Page")} 1</span> : <span />}
       </header>
 
       {err && <div className="err">{err}</div>}
@@ -214,22 +223,38 @@ export default function Capture() {
       />
 
       {files.length === 0 ? (
-        <div className="capture-cta">
-          <p>{t("Snap a photo of your receipt — Claude will read it.")}</p>
-          <button className="primary-btn big" onClick={startCamera}>
-            {t("Open camera")}
-          </button>
-          <button className="ghost-btn" onClick={startLibraryPicker}>
-            {t("Pick photo(s) or PDF from files")}
-          </button>
-          <div className="capture-tip">
-            <strong>{t("Multi-page invoice?")}</strong> {t("Open camera, take the first page, then tap \"+ Add another page\" on the preview to keep going. All pages are combined into one PDF receipt.")}
-            <br /><br />
-            <strong>{t("Bulk upload tip:")}</strong> {t("in the file picker, tap-and-hold on iPhone or Cmd-click on Mac to select multiple files at once. Each becomes its own receipt.")}
-            <br /><br />
-            {t("No signal? Use your Camera app and email to")}{" "}
-            <code>receipts@esprey.net</code>.
+        <div className="capture-start">
+          <div className="capture-cta">
+            <IconCamera className="capture-hero" />
+            <p>{t("Snap a photo of your receipt — Claude will read it.")}</p>
+            <button className="primary-btn big full" onClick={startCamera}>
+              <IconCamera className="icon" />{t("Open camera")}
+            </button>
+            <button className="ghost-btn full capture-pick" onClick={startLibraryPicker}>
+              <IconImage className="icon-sm" />{t("Pick photo(s) or PDF from files")}
+            </button>
           </div>
+
+          <ul className="tips">
+            <li>
+              <IconFile className="tip-icon" />
+              <div><b>{t("Multi-page invoice?")}</b> {t("Take the first page, then tap “+ Add page” to keep going. All pages become one PDF receipt.")}</div>
+            </li>
+            <li>
+              <IconImage className="tip-icon" />
+              <div><b>{t("Several receipts at once?")}</b> {t("In the file picker, select several files. Each becomes its own receipt.")}</div>
+            </li>
+            <li>
+              <IconOffline className="tip-icon" />
+              <div>
+                <b>{t("No signal?")}</b> {t("Take the photo with your camera app and email it here. Your outbox sends it when you're back online.")}
+                <div className="tip-copy">
+                  <span className="mono tip-address">receipts@esprey.net</span>
+                  <button type="button" className="ghost-btn quiet small" onClick={copyAddress}>{copied ? t("Copied") : t("Copy")}</button>
+                </div>
+              </div>
+            </li>
+          </ul>
         </div>
       ) : (
         <div className="capture-preview">
@@ -284,11 +309,14 @@ export default function Capture() {
               </div>
             </div>
           ) : previewUrl ? (
-            <img src={previewUrl} alt="preview" />
+            <div className="photo-stage"><img src={previewUrl} alt="preview" /></div>
           ) : (
             <div className="empty">{t("No preview available.")}</div>
           )}
 
+          {!uploading && !isBulk && (
+            <p className="capture-note">{t("After Save, Claude reads it in about 5–10 seconds and opens the receipt.")}</p>
+          )}
           <div className="capture-actions">
             <button
               className="ghost-btn"
@@ -310,7 +338,7 @@ export default function Capture() {
                 onClick={startAddPage}
                 disabled={uploading}
               >
-                + Add another page
+                + {t("Add page")}
               </button>
             )}
 

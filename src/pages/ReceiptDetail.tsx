@@ -9,7 +9,7 @@ import CurrencyPicker, { type Currency } from "../components/CurrencyPicker";
 import { billFromTotal, minorToAmount, toMinor, totalWithTipPct } from "../../shared/money";
 import { t } from "../../shared/i18n";
 import { dateMismatch, suggestCorrectedDate, captureInfo } from "../../shared/captureDate";
-import { IconBack, IconMail, IconPencil, IconRefresh, IconWarning } from "../components/Icons";
+import { IconBack, IconMail, IconPencil, IconRefresh, IconRotate, IconTrash } from "../components/Icons";
 
 export default function ReceiptDetail() {
   const { id = "" } = useParams();
@@ -201,14 +201,16 @@ export default function ReceiptDetail() {
 
   return (
     <div className="page detail">
-      <header className="topbar">
-        <Link to="/" className="back"><IconBack className="icon-sm" />{t("Back")}</Link>
+      <header className="topbar page-head">
+        <Link to="/" className="back icon-link" aria-label={t("Back")}><IconBack /></Link>
         <h1>{t("Receipt")}</h1>
-        <button className="danger-btn" onClick={remove}>{t("Delete")}</button>
+        <button type="button" className="icon-link delete-link" aria-label={t("Delete")} title={t("Delete")} onClick={remove}><IconTrash /></button>
       </header>
 
       {err && <div className="err">{err}</div>}
 
+      {/* Everything that needs a look, in one card. Red edge if anything is wrong. */}
+      <div className="warn-stack">
       <DateMismatchBanner
         receipt={receipt}
         liveDate={receiptDate}
@@ -280,13 +282,14 @@ export default function ReceiptDetail() {
           }
         }}
       />
+      </div>
 
       <div className="detail-grid">
         <div className="detail-image">
           {receipt.source === "manual" ? (
             <ManualPlaceholder />
           ) : isImageReceipt(receipt) ? (
-            <div className="receipt-image-wrap">
+            <div className="receipt-image-wrap photo-strip">
               <img
                 src={imageUrl(id)}
                 alt="receipt"
@@ -303,18 +306,29 @@ export default function ReceiptDetail() {
           ) : (
             <EmailBodyView id={id} />
           )}
-          <div className="receipt-image-controls">
-            <small>Uploaded {formatDate(receipt.uploaded_at)} · OCR: {receipt.ocr_status}</small>
-            {isImageReceipt(receipt) && (
+          {isImageReceipt(receipt) && (
+            <div className="photo-tools">
+              <a className="photo-tool" href={imageUrl(id)} target="_blank" rel="noopener">{t("View full size")}</a>
               <button
                 type="button"
-                className="ghost-btn small"
+                className="photo-tool"
                 title="Rotate 90° (click again to keep rotating)"
                 onClick={() => setRotation((r) => (r + 90) % 360)}
               >
-                ⟳ Rotate
+                <IconRotate className="icon-sm" /> {t("Rotate")}
               </button>
-            )}
+            </div>
+          )}
+          <div className="photo-caption">
+            <span>{receipt.captured_at ? t("Photographed") : t("Uploaded")}</span>
+            <span className="mono">{formatDate(receipt.captured_at ?? receipt.uploaded_at)}</span>
+            <span>·</span>
+            <span>
+              {receipt.ocr_status === "success" ? t("Read by Claude")
+                : receipt.ocr_status === "pending" ? t("Reading…")
+                : receipt.ocr_status === "failed" ? t("OCR failed")
+                : t("Entered by hand")}
+            </span>
           </div>
         </div>
 
@@ -375,34 +389,37 @@ export default function ReceiptDetail() {
           {categoryTriggersTip(category) && (
             <div className="field">
               <span className="label">{t("Tip")}</span>
-              <select
-                className="picker-select"
-                value={tipMode === "custom" ? "custom" : String(tipPct)}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === "custom") {
-                    setTipMode("custom");
-                    // Seed custom input with the current % tip value if any.
-                    if (!tipCustomAmount) {
-                      const billM = toMinor(amount);
-                      if (billM !== null && billM > 0 && tipPct > 0) {
-                        setTipCustomAmount(minorToAmount(Math.round((billM * tipPct) / 100)));
-                      }
-                    }
-                  } else {
-                    setTipMode("pct");
-                    setTipPct(normalizeTipPct(parseInt(v, 10)));
-                    setTipCustomAmount("");
-                  }
-                }}
-              >
-                <option value="0">{t("No tip")}</option>
-                <option value="5">5%</option>
-                <option value="10">10%</option>
-                <option value="15">15%</option>
-                <option value="20">20%</option>
-                <option value="custom">{t("Custom amount…")}</option>
-              </select>
+              <div className="seg-row" role="radiogroup" aria-label={t("Tip")}>
+                {(["0", "5", "10", "15", "20", "custom"] as const).map((v) => {
+                  const active = v === "custom" ? tipMode === "custom" : tipMode === "pct" && String(tipPct) === v;
+                  const label = v === "0" ? t("No tip") : v === "custom" ? t("Custom…") : `${v}%`;
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      className={"seg" + (v !== "0" && v !== "custom" ? " mono" : "") + (active ? " is-active" : "")}
+                      onClick={() => {
+                        if (v === "custom") {
+                          setTipMode("custom");
+                          // Seed custom input with the current % tip value if any.
+                          if (!tipCustomAmount) {
+                            const billM = toMinor(amount);
+                            if (billM !== null && billM > 0 && tipPct > 0) {
+                              setTipCustomAmount(minorToAmount(Math.round((billM * tipPct) / 100)));
+                            }
+                          }
+                        } else {
+                          setTipMode("pct");
+                          setTipPct(normalizeTipPct(parseInt(v, 10)));
+                          setTipCustomAmount("");
+                        }
+                      }}
+                    >{label}</button>
+                  );
+                })}
+              </div>
 
               {tipMode === "custom" && (
                 <div style={{ marginTop: 6 }}>
@@ -443,7 +460,7 @@ export default function ReceiptDetail() {
                   <div className="tip-breakdown" style={{ marginTop: 6 }}>
                     <div><span>{t("Bill (from receipt):")}</span> <strong>{minorToAmount(billM)}</strong></div>
                     <div><span>{tipLabel}:</span> <strong>{minorToAmount(tipM)}</strong></div>
-                    <div className="tip-total"><span>{t("Total (saved to report):")}</span> <strong>{minorToAmount(totalM)}</strong></div>
+                    <div className="tip-total"><span>{t("Total (saved to report):")}</span> <strong>{currency ? <span className="cur-code">{currency.toUpperCase()}</span> : null}{minorToAmount(totalM)}</strong></div>
                   </div>
                 );
               })()}
@@ -465,10 +482,13 @@ export default function ReceiptDetail() {
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} />
           </label>
 
-          <button className="primary-btn full" onClick={save} disabled={saving}>
-            {saving ? t("Saving…") : t("Save & close")}
-          </button>
         </div>
+      </div>
+
+      <div className="save-bar">
+        <button className="primary-btn big full" onClick={save} disabled={saving}>
+          {saving ? t("Saving…") : t("Save & close")}
+        </button>
       </div>
     </div>
   );
@@ -588,7 +608,7 @@ function OcrMismatchBanner({
 
   return (
     <div className="ocr-mismatch">
-      <div className="ocr-mismatch-title">{t("OCR vs your edits — please review")}</div>
+      <div className="ocr-mismatch-title"><span className="tag warn">{t("Edited vs OCR")}</span> {t("OCR vs your edits — please review")}</div>
       <table className="ocr-mismatch-table">
         <thead>
           <tr><th></th><th>{t("OCR extracted")}</th><th>{t("You entered")}</th></tr>
@@ -688,7 +708,7 @@ function DateMismatchBanner({
       className={"ocr-mismatch" + (isMonth ? " is-err" : "")}
     >
       <div className="ocr-mismatch-title">
-        <IconWarning className="icon-sm" />{" "}
+        <span className={"tag " + (isMonth ? "err" : "warn")}>{isMonth ? t("Wrong month?") : t("Late photo")}</span>{" "}
         {isMonth
           ? (m.backdated
               ? t("This receipt is dated in an earlier month than its photo")
@@ -800,7 +820,7 @@ function IssuesBanner({
 
   return (
     <div className="ocr-mismatch">
-      <div className="ocr-mismatch-title">{t("Why this receipt is flagged")}</div>
+      <div className="ocr-mismatch-title"><span className="tag warn">{t("Needs a look")}</span> {t("Why this receipt is flagged")}</div>
       <ul style={{ margin: "6px 0 0", paddingLeft: "1.2em" }}>
         {ocrFailed && (
           <li>
@@ -869,9 +889,9 @@ function OverLimitBanner({
 
   return (
     <div className="ocr-mismatch">
-      <div className="ocr-mismatch-title">{t("Over the spending limit")} — {receipt.category}</div>
-      <div style={{ marginTop: 6 }}>
-        {t("This receipt is")} {cur}{minorToAmount(amtM)} — {t("over the")} {cur}{minorToAmount(limM)} {t("limit for")} {receipt.category}.
+      <div className="ocr-mismatch-title"><span className="tag warn">{t("Over limit")}</span> <span className="muted">{receipt.category}</span></div>
+      <div className="warn-body">
+        {t("This receipt is")} <span className="mono"><b>{cur}{minorToAmount(amtM)}</b></span>, {t("over the")} <span className="mono"><b>{minorToAmount(limM)}</b></span> {t("limit for")} {receipt.category}.
       </div>
       <div className="ocr-mismatch-actions" style={{ marginTop: 8 }}>
         <button type="button" className="ghost-btn small" onClick={onAcknowledge}>
