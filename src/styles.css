@@ -147,16 +147,35 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   .is-thinking .ask-mark, .ask-mark.is-thinking { animation: none; opacity: 0.7; }
 }
 
-/* Phone action bar: Ask · Manual · Capture, pinned to the bottom */
-.action-bar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
-  display: flex; gap: 10px; align-items: center;
-  background: var(--card); border-top: 1px solid var(--line);
-  padding: 10px 16px;
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
+/* Ask pill in the header (phone) */
+.ask-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 0 12px 0 6px; margin-left: 2px;
+  border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: var(--card);
+  font: inherit; font-size: 14px; font-weight: 700; color: var(--ink); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.action-bar .ghost-btn { flex: 1; min-height: 52px; border-radius: 14px; font-size: 15px; }
-.action-bar .primary-btn { flex: 1.6; min-height: 52px; border-radius: 14px; font-size: 16px; }
+.ask-pill:active { background: var(--surface-1); }
+
+/* Phone: the "+" button and its Capture / Manual sheet */
+.fab {
+  position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 60;
+  width: 60px; height: 60px; border-radius: 30px; border: 0;
+  background: var(--accent); color: var(--accent-ink); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 24px rgba(27,27,31,0.22);
+  transition: transform 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.fab svg { width: 28px; height: 28px; stroke-width: 2.2; transition: transform 0.18s ease; }
+.fab.is-open svg { transform: rotate(45deg); }
+.sheet-backdrop { position: fixed; inset: 0; z-index: 58; background: rgba(27,27,31,0.28); }
+.add-sheet {
+  position: fixed; right: 16px; bottom: calc(88px + env(safe-area-inset-bottom)); z-index: 59;
+  display: flex; flex-direction: column; gap: 10px; width: min(260px, calc(100vw - 32px));
+}
+.add-sheet .primary-btn, .add-sheet .ghost-btn { justify-content: flex-start; padding: 0 18px; box-shadow: 0 8px 24px rgba(27,27,31,0.18); }
+.add-sheet .ghost-btn.big { min-height: 52px; font-size: 16px; border-radius: var(--r-lg); background: var(--card); }
 .ask-title { display: inline-flex; align-items: center; gap: 8px; }
 .topbar .back {
   display: inline-flex; align-items: center; gap: 4px;
@@ -279,12 +298,18 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 
 /* Totals strip above the list, and month groups */
 .totals-strip {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 10px 12px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 8px 12px; margin-bottom: 8px; min-height: 40px;
   border-radius: var(--r-md); background: var(--surface-2);
+  font-size: 13px; color: var(--muted);
 }
-.totals-caption { font-size: 12px; color: var(--muted); }
-.totals-amounts { font-size: 15px; font-weight: 600; display: flex; gap: 14px; flex-wrap: wrap; }
+.totals-count { white-space: nowrap; }
+.totals-count .mono { color: var(--ink); font-weight: 600; }
+.totals-amount { font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.totals-more {
+  background: none; border: 0; padding: 0; font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--ink); text-decoration: underline; cursor: pointer; min-height: 24px;
+}
 .totals-note { font-size: 12px; color: var(--warn); }
 .receipt-groups { display: flex; flex-direction: column; gap: 4px; }
 .month-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 14px 2px 8px; }
@@ -298,10 +323,8 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .receipts-table tr.month-row .month-label { font-size: 14px; }
 .receipts-table tr.month-row .month-total { float: right; font-size: 13px; }
 @media (min-width: 900px) {
-  .totals-strip { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 16px; padding: 12px 18px; border-radius: 14px; }
-  .totals-caption { font-size: 14px; color: var(--ink-2); flex-grow: 1; }
-  .totals-amounts { font-size: 16px; gap: 20px; }
-  .totals-note { width: 100%; font-size: 13px; }
+  .totals-strip { gap: 18px; padding: 10px 18px; border-radius: 14px; font-size: 14px; }
+  .totals-amount { font-size: 15px; }
 }
 
 /* Empty / hint / error */
@@ -1224,11 +1247,11 @@ a { color: var(--ink); }
   .date-popover { width: min(280px, calc(100vw - 40px)); right: -8px; }
 
   /* Floating Smart AI button: keep it clear of list content and thumbs. */
-  .page { padding-bottom: 96px; }
+  .page { padding-bottom: 100px; }
   .smart-ai-panel {
-    right: 8px; left: 8px; bottom: calc(80px + env(safe-area-inset-bottom));
+    right: 8px; left: 8px; bottom: calc(8px + env(safe-area-inset-bottom));
     width: auto;
-    height: min(66dvh, 560px);
+    height: min(72dvh, 600px);
   }
 
   /* Pills: three across without wrapping, slightly tighter. */

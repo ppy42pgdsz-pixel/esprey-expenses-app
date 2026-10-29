@@ -10,7 +10,7 @@ import { t } from "../../shared/i18n";
 import { dateMismatch, describeMismatch, isoFromMs, type DateMismatch } from "../../shared/captureDate";
 import ConciergeChat from "../components/ConciergeChat";
 import Tour, { dashboardTourSteps } from "../components/Tour";
-import { BrandMark, IconCamera, IconClose, IconDocument, IconForward, IconHelp, IconMail, IconPencil, IconSettings, IconWarning } from "../components/Icons";
+import { BrandMark, IconCamera, IconClose, IconDocument, IconForward, IconHelp, IconMail, IconPencil, IconPlus, IconSettings, IconWarning } from "../components/Icons";
 
 type SortKey = "date" | "vendor" | "amount" | "currency" | "category" | "company";
 type SortDir = "asc" | "desc";
@@ -145,6 +145,8 @@ export default function Dashboard() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [askOpen, setAskOpen] = useState(false);   // the "Ask" (Concierge) panel
+  const [addOpen, setAddOpen] = useState(false);   // phone "+" sheet: Capture / Manual
+  const [totalsOpen, setTotalsOpen] = useState(false); // show every currency in the totals line
   const [askBusy, setAskBusy] = useState(false);   // Claude is thinking — the mark breathes
   const [initials, setInitials] = useState("");    // avatar in the header
 
@@ -708,6 +710,9 @@ export default function Dashboard() {
             <>
               <Link to="/reports" className="icon-link" aria-label={t("Reports")} data-tour="reports"><IconDocument /></Link>
               <Link to="/instructions" className="icon-link" aria-label={t("Help & FAQ")} data-tour="help"><IconHelp /></Link>
+              <button type="button" className={"ask-pill" + (askBusy ? " is-thinking" : "")} data-tour="smartai" onClick={() => setAskOpen((o) => !o)} aria-expanded={askOpen}>
+                <BrandMark size={20} className="ask-mark" />{t("Ask")}
+              </button>
             </>
           )}
           <Link to="/settings" className="avatar-link" aria-label={t("Settings")}>
@@ -872,20 +877,19 @@ export default function Dashboard() {
 
       {sortedReceipts && sortedReceipts.length > 0 && (
         <div className="totals-strip">
-          <div className="totals-caption">
-            {t("Total of")} <span className="mono">{sortedReceipts.length}</span> {t("receipts in view · one line per currency")}
-          </div>
-          <div className="totals-amounts mono">
-            {viewTotals.lines.map((l) => (
-              <span key={l.code}><span className="cur-code">{l.code || "—"}</span>{l.text}</span>
-            ))}
-          </div>
+          <span className="totals-count"><span className="mono">{sortedReceipts.length}</span> {sortedReceipts.length === 1 ? t("receipt") : t("receipts")}</span>
+          {(totalsOpen ? viewTotals.lines : viewTotals.lines.slice(0, 2)).map((l) => (
+            <span key={l.code} className="mono totals-amount"><span className="cur-code">{l.code || "—"}</span>{l.text}</span>
+          ))}
+          {viewTotals.lines.length > 2 && (
+            <button type="button" className="totals-more" onClick={() => setTotalsOpen((o) => !o)} aria-expanded={totalsOpen}>
+              {totalsOpen ? t("less") : `+${viewTotals.lines.length - 2} ${t("more")}`}
+            </button>
+          )}
           {viewTotals.missing > 0 && (
-            <div className="totals-note">
-              {viewTotals.missing === 1
-                ? t("1 receipt has no amount and is not counted.")
-                : `${viewTotals.missing} ${t("receipts have no amount and are not counted.")}`}
-            </div>
+            <span className="totals-note" title={viewTotals.missing === 1 ? t("1 receipt has no amount and is not counted.") : `${viewTotals.missing} ${t("receipts have no amount and are not counted.")}`}>
+              {viewTotals.missing} {t("without amount")}
+            </span>
           )}
         </div>
       )}
@@ -965,15 +969,27 @@ export default function Dashboard() {
 
       {showTour && <Tour steps={dashboardTourSteps()} onClose={closeTour} />}
 
-      {/* Phone action bar: Ask · Manual · Capture */}
+      {/* Phone: one "+" button; it opens Capture / Manual */}
       {!isWide && (
-        <div className="action-bar">
-          <button type="button" className={"ask-btn ask-btn-square" + (askBusy ? " is-thinking" : "")} data-tour="smartai" aria-label={t("Ask")} aria-expanded={askOpen} onClick={() => setAskOpen((o) => !o)}>
-            <BrandMark size={24} className="ask-mark" />
+        <>
+          {addOpen && <div className="sheet-backdrop" onClick={() => setAddOpen(false)} />}
+          {addOpen && (
+            <div className="add-sheet" role="menu">
+              <Link to="/capture" className="primary-btn big" role="menuitem"><IconCamera className="icon" />{t("Capture")}</Link>
+              <Link to="/capture-manual" className="ghost-btn big" role="menuitem"><IconPencil className="icon" />{t("Manual")}</Link>
+            </div>
+          )}
+          <button
+            type="button"
+            className={"fab" + (addOpen ? " is-open" : "")}
+            data-tour="capture"
+            aria-label={t("Add a receipt")}
+            aria-expanded={addOpen}
+            onClick={() => setAddOpen((o) => !o)}
+          >
+            <IconPlus />
           </button>
-          <Link to="/capture-manual" className="ghost-btn"><IconPencil className="icon-sm" />{t("Manual")}</Link>
-          <Link to="/capture" className="primary-btn" data-tour="capture"><IconCamera className="icon-sm" />{t("Capture")}</Link>
-        </div>
+        </>
       )}
 
       {/* The Ask (Concierge) panel */}
@@ -1239,15 +1255,18 @@ function initialsOf(name: string | null | undefined, email: string | null | unde
 /** Sum a list per currency: [{code, text}] plus how many had no amount. */
 function currencyTotals(list: Receipt[]): { lines: Array<{ code: string; text: string }>; missing: number } {
   const sums = new Map<string, number>();
+  const counts = new Map<string, number>();
   let missing = 0;
   for (const r of list) {
     const m = toMinor(r.amount);
     if (m === null) { if (r.ocr_status !== "pending") missing++; continue; }
     const code = (r.currency ?? "").toUpperCase();
     sums.set(code, (sums.get(code) ?? 0) + m);
+    counts.set(code, (counts.get(code) ?? 0) + 1);
   }
+  // Most-used currency first, so the one line people see is the one that matters.
   const lines = Array.from(sums.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .sort((a, b) => (counts.get(b[0])! - counts.get(a[0])!) || a[0].localeCompare(b[0]))
     .map(([code, m]) => ({ code, text: formatNumber(minorToAmount(m), code) }));
   return { lines, missing };
 }

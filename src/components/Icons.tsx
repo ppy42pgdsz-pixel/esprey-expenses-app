@@ -139,6 +139,11 @@ export const IconSub = (p: IconProps) => (
   <Svg {...p}><path d="M6 4v8a2 2 0 0 0 2 2h10" /><path d="M14 10l4 4-4 4" /></Svg>
 );
 
+/** Plus. */
+export const IconPlus = (p: IconProps) => (
+  <Svg {...p}><path d="M12 5v14M5 12h14" /></Svg>
+);
+
 /** Esprey Expenses mark: yellow tile with the stack of receipts. */
 export function BrandMark({ size = 28, className }: { size?: number; className?: string }) {
   return (
