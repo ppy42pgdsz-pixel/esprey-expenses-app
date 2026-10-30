@@ -383,6 +383,8 @@ export default function Dashboard() {
     return anchors;
   }, [receipts, duplicateGroupKey]);
 
+  const filtersActive = pillFilter !== "all" || companyFilter !== "all" || datePreset !== "all";
+
   const sortedReceipts = useMemo(() => {
     if (!scopedReceipts) return null;
     // Date-check deliberately works off the UNSCOPED list: a receipt that
@@ -896,7 +898,10 @@ export default function Dashboard() {
         </div>
       )}
 
-      {sortedReceipts && sortedReceipts.length > 0 && (
+      {/* The totals line only earns its place when a filter is on: unfiltered,
+          it is a lifetime sum nobody acts on, and the month headers already
+          carry their own totals. Filtered, it is the number for that slice. */}
+      {sortedReceipts && sortedReceipts.length > 0 && filtersActive && (
         <div className="totals-strip">
           <span className="totals-count"><span className="mono">{sortedReceipts.length}</span> {sortedReceipts.length === 1 ? t("receipt") : t("receipts")}</span>
           {(totalsOpen ? viewTotals.lines : viewTotals.lines.slice(0, 2)).map((l) => (
