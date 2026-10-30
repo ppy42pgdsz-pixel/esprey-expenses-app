@@ -1,12 +1,27 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, formatDate } from "../lib/api";
 import type { Person, Receipt } from "../lib/types";
 import { t } from "../../shared/i18n";
 import { IconBack, IconStar } from "../components/Icons";
 
+type Tab = "profile" | "companies" | "people" | "categories" | "currencies" | "team" | "trash";
+const TABS: Array<{ id: Tab; label: string; admin?: boolean }> = [
+  { id: "profile", label: "My profile" },
+  { id: "companies", label: "Companies" },
+  { id: "people", label: "People" },
+  { id: "categories", label: "Categories" },
+  { id: "currencies", label: "Currencies" },
+  { id: "team", label: "Team", admin: true },
+  { id: "trash", label: "Trash" },
+];
+
 export default function Settings() {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const wanted = params.get("tab") as Tab | null;
+  const tab: Tab = wanted && TABS.some((x) => x.id === wanted) ? wanted : "profile";
+  function pick(id: Tab) { setParams(id === "profile" ? {} : { tab: id }, { replace: true }); }
   useEffect(() => {
     (async () => {
       try {
@@ -25,14 +40,20 @@ export default function Settings() {
         <h1>{t("Settings")}</h1>
         <span />
       </header>
-      <UserSection />
-      {isAdmin && <TeamSection />}
-      <HelpSection />
-      <CompaniesSection isAdmin={isAdmin} />
-      <PeopleSection />
-      <CategoriesSection isAdmin={isAdmin} />
-      <CurrenciesSection isAdmin={isAdmin} />
-      <TrashSection />
+      <div className="dashboard-pills settings-tabs" role="tablist">
+        {TABS.filter((x) => !x.admin || isAdmin).map((x) => (
+          <button key={x.id} type="button" role="tab" aria-selected={tab === x.id} className={"dashboard-pill" + (tab === x.id ? " is-active" : "")} onClick={() => pick(x.id)}>
+            {t(x.label)}
+          </button>
+        ))}
+      </div>
+      {tab === "profile" && <><UserSection /><HelpSection /></>}
+      {tab === "team" && isAdmin && <TeamSection />}
+      {tab === "companies" && <CompaniesSection isAdmin={isAdmin} />}
+      {tab === "people" && <PeopleSection />}
+      {tab === "categories" && <CategoriesSection isAdmin={isAdmin} />}
+      {tab === "currencies" && <CurrenciesSection isAdmin={isAdmin} />}
+      {tab === "trash" && <TrashSection />}
     </div>
   );
 }

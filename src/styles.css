@@ -128,6 +128,36 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   .avatar { width: 36px; height: 36px; border-radius: 18px; }
 }
 
+/* Avatar menu */
+.avatar-wrap { position: relative; }
+.avatar-link { background: none; border: 0; padding: 0; cursor: pointer; }
+.menu-backdrop { position: fixed; inset: 0; z-index: 70; }
+.avatar-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 71;
+  width: min(300px, calc(100vw - 24px));
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg);
+  box-shadow: 0 16px 40px rgba(27,27,31,0.18); padding: 6px; display: flex; flex-direction: column;
+}
+.avatar-menu-head { display: flex; align-items: center; gap: 12px; padding: 10px 10px 12px; border-bottom: 1px solid var(--line-soft); margin-bottom: 6px; }
+.avatar-menu-who { display: flex; flex-direction: column; min-width: 0; }
+.avatar-menu-who b { font-size: 15px; }
+.avatar-menu-who .mono { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avatar-menu-item {
+  display: flex; align-items: center; gap: 12px; min-height: var(--tap); padding: 0 10px;
+  border-radius: var(--r-md); color: var(--ink); text-decoration: none; font-size: 15px; font-weight: 600;
+}
+.avatar-menu-item:hover, .avatar-menu-item:active { background: var(--surface-1); }
+.avatar-menu-item.muted { color: var(--ink-2); font-weight: 500; }
+.avatar-menu-sep { height: 1px; background: var(--line-soft); margin: 6px 4px; }
+
+/* Settings tabs (same pills as the dashboard) */
+.settings-tabs { margin: 0 0 12px; }
+@media (max-width: 899px) {
+  .settings-tabs { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px 12px; padding: 2px 16px; scrollbar-width: none; }
+  .settings-tabs::-webkit-scrollbar { display: none; }
+  .settings-tabs .dashboard-pill { flex-shrink: 0; }
+}
+
 /* Ask: the assistant. Its icon is the mark, which breathes while Claude thinks. */
 .ask-btn { gap: 8px; }
 .ask-mark { border-radius: 22%; display: block; flex-shrink: 0; transform-origin: center; }
@@ -1295,8 +1325,8 @@ a { color: var(--ink); }
   .instructions-body, .detail-form { padding-bottom: 24px; }
 }
 
-/* Narrow phones: the header keeps the mark, the icons and Ask; the word goes. */
-@media (max-width: 400px) {
+/* Very narrow phones: the header keeps the mark, Ask and the avatar; the word goes. */
+@media (max-width: 340px) {
   .page.dashboard .app-header h1 { display: none; }
 }
 

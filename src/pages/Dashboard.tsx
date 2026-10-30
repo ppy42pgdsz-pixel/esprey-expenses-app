@@ -10,7 +10,7 @@ import { t } from "../../shared/i18n";
 import { dateMismatch, describeMismatch, isoFromMs, type DateMismatch } from "../../shared/captureDate";
 import ConciergeChat from "../components/ConciergeChat";
 import Tour, { dashboardTourSteps } from "../components/Tour";
-import { BrandMark, IconCamera, IconClose, IconDocument, IconForward, IconHelp, IconMail, IconPencil, IconPlus, IconRefresh, IconSettings, IconWarning } from "../components/Icons";
+import { BrandMark, IconCamera, IconClose, IconDocument, IconForward, IconHelp, IconMail, IconPencil, IconPlus, IconRefresh, IconSettings, IconTrash, IconWarning } from "../components/Icons";
 
 type SortKey = "date" | "vendor" | "amount" | "currency" | "category" | "company";
 type SortDir = "asc" | "desc";
@@ -149,6 +149,8 @@ export default function Dashboard() {
   const [totalsOpen, setTotalsOpen] = useState(false); // show every currency in the totals line
   const [askBusy, setAskBusy] = useState(false);   // Claude is thinking — the mark breathes
   const [initials, setInitials] = useState("");    // avatar in the header
+  const [me, setMe] = useState<{ name: string; email: string }>({ name: "", email: "" });
+  const [menuOpen, setMenuOpen] = useState(false); // the avatar menu
 
   // Guided tour (#48a). ?tour=1 (from Help & FAQ) must be read at mount,
   // because the URL-filter sync effect rewrites the query string.
@@ -159,6 +161,7 @@ export default function Dashboard() {
     api.getUserProfile()
       .then(({ profile }) => {
         setInitials(initialsOf(profile.name, profile.email));
+        setMe({ name: profile.name ?? "", email: profile.email ?? "" });
         if (showTour || tourSeenLocally) return; // explicit relaunch, or already seen
         if ((profile as any).tour_seen) {
           try { localStorage.setItem("esprey.tour.seen", "1"); } catch { /* ignore */ }
@@ -707,17 +710,35 @@ export default function Dashboard() {
               <Link to="/capture" className="primary-btn" data-tour="capture"><IconCamera className="icon-sm" />{t("Capture")}</Link>
             </>
           ) : (
-            <>
-              <Link to="/reports" className="icon-link" aria-label={t("Reports")} data-tour="reports"><IconDocument /></Link>
-              <Link to="/instructions" className="icon-link" aria-label={t("Help & FAQ")} data-tour="help"><IconHelp /></Link>
-              <button type="button" className={"ask-pill" + (askBusy ? " is-thinking" : "")} data-tour="smartai" onClick={() => setAskOpen((o) => !o)} aria-expanded={askOpen}>
-                <BrandMark size={20} className="ask-mark" />{t("Ask")}
-              </button>
-            </>
+            <button type="button" className={"ask-pill" + (askBusy ? " is-thinking" : "")} data-tour="smartai" onClick={() => setAskOpen((o) => !o)} aria-expanded={askOpen}>
+              <BrandMark size={20} className="ask-mark" />{t("Ask")}
+            </button>
           )}
-          <Link to="/settings" className="avatar-link" aria-label={t("Settings")}>
-            {initials ? <span className="avatar">{initials}</span> : <IconSettings />}
-          </Link>
+          <div className="avatar-wrap">
+            <button type="button" className="avatar-link" aria-label={t("Account menu")} aria-expanded={menuOpen} aria-haspopup="menu" onClick={() => setMenuOpen((o) => !o)} data-tour={isWide ? undefined : "help"}>
+              {initials ? <span className="avatar">{initials}</span> : <IconSettings />}
+            </button>
+            {menuOpen && (
+              <>
+                <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
+                <div className="avatar-menu" role="menu">
+                  <div className="avatar-menu-head">
+                    <span className="avatar">{initials || "?"}</span>
+                    <div className="avatar-menu-who">
+                      <b>{me.name || t("Your account")}</b>
+                      <span className="mono">{me.email}</span>
+                    </div>
+                  </div>
+                  <Link to="/reports" role="menuitem" className="avatar-menu-item" data-tour={isWide ? undefined : "reports"}><IconDocument className="icon" />{t("Monthly reports")}</Link>
+                  <Link to="/settings" role="menuitem" className="avatar-menu-item"><IconSettings className="icon" />{t("Settings")}</Link>
+                  <Link to="/instructions" role="menuitem" className="avatar-menu-item"><IconHelp className="icon" />{t("Help & FAQ")}</Link>
+                  <Link to="/settings?tab=trash" role="menuitem" className="avatar-menu-item"><IconTrash className="icon" />{t("Trash")}</Link>
+                  <div className="avatar-menu-sep" />
+                  <a href="/cdn-cgi/access/logout" role="menuitem" className="avatar-menu-item muted">{t("Sign out")}</a>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
