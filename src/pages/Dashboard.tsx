@@ -10,7 +10,7 @@ import { t } from "../../shared/i18n";
 import { dateMismatch, describeMismatch, isoFromMs, type DateMismatch } from "../../shared/captureDate";
 import ConciergeChat from "../components/ConciergeChat";
 import Tour, { dashboardTourSteps } from "../components/Tour";
-import { BrandMark, IconCamera, IconClose, IconDocument, IconForward, IconHelp, IconMail, IconPencil, IconPlus, IconSettings, IconWarning } from "../components/Icons";
+import { BrandMark, IconCamera, IconClose, IconDocument, IconForward, IconHelp, IconMail, IconPencil, IconPlus, IconRefresh, IconSettings, IconWarning } from "../components/Icons";
 
 type SortKey = "date" | "vendor" | "amount" | "currency" | "category" | "company";
 type SortDir = "asc" | "desc";
@@ -724,16 +724,16 @@ export default function Dashboard() {
       {err && <div className="err">{err}</div>}
 
       {pillFilter === "all" && (issuesCount > 0 || uncatCount > 0) && (
-        <div className="ready-card">
+        <div className={"ready-card" + (isWide ? "" : " compact")}>
           <div className="ready-text">
-            <b>{t("Before you send")} {readyMonth}{t("'s reports")}:</b>{" "}
+            {isWide && <><b>{t("Before you send")} {readyMonth}{t("'s reports")}:</b>{" "}</>}
             {issuesCount > 0 && <><span className="mono">{issuesCount}</span> {issuesCount === 1 ? t("receipt needs a look") : t("receipts need a look")}</>}
             {issuesCount > 0 && uncatCount > 0 && ` ${t("and")} `}
             {uncatCount > 0 && <><span className="mono">{uncatCount}</span> {uncatCount === 1 ? t("has no company yet") : t("have no company yet")}</>}.
           </div>
           <div className="ready-actions">
-            {issuesCount > 0 && <button type="button" className="ghost-btn" onClick={() => setPillFilter("issues")}>{t("Resolve")} <span className="mono">{issuesCount}</span></button>}
-            {uncatCount > 0 && <button type="button" className="ghost-btn" onClick={() => setPillFilter("uncategorized")}>{t("Assign")} <span className="mono">{uncatCount}</span></button>}
+            {issuesCount > 0 && <button type="button" className={isWide ? "ghost-btn" : "ready-link"} onClick={() => setPillFilter("issues")}>{t("Resolve")}{isWide && <> <span className="mono">{issuesCount}</span></>}</button>}
+            {uncatCount > 0 && <button type="button" className={isWide ? "ghost-btn" : "ready-link"} onClick={() => setPillFilter("uncategorized")}>{t("Assign")}{isWide && <> <span className="mono">{uncatCount}</span></>}</button>}
           </div>
         </div>
       )}
@@ -820,7 +820,7 @@ export default function Dashboard() {
             <IconClose className="icon-sm" /> {t("Clear filters")}
           </button>
         )}
-        <button className="ghost-btn" onClick={reload}>{t("Refresh")}</button>
+        <button className={isWide ? "ghost-btn" : "ghost-btn quiet icon-only"} onClick={reload} aria-label={t("Refresh")} title={t("Refresh")}>{isWide ? t("Refresh") : <IconRefresh className="icon" />}</button>
       </div>
 
       {dateBounds && (

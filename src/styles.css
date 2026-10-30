@@ -1225,7 +1225,7 @@ a { color: var(--ink); }
    mostly on phones — make everything fit and stay tappable at
    iPhone widths (~375-430px).
    ============================================================ */
-@media (max-width: 480px) {
+@media (max-width: 899px) {
   /* iOS Safari zooms into any input with font-size < 16px. Prevent that
      everywhere — it's the single biggest mobile-feel improvement. */
   input, select, textarea { font-size: 16px !important; }
@@ -1254,8 +1254,34 @@ a { color: var(--ink); }
     height: min(72dvh, 600px);
   }
 
-  /* Pills: three across without wrapping, slightly tighter. */
-  .dashboard-pills { gap: 6px; }
+  /* Keep the top of the dashboard short: the receipts are the point.
+     Pills on one sideways-scrolling row; filters on one row; the
+     readiness card is one line. */
+  .dashboard-pills {
+    gap: 6px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    margin: 0 -16px 8px; padding: 2px 16px; scrollbar-width: none;
+  }
+  .dashboard-pills::-webkit-scrollbar { display: none; }
+  .dashboard-pill { flex-shrink: 0; min-height: 36px; }
+  .toolbar { flex-wrap: nowrap; gap: 6px; margin-bottom: 8px; }
+  .toolbar .filter, .toolbar select.filter { flex: 1; min-width: 0; padding: 0 8px; font-size: 14px; }
+  .toolbar .date-filter { flex: 1; min-width: 0; }
+  .toolbar .date-filter select.filter { width: 100%; }
+  .toolbar .icon-only { flex: 0 0 40px; padding: 0; width: 40px; }
+  .toolbar .clear-filters { flex: 0 0 auto; padding: 0 8px; }
+  .ready-card.compact {
+    flex-direction: row; align-items: center; gap: 10px;
+    padding: 8px 12px; margin-bottom: 8px; border-radius: var(--r-md);
+    box-shadow: inset 3px 0 0 var(--warn-edge);
+  }
+  .ready-card.compact .ready-text { font-size: 13px; flex-grow: 1; min-width: 0; }
+  .ready-card.compact .ready-actions { gap: 12px; flex-shrink: 0; }
+  .ready-link {
+    background: none; border: 0; padding: 0; font: inherit; font-size: 13px; font-weight: 700;
+    color: var(--ink); text-decoration: underline; cursor: pointer; min-height: 32px;
+  }
+  .totals-strip { padding: 6px 12px; min-height: 36px; gap: 10px; }
+  .active-range-caption { margin: 0 0 8px; padding: 6px 10px; font-size: 12px; }
 
   /* Chat bubbles can use more of the narrow screen. */
   .chat-msg { max-width: 92%; }
@@ -1269,8 +1295,8 @@ a { color: var(--ink); }
   .instructions-body, .detail-form { padding-bottom: 24px; }
 }
 
-/* Very narrow phones: keep the header to the mark and the icons. */
-@media (max-width: 340px) {
+/* Narrow phones: the header keeps the mark, the icons and Ask; the word goes. */
+@media (max-width: 400px) {
   .page.dashboard .app-header h1 { display: none; }
 }
 
